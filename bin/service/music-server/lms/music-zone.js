@@ -1,6 +1,7 @@
 'use strict';
 
 const MusicList = require('./music-list');
+const LMSClient = require('./lms-client');
 
 module.exports = class MusicZone {
   constructor(musicServer, id) {
@@ -16,7 +17,7 @@ module.exports = class MusicZone {
       id: '',
       mode: 'stop',
       time: 0,
-      volume: 50,
+      volume: 0,
       repeat: 0,
       shuffle: 0,
     };
@@ -25,12 +26,25 @@ module.exports = class MusicZone {
 
     this._favorites = new MusicList(musicServer, this._url() + '/favorites');
     this._queue = new MusicList(musicServer, this._url() + '/queue');
+    this._client = new LMSClient('dc%3A44%3A6d%3Acb%3Acf%3Aae', (data) => { this.onLMSNotification(data); });
 
     // We have to query for state regardless of the internal one, because the
     // state could be updated from the outside.
-    setInterval(this.getState.bind(this), 5000);
+    //setInterval(this.getState.bind(this), 5000);
 
     this.getState();
+  }
+
+  async onLMSNotification(data) {
+    console.log("NOTIFICATION ", data)
+    // Current song changed
+    if (data.startsWith("playlist newsong")) {
+        await this.getCurrentTrack();
+        this._pushAudioEvent();
+    } else if (data.startsWith("time")) {
+        await this.getCurrentTime();
+        this._pushAudioEvent();
+    }
   }
 
   async getEqualizer() {
@@ -67,12 +81,62 @@ module.exports = class MusicZone {
     }
   }
 
+  async getCurrentTime() {
+        let time = parseFloat(await this._client.command('time ?'))
+        this._player.time = time * 1000
+        this._updateTime = Date.now()
+  }
+
+  // A Track is always updated as a whole, all others are updated when changed
+  async getCurrentTrack() {
+        let path = await this._client.command('path ?')
+        let title = await this._client.command('title ?')
+        let artist = await this._client.command('artist ?')
+        // TODO some of the things here doesn't work  in  case of a radio station
+        let album = await this._client.command('album ?')
+        let duration = parseFloat(await this._client.command('duration ?'))
+        // songinfo, only artwork_url
+        let artwork_url = await this._client.command('songinfo 0 100 url%3A' + path + ' tags%3AK')
+        let artwork_key = 'artwork_url%3A'
+        let idx = artwork_url.lastIndexOf(artwork_key)
+        artwork_url = unescape(artwork_url.slice(idx + artwork_key.length));
+
+        console.log("ARTWORK", artwork_url)
+
+        duration = duration * 1000
+
+        this._track = {
+            "id": path, // Opaque identifier, you can pass anything you want.
+            "title": title,
+            "album": album,
+            "artist": artist,
+            "duration": duration, // In milliseconds.
+            "image": artwork_url, // Usually the cover URL, but you can also pass an SVG.
+        }
+        console.log(JSON.stringify(this._track))
+  }
+
   async getState() {
-    try {
-      await this._sendPlayerCommand('GET', '/state');
-    } catch (err) {
-      console.error('[ERR!] Could not get player "state": ' + err.message);
-    }
+        let volume = await this._client.command('mixer volume ?')
+        let repeat = await this._client.command('playlist repeat ?')
+        let shuffle = await this._client.command('playlist shuffle ?')
+        let mode = await this._client.command('mode ?')
+
+        this._player = {
+            "id": "foo", // Opaque identifier, you can pass anything you want.
+            "mode": mode,
+            "time": 0, // will be updated with the next call
+            "volume": volume, // [0, 100] range for volume (0 = muted, 100 = maximum).
+            "repeat": repeat , // Repeat mode (0 = none, 1 = track, 2 = context).
+            "shuffle": shuffle , // Shuffle mode (0 = not shuffled, 1 = shuffled).
+        }
+        console.log("FOOO")
+        await this.getCurrentTime()
+        console.log(JSON.stringify(this._player))
+
+        await this.getCurrentTrack()
+
+        this._musicServer.pushQueueEvent(this);
   }
 
   getPower() {
@@ -183,205 +247,63 @@ module.exports = class MusicZone {
   }
 
   async pause() {
-    const transaction = this._transaction();
-
     this._setMode('pause');
-
-    transaction.end();
-
-    try {
-      await this._sendPlayerCommand('POST', '/pause');
-    } catch (err) {
-      if (err.type === 'BACKEND_ERROR') {
-        console.error('[ERR!] Invalid reply for "pause": ' + err.message);
-        transaction.rollback();
-      } else {
-        console.error('[ERR!] Default behavior for "pause": ' + err.message);
-      }
-    }
   }
 
   async resume() {
-    const transaction = this._transaction();
-
-    this._player.time = this.getTime();
     this._setMode('buffer');
-
-    transaction.end();
-
-    try {
-      await this._sendPlayerCommand('POST', '/resume');
-    } catch (err) {
-      if (err.type === 'BACKEND_ERROR') {
-        console.error('[ERR!] Invalid reply for "resume": ' + err.message);
-        transaction.rollback();
-      } else {
-        console.error('[ERR!] Default behavior for "resume": ' + err.message);
-        this._setMode('play');
-      }
-    }
   }
 
   async stop() {
-    const transaction = this._transaction();
-
     this._setMode('stop');
-
-    transaction.end();
-
-    try {
-      await this._sendPlayerCommand('POST', '/stop');
-    } catch (err) {
-      if (err.type === 'BACKEND_ERROR') {
-        console.error('[ERR!] Invalid reply for "stop": ' + err.message);
-        transaction.rollback();
-      } else {
-        console.error('[ERR!] Default behavior for "stop": ' + err.message);
-      }
-    }
   }
 
   async time(time) {
-    const transaction = this._transaction();
-
     this._player.time = time;
-    this._setMode('buffer');
-
-    transaction.end();
-
-    try {
-      await this._sendPlayerCommand('POST', '/time/' + time);
-    } catch (err) {
-      if (err.type === 'BACKEND_ERROR') {
-        console.error('[ERR!] Invalid reply for "time": ' + err.message);
-        transaction.rollback();
-      } else {
-        console.error('[ERR!] Default behavior for "time": ' + err.message);
-        this._setMode('play');
-        this._player.time = time;
-        this._updateTime = Date.now();
-      }
-    }
+    await this._client.command('time ' + this._player.time / 1000)
 
     this._pushAudioEvent();
   }
 
   async volume(volume) {
-    const transaction = this._transaction();
-
     this._player.volume = Math.min(Math.max(+volume, 0), 100);
 
-    transaction.end();
-
-    try {
-      await this._sendPlayerCommand('POST', '/volume/' + this._player.volume);
-    } catch (err) {
-      if (err.type === 'BACKEND_ERROR') {
-        console.error('[ERR!] Invalid reply for "volume": ' + err.message);
-        transaction.rollback();
-      } else {
-        console.error('[ERR!] Default behavior for "volume": ' + err.message);
-      }
-    }
+    await this._client.command('mixer volume ' + this._player.volume)
 
     this._pushAudioEvent();
   }
 
   async repeat(repeat) {
-    const transaction = this._transaction();
-
     if (repeat === 0 || repeat === 1 || repeat === 2) {
       this._player.repeat = repeat;
     } else {
       this._player.repeat = (this._repeat + 1) % 3;
     }
 
-    transaction.end();
-
-    try {
-      await this._sendPlayerCommand('POST', '/repeat/' + repeat);
-    } catch (err) {
-      if (err.type === 'BACKEND_ERROR') {
-        console.error('[ERR!] Invalid reply for "repeat": ' + err.message);
-        transaction.rollback();
-      } else {
-        console.error('[ERR!] Default behavior for "repeat": ' + err.message);
-      }
-    }
+    await this._client.command('playlist repeat ' + this._player.repeat)
 
     this._pushAudioEvent();
   }
 
   async shuffle(shuffle) {
-    const transaction = this._transaction();
-
     if (shuffle === 0 || shuffle === 1) {
       this._player.shuffle = shuffle;
     } else {
       this._player.shuffle = (this._shuffle + 1) % 2;
     }
 
-    transaction.end();
-
-    try {
-      await this._sendPlayerCommand('POST', '/shuffle/' + shuffle);
-    } catch (err) {
-      if (err.type === 'BACKEND_ERROR') {
-        console.error('[ERR!] Invalid reply for "shuffle": ' + err.message);
-        transaction.rollback();
-      } else {
-        console.error('[ERR!] Default behavior for "shuffle": ' + err.message);
-      }
-    }
+    await this._client.command('playlist shuffle ' + this._player.shuffle)
 
     this._pushAudioEvent();
   }
 
   async previous() {
-    const transaction = this._transaction();
-
-    this._track = this._getEmptyTrack();
-    this._player.time = 0;
-    this._setMode('buffer');
-
-    transaction.end();
-
-    try {
-      await this._sendPlayerCommand('POST', '/previous');
-    } catch (err) {
-      if (err.type === 'BACKEND_ERROR') {
-        console.error('[ERR!] Invalid reply for "previous": ' + err.message);
-        transaction.rollback();
-      } else {
-        console.error('[ERR!] Default behavior for "previous": ' + err.message);
-        this._setMode('play');
-      }
-    }
-
+    await this._client.command('playlist index -1')
     this._pushAudioEvent();
   }
 
   async next() {
-    const transaction = this._transaction();
-
-    this._track = this._getEmptyTrack();
-    this._player.time = 0;
-    this._setMode('buffer');
-
-    transaction.end();
-
-    try {
-      await this._sendPlayerCommand('POST', '/next');
-    } catch (err) {
-      if (err.type === 'BACKEND_ERROR') {
-        console.error('[ERR!] Invalid reply for "next": ' + err.message);
-        transaction.rollback();
-      } else {
-        console.error('[ERR!] Default behavior for "next": ' + err.message);
-        this._setMode('play');
-      }
-    }
-
+    await this._client.command('playlist index +1')
     this._pushAudioEvent();
   }
 
@@ -395,14 +317,15 @@ module.exports = class MusicZone {
     this._pushAudioEvent();
   }
 
-  _setMode(mode) {
+  async _setMode(mode) {
     this._player.mode = mode;
-    this._player.time = this.getTime();
-    this._updateTime = Date.now();
+    await this.getCurrentTime();
 
-    if (mode !== 'stop') {
-      this.power('on');
-    }
+    await this._client.command('mode ' + this._player.mode)
+
+//    if (mode !== 'stop') {
+//      this.power('on');
+//    }
 
     this._pushAudioEvent();
   }
