@@ -12,6 +12,7 @@ module.exports = class MusicZone {
     this._updateTime = NaN;
 
     this._favoriteId = 0;
+    this._zone_id = 'dc%3A44%3A6d%3Acb%3Acf%3Aae';
 
     this._player = {
       id: '',
@@ -24,9 +25,9 @@ module.exports = class MusicZone {
 
     this._track = this._getEmptyTrack();
 
-    this._favorites = new MusicList(musicServer, this._url() + '/favorites');
-    this._queue = new MusicList(musicServer, this._url() + '/queue');
-    this._client = new LMSClient('dc%3A44%3A6d%3Acb%3Acf%3Aae', (data) => { this.onLMSNotification(data); });
+    this._favorites = new MusicList(musicServer, this._url() + '/favorites', this._zone_id);
+    this._queue = new MusicList(musicServer, this._url() + '/queue', this._zone_id);
+    this._client = new LMSClient(this._zone_id, (data) => { this.onLMSNotification(data); });
 
     // We have to query for state regardless of the internal one, because the
     // state could be updated from the outside.
@@ -38,7 +39,7 @@ module.exports = class MusicZone {
   async onLMSNotification(data) {
     console.log("NOTIFICATION ", data)
     // Current song changed
-    if (data.startsWith("playlist newsong")) {
+    if (data.startsWith("playlist newsong") || data.startsWith("newmetadata")) {
         await this.getCurrentTrack();
         this._pushAudioEvent();
     } else if (data.startsWith("time")) {
@@ -92,14 +93,9 @@ module.exports = class MusicZone {
         let path = await this._client.command('path ?')
         let title = await this._client.command('title ?')
         let artist = await this._client.command('artist ?')
-        // TODO some of the things here doesn't work  in  case of a radio station
         let album = await this._client.command('album ?')
         let duration = parseFloat(await this._client.command('duration ?'))
-        // songinfo, only artwork_url
-        let artwork_url = await this._client.command('songinfo 0 100 url%3A' + path + ' tags%3AK')
-        let artwork_key = 'artwork_url%3A'
-        let idx = artwork_url.lastIndexOf(artwork_key)
-        artwork_url = unescape(artwork_url.slice(idx + artwork_key.length));
+        let artwork_url = await this._client.artworkFromUrl(path);
 
         console.log("ARTWORK", artwork_url)
 

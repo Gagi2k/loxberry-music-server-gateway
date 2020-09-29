@@ -7,24 +7,26 @@ module.exports = class LMSClient {
         this._id = id;
         this.data_callback = data_callback;
 
-        this.notifications = net.createConnection({ host: "192.168.1.6", port: 9090 }, () => {
-                                               console.debug('notifications!');
-                                               this.notifications.write('listen 1 \r\n');
-                                           });
-        this.notifications.on('data', (data) => {
-                                  var dataStr = data.toString();
-                                  console.log("<<<<<<<<<<<<<<<<<<<<", dataStr);
-                                  // check whether the notification is for us
-                                  // TODO only when used with id
-                                  //      we need a different way for global things like favorites
-                                  if (!dataStr.startsWith(this._id))
-                                      return
+        if (this.data_callback) {
+            this.notifications = net.createConnection({ host: "192.168.1.6", port: 9090 }, () => {
+                                                   console.debug('notifications!');
+                                                   this.notifications.write('listen 1 \r\n');
+                                               });
+            this.notifications.on('data', (data) => {
+                                      var dataStr = data.toString();
+                                      // console.log("<<<<<<<<<<<<<<<<<<<<", dataStrs);
+                                      // check whether the notification is for us
+                                      // TODO only when used with id
+                                      //      we need a different way for global things like favorites
+                                      if (!dataStr.startsWith(this._id))
+                                          return
 
-                                  // Remove the zone id from the notification
-                                  dataStr = dataStr.slice(this._id.length + 1);
+                                      // Remove the zone id from the notification
+                                      dataStr = dataStr.slice(this._id.length + 1);
 
-                                  this.data_callback(dataStr);
-                              });
+                                      this.data_callback(dataStr);
+                                  });
+        }
 
         this.telnet = net.createConnection({ host: "192.168.1.6", port: 9090 }, () => {
                                                console.debug('doTelnet connected to server!');
@@ -48,7 +50,7 @@ module.exports = class LMSClient {
     async command(cmd) {
         var returnValue = this._id + " " + cmd;
         if (cmd.endsWith("?")) {
-            returnValue = this._id + " " + cmd.slice(0, -1);
+            returnValue = this._id + " " + cmd.slice(0, -2);
         }
 
         return new Promise((resolve, reject) => {
@@ -62,6 +64,7 @@ module.exports = class LMSClient {
                                        processed = processed.replace(returnValue, "")
                                        processed = processed.replace("\r", '')
                                        processed = processed.replace("\n", '')
+                                       processed = processed.trim()
                                        resolve(processed);
                                    }
                                };
@@ -70,5 +73,72 @@ module.exports = class LMSClient {
                                console.log("REQUEST: ", this._id + " " + cmd)
                                this.telnet.write(this._id + " " + cmd + ' \r\n');
                            });
+    }
+
+
+    parseAdvancedQueryResponse(data, object_split_key, filteredKeys) {
+        // Remove leading/trailing white spaces
+        let count = 0
+        let response = data.trim();
+        let strings = response.split(' ')
+        let current_item = {}
+        let items = []
+        for (let i in strings) {
+            var str = strings[i];
+            var colon = '%3A';
+            var index = str.indexOf(colon)
+            var key = str.slice(0, index);
+            var value = str.slice(index + colon.length);
+//            console.log("STR ", str, index, key, value)
+
+            if (key == "count") {
+                count = parseInt(value);
+                continue
+            }
+
+            if (Array.isArray(filteredKeys)) {
+                if (filteredKeys.includes(key))
+                    continue
+            }
+
+            if (object_split_key) {
+                if (key == object_split_key) {
+                    if (Object.keys(current_item).length !== 0)
+                        items.push(current_item);
+                    current_item = {};
+                }
+            }
+            current_item[key] = value;
+        }
+        if (Object.keys(current_item).length !== 0)
+            items.push(current_item);
+//        console.log("ITEMS ", JSON.stringify(items))
+        return {
+            count: count,
+            items: items
+        };
+    }
+
+    async artworkFromUrl(url) {
+        if (!url)
+            return undefined;
+        // songinfo, only artwork_url
+        let response = await this.command('songinfo 0 100 url%3A' + url)
+        let item = this.parseAdvancedQueryResponse(response).items[0];
+
+        if ('artwork_track_id' in item) {
+            return "http://192.168.1.6:9000/music/" + item['artwork_track_id'] + "/cover"
+        }
+
+        let artwork_url = unescape(item['artwork_url']);
+        if (artwork_url.startsWith("http"))
+            return artwork_url;
+
+        if (!artwork_url.startsWith("/"))
+            artwork_url = "/" + artwork_url
+
+        console.log("URL", "http://192.168.1.6:9000" + artwork_url);
+
+        return "http://192.168.1.6:9000" + artwork_url;
     }
 }
