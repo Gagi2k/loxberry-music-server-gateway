@@ -5,6 +5,8 @@ var net = require('net');
 module.exports = class LMSClient {
     constructor(id, data_callback) {
         this._id = id;
+        if (!this._id)
+            this._id = ""
         this.data_callback = data_callback;
 
         if (this.data_callback) {
@@ -48,14 +50,16 @@ module.exports = class LMSClient {
     }
 
     async command(cmd) {
-        var returnValue = this._id + " " + cmd;
-        if (cmd.endsWith("?")) {
-            returnValue = this._id + " " + cmd.slice(0, -2);
-        }
+        var returnValue = cmd;
+        if (this._id)
+            returnValue = this._id + " " + returnValue
+        if (returnValue.endsWith("?"))
+            returnValue = returnValue.slice(0, -2);
 
         return new Promise((resolve, reject) => {
                                var responseListener = (data) => {
                                    var processed = data.toString()
+                                   console.log("RESPONSE", processed)
                                    if (processed.startsWith(returnValue)) {
                                        console.log("RESPONSE FOR: ", returnValue)
                                        console.log("RESPONSE: ", data.toString())
@@ -76,7 +80,7 @@ module.exports = class LMSClient {
     }
 
 
-    parseAdvancedQueryResponse(data, object_split_key, filteredKeys) {
+    parseAdvancedQueryResponse(data, object_split_key, filteredKeys, count_key = 'count') {
         // Remove leading/trailing white spaces
         let count = 0
         let response = data.trim();
@@ -91,7 +95,7 @@ module.exports = class LMSClient {
             var value = str.slice(index + colon.length);
 //            console.log("STR ", str, index, key, value)
 
-            if (key == "count") {
+            if (key == count_key) {
                 count = parseInt(value);
                 continue
             }
@@ -133,6 +137,16 @@ module.exports = class LMSClient {
         let artwork_url = unescape(item['artwork_url']);
         if (artwork_url.startsWith("http"))
             return artwork_url;
+
+        // Before accepting this default icon, try to be smart and parse the ID of the station
+        // and resolve the icon ourself
+        if (artwork_url == "plugins/TuneIn/html/images/icon.png") {
+            var regex = /id%3Ds(\d+)%26/
+            var match = regex.exec(url);
+            if (match[1]) {
+                return 'http://192.168.1.6:9000/imageproxy/http%3A%2F%2Fcdn-radiotime-logos.tunein.com%2Fs' + match[1] + 'q.png/image.png'
+            }
+        }
 
         if (!artwork_url.startsWith("/"))
             artwork_url = "/" + artwork_url
