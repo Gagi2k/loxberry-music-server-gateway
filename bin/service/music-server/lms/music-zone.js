@@ -216,30 +216,25 @@ module.exports = class MusicZone {
   }
 
   async play(id, favoriteId) {
-    const transaction = this._transaction();
+    console.log("PLAY  ", id, favoriteId)
 
-    this._favoriteId = favoriteId;
+    var type = Math.floor(favoriteId / 1000000);
+    var fav_id = favoriteId % 1000000;
+    var tag = undefined;
 
-    this._track = this._getEmptyTrack();
-    this._player.time = 0;
-    this._setMode('buffer');
+    console.log(type, fav_id)
 
-    transaction.end();
-
-    try {
-      await this._sendPlayerCommand(
-        'POST',
-        id === null ? '/play' : '/play/' + encodeURIComponent(id),
-      );
-    } catch (err) {
-      if (err.type === 'BACKEND_ERROR') {
-        console.error('[ERR!] Invalid reply for "play": ' + err.message);
-        transaction.rollback();
-      } else {
-        console.error('[ERR!] Default behavior for "play": ' + err.message);
-        this._setMode('play');
-      }
+    if (type == 0) {
+        setMode('play')
+        return;
+    } else if (type == 1 || type == 2) { //Fix me once we have zone favorites
+        await this._client.command('favorites playlist play item_id%3A' + id);
+        return;
+    } else if (type == 3) {
+        tag = "playlist_id%3A" + id
     }
+
+    await this._client.command('playlistcontrol cmd:load ' + tag);
   }
 
   async pause() {
@@ -247,7 +242,7 @@ module.exports = class MusicZone {
   }
 
   async resume() {
-    this._setMode('buffer');
+    this._setMode('play');
   }
 
   async stop() {
