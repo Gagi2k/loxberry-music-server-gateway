@@ -7,53 +7,56 @@ module.exports = class List {
     this._musicServer = musicServer;
     this._url = url;
     this._zone_id = zone_id;
-    if (url.endsWith("favorites"))
+
+    if (url.endsWith("favorites")) {
         this._client = new LMSClient(this._zone_id);
+        this.get_call = async (start, length) => {
+            let response = await this._client.command('favorites items ' + start + ' ' + length + ' want_url%3A1');
+            return this._client.parseAdvancedQueryResponse(response, 'id', ['title']);
+        }
+        this.title_prop = 'name'
+    } else if (url.endsWith("playlists")) {
+        this._client = new LMSClient(this._zone_id);
+        this.get_call = async (start, length) => {
+            let response = await this._client.command('playlists ' + start + ' ' + length);
+            return this._client.parseAdvancedQueryResponse(response, 'id');
+        }
+        this.title_prop = 'playlist'
+    } else if (url.endsWith("queue")) {
+        this._client = new LMSClient(this._zone_id);
+        this.get_call = async (start, length) => {
+//            let response = await this._client.command('playlist playlistsinfo');
+//            let id = this._client.parseAdvancedQueryResponse(response)[0].id;
+            let response = await this._client.command('status ' + start + ' ' + length);
+            let data = this._client.parseAdvancedQueryResponse(response, 'id', [''], "playlist_tracks");
+            return data;
+        }
+        this.title_prop = 'title'
+    }
 
     this._total = Infinity;
     this._items = [];
-
-    this._last = Promise.resolve();
-  }
-
-  reset(start = 0) {
-    this._total = Infinity;
-    this._items.splice(start, Infinity);
   }
 
   async get(start, length) {
-//    const items = this._items;
-//    const end = start + (length || 1);
-
-//    while (items.length < this._total && items.length < end) {
-//      let chunk = {items: [], total: 0};
-
-//      try {
-//        chunk = await this._call('GET', this._url + '/' + items.length);
-//      } catch (err) {
-//        console.error('[ERR!] Could not fetch list fragment: ' + err.message);
-//      }
-
-//      this._items.splice(items.length, Infinity, ...chunk.items);
-//      this._total = chunk.total;
-//    }
-
     let items = [];
     if (this._client) {
-        let response = await this._client.command('favorites items ' + start + " " + length + " want_url%3A1");
-        let obj = this._client.parseAdvancedQueryResponse(response, 'id', ['title']);
+        let obj = await this.get_call(start, length)
         this._total = obj.count;
         items = obj.items;
     }
 
     let processed = []
     for (var key in items) {
-      processed.push({
-                    id: items[key].id,
-                    title: items[key].name,
-                    image: await this._client.artworkFromUrl(items[key].url)
-                })
+        if (!items[key].id)
+            continue;
+        processed.push({
+                           id: items[key].id,
+                           title: items[key][this.title_prop],
+                           image: await this._client.artworkFromUrl(items[key].url)
+                       })
     }
+    console.log(this._total, JSON.stringify(processed))
 
     //Replace the correct items ?
     //How to emit changes in the list or a complete reset ?
@@ -65,15 +68,21 @@ module.exports = class List {
   }
 
   async insert(position, ...items) {
+    if (!this._client)
+        return
     await this._client.command('favorites add item_id%3A' + position + 'title%3A' + items.title + ' url%3A' + items.id);
   }
 
   async replace(position, ...items) {
+    if (!this._client)
+        return
      await this.delete(position, 1)
      await this.insert(position, ...items)
   }
 
   async delete(position, length) {
+    if (!this._client)
+        return
     for (var i=0; i<length; i++) {
         // TODO Test whether we need to really increase the position
         await this._client.command('favorites delete item_id%3A' + position + i);
