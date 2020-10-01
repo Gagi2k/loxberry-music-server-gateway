@@ -41,9 +41,15 @@ module.exports = class MusicZone {
     // Current song changed
     if (data.startsWith("playlist newsong") || data.startsWith("newmetadata")) {
         await this.getCurrentTrack();
+        await this.getCurrentTime();
         this._pushAudioEvent();
     } else if (data.startsWith("time")) {
         await this.getCurrentTime();
+        this._pushAudioEvent();
+    } else if (data.startsWith("playlist shuffle") ||
+               data.startsWith("playlist repeat")  ||
+               data.startsWith("mixer volume")) {
+        await this.getState();
         this._pushAudioEvent();
     }
   }
