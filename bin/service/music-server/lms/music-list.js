@@ -23,6 +23,16 @@ module.exports = class List {
             return this._client.parseAdvancedQueryResponse(response, 'id', ['title']);
         }
         this.title_prop = 'name'
+        this.insert_call = async (position, ...items) => {
+            await this._client.command('favorites add item_id%3A' + position + 'title%3A' + items.title + ' url%3A' + items.id);
+        }
+        this.delete_call = async (position, length) => {
+            for (var i=0; i<length; i++) {
+                // TODO Test whether we need to really increase the position
+                // TODO Check whether it is the position or the id which gets passed here
+                await this._client.command('favorites delete item_id%3A' + position + i);
+            }
+        }
     } else if (url.endsWith("playlists")) {
         this._client = new LMSClient(this._zone_id);
         this.get_call = async (start, length) => {
@@ -32,13 +42,23 @@ module.exports = class List {
         this.title_prop = 'playlist'
     } else if (url.endsWith("queue")) {
         this._client = new LMSClient(this._zone_id);
-        //TODO what do we need to listen for here ?
         this.get_call = async (start, length) => {
 //            let response = await this._client.command('playlist playlistsinfo');
 //            let id = this._client.parseAdvancedQueryResponse(response)[0].id;
             let response = await this._client.command('status ' + start + ' ' + length);
             let data = this._client.parseAdvancedQueryResponse(response, 'id', [''], "playlist_tracks");
             return data;
+        }
+        this.title_prop = 'title'
+    } else if (url.endsWith("library")) {
+        this._client = new LMSClient(this._zone_id);
+        this.get_call = async (start, length) => {
+            var data = [];
+            for (var i=0; i<10; i++) {
+                data.push({ id: i, title: "FOO " + i, image: undefined });
+            }
+
+            return { count: data.length, items: data }
         }
         this.title_prop = 'title'
     }
@@ -79,7 +99,12 @@ module.exports = class List {
   async insert(position, ...items) {
     if (!this._client)
         return
-    await this._client.command('favorites add item_id%3A' + position + 'title%3A' + items.title + ' url%3A' + items.id);
+    if (!this.insert_call) {
+        console.log("NOT IMPLEMENTED!")
+        return;
+    }
+
+    await this.insert_call(position, items)
   }
 
   async replace(position, ...items) {
@@ -92,10 +117,10 @@ module.exports = class List {
   async delete(position, length) {
     if (!this._client)
         return
-    for (var i=0; i<length; i++) {
-        // TODO Test whether we need to really increase the position
-        // TODO Check whether it is the position or the id which gets passed here
-        await this._client.command('favorites delete item_id%3A' + position + i);
+    if (!this.delete_call) {
+        console.log("NOT IMPLEMENTED!")
+        return;
     }
+    await this.delete_call(position, length)
   }
 };
