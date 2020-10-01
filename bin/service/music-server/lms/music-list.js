@@ -9,7 +9,15 @@ module.exports = class List {
     this._zone_id = zone_id;
 
     if (url.endsWith("favorites")) {
-        this._client = new LMSClient(this._zone_id);
+        this._client = new LMSClient(this._zone_id, (data) => {
+             if (data.startsWith("favorites")) {
+//                 if (this._zone_id)
+//                     //TODO We need to have the zone object here
+//                     musicServer._pushRoomFavChangedEvents();
+//                 else
+                     musicServer._pushFavoritesChangedEvent();
+             }
+         });
         this.get_call = async (start, length) => {
             let response = await this._client.command('favorites items ' + start + ' ' + length + ' want_url%3A1');
             return this._client.parseAdvancedQueryResponse(response, 'id', ['title']);
@@ -24,6 +32,7 @@ module.exports = class List {
         this.title_prop = 'playlist'
     } else if (url.endsWith("queue")) {
         this._client = new LMSClient(this._zone_id);
+        //TODO what do we need to listen for here ?
         this.get_call = async (start, length) => {
 //            let response = await this._client.command('playlist playlistsinfo');
 //            let id = this._client.parseAdvancedQueryResponse(response)[0].id;
@@ -85,6 +94,7 @@ module.exports = class List {
         return
     for (var i=0; i<length; i++) {
         // TODO Test whether we need to really increase the position
+        // TODO Check whether it is the position or the id which gets passed here
         await this._client.command('favorites delete item_id%3A' + position + i);
     }
   }
