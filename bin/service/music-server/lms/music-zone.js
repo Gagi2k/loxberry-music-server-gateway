@@ -2,6 +2,8 @@
 
 const MusicList = require('./music-list');
 const LMSClient = require('./lms-client');
+const fs = require('fs');
+const config = JSON.parse(fs.readFileSync("config.json"));
 
 module.exports = class MusicZone {
   constructor(musicServer, id) {
@@ -12,7 +14,7 @@ module.exports = class MusicZone {
     this._updateTime = NaN;
 
     this._favoriteId = 0;
-    this._zone_mac = 'dc%3A44%3A6d%3Acb%3Acf%3Aae';
+    this._zone_mac = config.zone_map[id];
 
     this._player = {
       id: '',
@@ -32,6 +34,10 @@ module.exports = class MusicZone {
     // We have to query for state regardless of the internal one, because the
     // state could be updated from the outside.
     //setInterval(this.getState.bind(this), 5000);
+    if (!this._zone_mac) {
+        console.error("No MAC configured for zone " + id);
+        return;
+    }
 
     this.getState();
   }
@@ -134,7 +140,6 @@ module.exports = class MusicZone {
             "repeat": repeat,
             "shuffle": shuffle,
         }
-        console.log("FOOO")
         await this.getCurrentTime()
         console.log(JSON.stringify(this._player))
 

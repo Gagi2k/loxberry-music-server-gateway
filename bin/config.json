@@ -1,0 +1,10 @@
+{
+    "plugin": "default",
+    "zones": 20,
+    "zone_map": {
+        "1": "<mac>"
+    },
+    "lms_host": "localhost",
+    "lms_port": 9000,
+    "lms_cli_port": 9090
+}

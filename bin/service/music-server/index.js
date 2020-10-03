@@ -3,9 +3,12 @@
 const http = require('http');
 const querystring = require('querystring');
 const websocket = require('websocket');
+const fs = require('fs');
 
-const MusicList = require('./music-list');
-const MusicZone = require('./music-zone');
+const config = JSON.parse(fs.readFileSync("config.json"));
+
+const MusicList = require(config.plugin == "lms" ? './lms/music-list' : './music-list');
+const MusicZone = require(config.plugin == "lms" ? './lms/music-zone' : './music-zone');
 
 const headers = {
   'Content-Type': 'text/plain; charset=utf-8',
@@ -27,10 +30,10 @@ const BASE_LIBRARY = 4 * BASE_DELTA;
 const BASE_INPUT = 5 * BASE_DELTA;
 
 module.exports = class MusicServer {
-  constructor(config) {
+  constructor(cfg) {
     const zones = [];
 
-    this._config = config;
+    this._config = cfg;
     this._zones = zones;
 
     this._imageStore = Object.create(null);
@@ -43,7 +46,7 @@ module.exports = class MusicServer {
     this._wsConnections = new Set();
     this._miniserverIp = null;
 
-    for (let i = 0; i < 20; i++) {
+    for (let i = 0; i < config.zones; i++) {
       zones[i] = new MusicZone(this, i + 1);
     }
   }
