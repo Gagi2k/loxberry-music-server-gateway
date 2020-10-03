@@ -3,10 +3,10 @@
 var net = require('net');
 
 module.exports = class LMSClient {
-    constructor(id, data_callback) {
-        this._id = id;
-        if (!this._id)
-            this._id = ""
+    constructor(mac, data_callback) {
+        this._mac = mac;
+        if (!this._mac)
+            this._mac = ""
         this.data_callback = data_callback;
 
         if (this.data_callback) {
@@ -20,11 +20,11 @@ module.exports = class LMSClient {
                                       // check whether the notification is for us
                                       // TODO only when used with id
                                       //      we need a different way for global things like favorites
-                                      if (!dataStr.startsWith(this._id))
+                                      if (!dataStr.startsWith(this._mac))
                                           return
 
                                       // Remove the zone id from the notification
-                                      dataStr = dataStr.slice(this._id.length + 1);
+                                      dataStr = dataStr.slice(this._mac.length + 1);
 
                                       this.data_callback(dataStr);
                                   });
@@ -51,8 +51,8 @@ module.exports = class LMSClient {
 
     async command(cmd) {
         var returnValue = cmd;
-        if (this._id)
-            returnValue = this._id + " " + returnValue
+        if (this._mac)
+            returnValue = this._mac + " " + returnValue
         if (returnValue.endsWith("?"))
             returnValue = returnValue.slice(0, -2);
 
@@ -74,8 +74,8 @@ module.exports = class LMSClient {
                                };
 
                                this.telnet.on('data', responseListener);
-//                               console.log("REQUEST: ", this._id + " " + cmd)
-                               this.telnet.write(this._id + " " + cmd + ' \r\n');
+//                               console.log("REQUEST: ", this._mac + " " + cmd)
+                               this.telnet.write(this._mac + " " + cmd + ' \r\n');
                            });
     }
 

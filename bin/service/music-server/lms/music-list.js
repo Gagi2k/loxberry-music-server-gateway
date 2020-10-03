@@ -8,11 +8,11 @@ module.exports = class List {
     this._musicServer = musicServer;
     this._url = url;
     this._zone = zone;
-    this._zone_id = zone ? zone._zone_id : undefined
+    this._zone_mac = zone ? zone._zone_mac : undefined
 
     if (url.endsWith("favorites")) {
-        if (!this._zone_id) {
-            this._client = new LMSClient(this._zone_id, (data) => {
+        if (!this._zone_mac) {
+            this._client = new LMSClient(this._zone_mac, (data) => {
                  if (data.startsWith("favorites")) {
                      this.reset()
                      musicServer._pushFavoritesChangedEvent();
@@ -74,7 +74,7 @@ module.exports = class List {
             }
         }
     } else if (url.endsWith("playlists")) {
-        this._client = new LMSClient(this._zone_id);
+        this._client = new LMSClient(this._zone_mac);
         this.get_call = async (start, length) => {
             let response = await this._client.command('playlists ' + start + ' ' + length + " tags%3Au%3Aplaylist");
             let data = this._client.parseAdvancedQueryResponse(response, 'id');
@@ -90,7 +90,7 @@ module.exports = class List {
             return data
         }
     } else if (url.endsWith("queue")) {
-        this._client = new LMSClient(this._zone_id, (data) => {
+        this._client = new LMSClient(this._zone_mac, (data) => {
              if (data.startsWith("playlist loadtracks")) {
 //             if (data.startsWith("playlist load")) {
                 console.log("TRIGGER QUEUE REFRESH")
@@ -115,11 +115,11 @@ module.exports = class List {
         }
         this.title_prop = 'title'
     } else if (url.endsWith("library")) {
-        this._client = new LMSClient(this._zone_id);
+        this._client = new LMSClient(this._zone_mac);
         this.get_call = async (start, length) => {
             var data = [];
             for (var i=0; i<10; i++) {
-                data.push({ id: i, title: "FOO " + i});
+                data.push({ id: i, title: "FOO " + i, type:1});
             }
 
             return { count: data.length, items: data }

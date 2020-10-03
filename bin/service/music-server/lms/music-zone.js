@@ -12,7 +12,7 @@ module.exports = class MusicZone {
     this._updateTime = NaN;
 
     this._favoriteId = 0;
-    this._zone_id = 'dc%3A44%3A6d%3Acb%3Acf%3Aae';
+    this._zone_mac = 'dc%3A44%3A6d%3Acb%3Acf%3Aae';
 
     this._player = {
       id: '',
@@ -27,7 +27,7 @@ module.exports = class MusicZone {
 
     this._favorites = new MusicList(musicServer, this._url() + '/favorites', this);
     this._queue = new MusicList(musicServer, this._url() + '/queue', this);
-    this._client = new LMSClient(this._zone_id, (data) => { this.onLMSNotification(data); });
+    this._client = new LMSClient(this._zone_mac, (data) => { this.onLMSNotification(data); });
 
     // We have to query for state regardless of the internal one, because the
     // state could be updated from the outside.
