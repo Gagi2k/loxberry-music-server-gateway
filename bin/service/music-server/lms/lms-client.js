@@ -59,10 +59,10 @@ module.exports = class LMSClient {
         return new Promise((resolve, reject) => {
                                var responseListener = (data) => {
                                    var processed = data.toString()
-                                   console.log("RESPONSE", processed)
+//                                   console.log("RESPONSE", processed)
                                    if (processed.startsWith(returnValue)) {
-                                       console.log("RESPONSE FOR: ", returnValue)
-                                       console.log("RESPONSE: ", data.toString())
+//                                       console.log("RESPONSE FOR: ", returnValue)
+//                                       console.log("RESPONSE: ", data.toString())
                                        // Once we have the response we wait for return
                                        this.telnet.removeListener('data', responseListener);
                                        processed = processed.replace(returnValue, "")
@@ -74,7 +74,7 @@ module.exports = class LMSClient {
                                };
 
                                this.telnet.on('data', responseListener);
-                               console.log("REQUEST: ", this._id + " " + cmd)
+//                               console.log("REQUEST: ", this._id + " " + cmd)
                                this.telnet.write(this._id + " " + cmd + ' \r\n');
                            });
     }
@@ -123,13 +123,34 @@ module.exports = class LMSClient {
         };
     }
 
+    async artworkFromQueueIndex(index) {
+        if (!index)
+            return undefined;
+        console.log("ARTWORK FOR INDEX ", index)
+        let path = await this.command('playlist path ' + index + ' ?')
+
+        return await this.artworkFromUrl(path)
+    }
+
+    async artworkFromTrackId(id) {
+        if (!id)
+            return undefined;
+        let response = await this.command('songinfo 0 100 track_id%3A' + id)
+        let item = this.parseAdvancedQueryResponse(response).items[0];
+
+        return this.extractArtwork("", item);
+    }
+
     async artworkFromUrl(url) {
         if (!url)
             return undefined;
-        // songinfo, only artwork_url
         let response = await this.command('songinfo 0 100 url%3A' + url)
         let item = this.parseAdvancedQueryResponse(response).items[0];
 
+        return this.extractArtwork(url, item);
+    }
+
+    extractArtwork(url, item) {
         if ('artwork_track_id' in item) {
             return "http://192.168.1.6:9000/music/" + item['artwork_track_id'] + "/cover"
         }
@@ -143,7 +164,7 @@ module.exports = class LMSClient {
         if (artwork_url == "plugins/TuneIn/html/images/icon.png") {
             var regex = /id%3Ds(\d+)%26/
             var match = regex.exec(url);
-            if (match[1]) {
+            if (match && match[1]) {
                 return 'http://192.168.1.6:9000/imageproxy/http%3A%2F%2Fcdn-radiotime-logos.tunein.com%2Fs' + match[1] + 'q.png/image.png'
             }
         }
