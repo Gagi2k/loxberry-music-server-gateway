@@ -25,8 +25,8 @@ module.exports = class MusicZone {
 
     this._track = this._getEmptyTrack();
 
-    this._favorites = new MusicList(musicServer, this._url() + '/favorites', this._zone_id);
-    this._queue = new MusicList(musicServer, this._url() + '/queue', this._zone_id);
+    this._favorites = new MusicList(musicServer, this._url() + '/favorites', this);
+    this._queue = new MusicList(musicServer, this._url() + '/queue', this);
     this._client = new LMSClient(this._zone_id, (data) => { this.onLMSNotification(data); });
 
     // We have to query for state regardless of the internal one, because the

@@ -3,26 +3,37 @@
 const LMSClient = require('./lms-client');
 
 module.exports = class List {
-  constructor(musicServer, url, zone_id) {
+  constructor(musicServer, url, zone) {
     this._musicServer = musicServer;
     this._url = url;
-    this._zone_id = zone_id;
+    this._zone = zone;
+    this._zone_id = zone ? zone._zone_id : undefined
 
     if (url.endsWith("favorites")) {
         this._client = new LMSClient(this._zone_id, (data) => {
              if (data.startsWith("favorites")) {
-//                 if (this._zone_id)
-//                     //TODO We need to have the zone object here
-//                     musicServer._pushRoomFavChangedEvents();
-//                 else
+                 this.reset()
+                 if (this._zone)
+                     //TODO We need to have the zone object here
+                     musicServer._pushRoomFavChangedEvents([this._zone]);
+                 else
                      musicServer._pushFavoritesChangedEvent();
              }
          });
         this.get_call = async (start, length) => {
             let response = await this._client.command('favorites items ' + start + ' ' + length + ' want_url%3A1');
-            return this._client.parseAdvancedQueryResponse(response, 'id', ['title']);
+            let data = this._client.parseAdvancedQueryResponse(response, 'id', ['title']);
+            let items = data.items;
+            data.items = []
+            for (var key in items) {
+                data.items.push({
+                                   id: items[key].id,
+                                   title: items[key]["name"],
+                                   image: await this._client.artworkFromUrl(items[key].url)
+                               })
+            }
+            return data
         }
-        this.title_prop = 'name'
         this.insert_call = async (position, ...items) => {
             await this._client.command('favorites add item_id%3A' + position + 'title%3A' + items.title + ' url%3A' + items.id);
         }
@@ -37,17 +48,40 @@ module.exports = class List {
         this._client = new LMSClient(this._zone_id);
         this.get_call = async (start, length) => {
             let response = await this._client.command('playlists ' + start + ' ' + length);
-            return this._client.parseAdvancedQueryResponse(response, 'id');
+            let data = this._client.parseAdvancedQueryResponse(response, 'id');
+            let items = data.items;
+            data.items = []
+            for (var key in items) {
+                data.items.push({
+                                   id: items[key].id,
+                                   title: items[key]["playlist"],
+                                   image: await this._client.artworkFromUrl(items[key].url)
+                               })
+            }
+            return data
         }
-        this.title_prop = 'playlist'
     } else if (url.endsWith("queue")) {
-        this._client = new LMSClient(this._zone_id);
+        this._client = new LMSClient(this._zone_id, (data) => {
+             if (data.startsWith("playlist loadtracks")) {
+//             if (data.startsWith("playlist load")) {
+                console.log("TRIGGER QUEUE REFRESH")
+                this.reset();
+                musicServer.pushQueueEvent(this._zone)
+             }
+         });
         this.get_call = async (start, length) => {
-//            let response = await this._client.command('playlist playlistsinfo');
-//            let id = this._client.parseAdvancedQueryResponse(response)[0].id;
             let response = await this._client.command('status ' + start + ' ' + length);
             let data = this._client.parseAdvancedQueryResponse(response, 'id', [''], "playlist_tracks");
-            return data;
+            let items = data.items.slice(1);
+            data.items = []
+            for (var key in items) {
+                data.items.push({
+                                   id: items[key].id,
+                                   title: items[key]["playlist"],
+                                   image: await this._client.artworkFromQueueIndex(key)
+                               })
+            }
+            return data
         }
         this.title_prop = 'title'
     } else if (url.endsWith("library")) {
@@ -55,7 +89,7 @@ module.exports = class List {
         this.get_call = async (start, length) => {
             var data = [];
             for (var i=0; i<10; i++) {
-                data.push({ id: i, title: "FOO " + i, image: undefined });
+                data.push({ id: i, title: "FOO " + i});
             }
 
             return { count: data.length, items: data }
@@ -67,33 +101,35 @@ module.exports = class List {
     this._items = [];
   }
 
+  reset(start = 0) {
+    this._total = Infinity;
+    this._items.splice(start, Infinity);
+  }
+
   async get(start, length) {
-    let items = [];
-    if (this._client) {
-        let obj = await this.get_call(start, length)
-        this._total = obj.count;
-        items = obj.items;
-    }
+    const items = this._items;
+    const end = start + (length || 1);
 
-    let processed = []
-    for (var key in items) {
-        if (!items[key].id)
-            continue;
-        processed.push({
-                           id: items[key].id,
-                           title: items[key][this.title_prop],
-                           image: await this._client.artworkFromUrl(items[key].url)
-                       })
-    }
-    console.log(this._total, JSON.stringify(processed))
+    while (this._items.length < this._total && this._items.length < end) {
+        let chunk = {items: [], total: 0};
 
-    //Replace the correct items ?
-    //How to emit changes in the list or a complete reset ?
+        if (this._client) {
+            let obj = await this.get_call(start, length)
+            chunk.total = obj.count;
+            chunk.items = obj.items;
+        }
+
+        console.log(chunk.total, items.length, JSON.stringify(chunk.items))
+
+      this._items.splice(items.length, 0, ...chunk.items);
+      this._total = chunk.total;
+    }
 
     return {
       total: this._total,
-      items: processed,
+      items: this._items.slice(start, end),
     };
+
   }
 
   async insert(position, ...items) {
