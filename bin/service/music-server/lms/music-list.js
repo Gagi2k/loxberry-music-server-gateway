@@ -1,6 +1,7 @@
 'use strict';
 
 const LMSClient = require('./lms-client');
+const fs = require('fs');
 
 module.exports = class List {
   constructor(musicServer, url, zone) {
@@ -10,38 +11,67 @@ module.exports = class List {
     this._zone_id = zone ? zone._zone_id : undefined
 
     if (url.endsWith("favorites")) {
-        this._client = new LMSClient(this._zone_id, (data) => {
-             if (data.startsWith("favorites")) {
-                 this.reset()
-                 if (this._zone)
-                     //TODO We need to have the zone object here
-                     musicServer._pushRoomFavChangedEvents([this._zone]);
-                 else
+        if (!this._zone_id) {
+            this._client = new LMSClient(this._zone_id, (data) => {
+                 if (data.startsWith("favorites")) {
+                     this.reset()
                      musicServer._pushFavoritesChangedEvent();
-             }
-         });
-        this.get_call = async (start, length) => {
-            let response = await this._client.command('favorites items ' + start + ' ' + length + ' want_url%3A1');
-            let data = this._client.parseAdvancedQueryResponse(response, 'id', ['title']);
-            let items = data.items;
-            data.items = []
-            for (var key in items) {
-                data.items.push({
-                                   id: items[key].id,
-                                   title: items[key]["name"],
-                                   image: await this._client.artworkFromUrl(items[key].url)
-                               })
+                 }
+             });
+            this.get_call = async (start, length) => {
+                console.log("GET GLOBAL FAV")
+                let response = await this._client.command('favorites items ' + start + ' ' + length + ' want_url%3A1');
+                let data = this._client.parseAdvancedQueryResponse(response, 'id', ['title']);
+                let items = data.items;
+                data.items = []
+                for (var key in items) {
+                    data.items.push({
+                                       id: items[key].id,
+                                       title: items[key]["name"],
+                                       image: await this._client.artworkFromUrl(items[key].url)
+                                   })
+                }
+                return data
             }
-            return data
-        }
-        this.insert_call = async (position, ...items) => {
-            await this._client.command('favorites add item_id%3A' + position + 'title%3A' + items.title + ' url%3A' + items.id);
-        }
-        this.delete_call = async (position, length) => {
-            for (var i=0; i<length; i++) {
-                // TODO Test whether we need to really increase the position
-                // TODO Check whether it is the position or the id which gets passed here
-                await this._client.command('favorites delete item_id%3A' + position + i);
+            this.insert_call = async (position, ...items) => {
+                await this._client.command('favorites add item_id%3A' + position + 'title%3A' + items.title + ' url%3A' + items.id);
+            }
+            this.delete_call = async (position, length) => {
+                for (var i=0; i<length; i++) {
+                    // TODO Test whether we need to really increase the position
+                    // TODO Check whether it is the position or the id which gets passed here
+                    var item = +position + i
+                                    console.log("CALL", 'favorites delete item_id%3A' + item)
+                    await this._client.command('favorites delete item_id%3A' + item);
+                }
+            }
+        } else { // zone favorites
+            console.log("CREATE ROOM FAV")
+            let fileName = 'zone_favorite_' + this._zone._id + '.json'
+            let fav_items = [{id:0, title: "Dummy"}]
+            if (fs.existsSync(fileName)) {
+                let rawdata = fs.readFileSync(fileName);
+                fav_items = JSON.parse(rawdata);
+            }
+
+            this.get_call = async (start, length) => {
+                console.log("ROOM FAV", fav_items)
+                return { count: fav_items.length, items: fav_items };
+            }
+            this.insert_call = async (position, ...items) => {
+                console.log("INSERT FAV", position, ...items)
+                fav_items.splice(fav_items.length, 0, ...items)
+                let data = JSON.stringify(fav_items);
+                fs.writeFileSync(fileName, data);
+                this.reset()
+                musicServer._pushRoomFavChangedEvents([this._zone]);
+            }
+            this.delete_call = async (position, length) => {
+                fav_items.splice(position, length)
+                let data = JSON.stringify(fav_items);
+                fs.writeFileSync(fileName, data);
+                this.reset()
+                musicServer._pushRoomFavChangedEvents([this._zone]);
             }
         }
     } else if (url.endsWith("playlists")) {
@@ -113,7 +143,7 @@ module.exports = class List {
     while (this._items.length < this._total && this._items.length < end) {
         let chunk = {items: [], total: 0};
 
-        if (this._client) {
+        if (this.get_call) {
             let obj = await this.get_call(start, length)
             chunk.total = obj.count;
             chunk.items = obj.items;
@@ -133,26 +163,23 @@ module.exports = class List {
   }
 
   async insert(position, ...items) {
-    if (!this._client)
-        return
+    console.log("INSERT", position, ...items)
     if (!this.insert_call) {
         console.log("NOT IMPLEMENTED!")
         return;
     }
 
-    await this.insert_call(position, items)
+    await this.insert_call(position, ...items)
   }
 
   async replace(position, ...items) {
-    if (!this._client)
-        return
+    console.log("REPLACE", position, ...items)
      await this.delete(position, 1)
      await this.insert(position, ...items)
   }
 
   async delete(position, length) {
-    if (!this._client)
-        return
+    console.log("DELETE", position, length)
     if (!this.delete_call) {
         console.log("NOT IMPLEMENTED!")
         return;
