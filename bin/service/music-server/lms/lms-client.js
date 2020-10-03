@@ -1,6 +1,8 @@
 'use strict';
 
 var net = require('net');
+const fs = require('fs');
+const config = JSON.parse(fs.readFileSync("config.json"));
 
 module.exports = class LMSClient {
     constructor(mac, data_callback) {
@@ -10,16 +12,13 @@ module.exports = class LMSClient {
         this.data_callback = data_callback;
 
         if (this.data_callback) {
-            this.notifications = net.createConnection({ host: "192.168.1.6", port: 9090 }, () => {
-                                                   console.debug('notifications!');
+            this.notifications = net.createConnection({ host: config.lms_host, port: config.lms_cli_port }, () => {
                                                    this.notifications.write('listen 1 \r\n');
                                                });
             this.notifications.on('data', (data) => {
                                       var dataStr = data.toString();
                                       // console.log("<<<<<<<<<<<<<<<<<<<<", dataStrs);
                                       // check whether the notification is for us
-                                      // TODO only when used with id
-                                      //      we need a different way for global things like favorites
                                       if (!dataStr.startsWith(this._mac))
                                           return
 
@@ -30,7 +29,7 @@ module.exports = class LMSClient {
                                   });
         }
 
-        this.telnet = net.createConnection({ host: "192.168.1.6", port: 9090 }, () => {
+        this.telnet = net.createConnection({ host: config.lms_host, port: config.lms_cli_port }, () => {
                                                console.debug('doTelnet connected to server!');
                                            });
         this.telnet.on('end', () => {
@@ -143,7 +142,7 @@ module.exports = class LMSClient {
 
     extractArtwork(url, item) {
         if ('artwork_track_id' in item) {
-            return "http://192.168.1.6:9000/music/" + item['artwork_track_id'] + "/cover"
+            return "http://" + config.lms_host + ":" + config.lms_port + "/music/" + item['artwork_track_id'] + "/cover"
         }
 
         if ('artwork_url' in item) {
@@ -157,14 +156,14 @@ module.exports = class LMSClient {
                 var regex = /id%3Ds(\d+)%26/
                 var match = regex.exec(url);
                 if (match && match[1]) {
-                    return 'http://192.168.1.6:9000/imageproxy/http%3A%2F%2Fcdn-radiotime-logos.tunein.com%2Fs' + match[1] + 'q.png/image.png'
+                    return "http://" + config.lms_host + ":" + config.lms_port + '/imageproxy/http%3A%2F%2Fcdn-radiotime-logos.tunein.com%2Fs' + match[1] + 'q.png/image.png'
                 }
             }
 
             if (!artwork_url.startsWith("/"))
                 artwork_url = "/" + artwork_url
 
-            return "http://192.168.1.6:9000" + artwork_url;
+            return "http://" + config.lms_host + ":" + config.lms_port + artwork_url;
         }
 
         return undefined
