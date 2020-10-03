@@ -146,26 +146,28 @@ module.exports = class LMSClient {
             return "http://192.168.1.6:9000/music/" + item['artwork_track_id'] + "/cover"
         }
 
-        let artwork_url = unescape(item['artwork_url']);
-        if (artwork_url.startsWith("http"))
-            return artwork_url;
+        if ('artwork_url' in item) {
+            let artwork_url = unescape(item['artwork_url']);
+            if (artwork_url.startsWith("http"))
+                return artwork_url;
 
-        // Before accepting this default icon, try to be smart and parse the ID of the station
-        // and resolve the icon ourself
-        if (artwork_url == "plugins/TuneIn/html/images/icon.png") {
-            var regex = /id%3Ds(\d+)%26/
-            var match = regex.exec(url);
-            if (match && match[1]) {
-                return 'http://192.168.1.6:9000/imageproxy/http%3A%2F%2Fcdn-radiotime-logos.tunein.com%2Fs' + match[1] + 'q.png/image.png'
+            // Before accepting this default icon, try to be smart and parse the ID of the station
+            // and resolve the icon ourself
+            if (artwork_url == "plugins/TuneIn/html/images/icon.png") {
+                var regex = /id%3Ds(\d+)%26/
+                var match = regex.exec(url);
+                if (match && match[1]) {
+                    return 'http://192.168.1.6:9000/imageproxy/http%3A%2F%2Fcdn-radiotime-logos.tunein.com%2Fs' + match[1] + 'q.png/image.png'
+                }
             }
+
+            if (!artwork_url.startsWith("/"))
+                artwork_url = "/" + artwork_url
+
+            return "http://192.168.1.6:9000" + artwork_url;
         }
 
-        if (!artwork_url.startsWith("/"))
-            artwork_url = "/" + artwork_url
-
-        console.log("URL", "http://192.168.1.6:9000" + artwork_url);
-
-        return "http://192.168.1.6:9000" + artwork_url;
+        return undefined
     }
 
     parseId(str) {
