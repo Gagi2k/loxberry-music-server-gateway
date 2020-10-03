@@ -123,15 +123,6 @@ module.exports = class LMSClient {
         };
     }
 
-    async artworkFromQueueIndex(index) {
-        if (!index)
-            return undefined;
-        console.log("ARTWORK FOR INDEX ", index)
-        let path = await this.command('playlist path ' + index + ' ?')
-
-        return await this.artworkFromUrl(path)
-    }
-
     async artworkFromTrackId(id) {
         if (!id)
             return undefined;
@@ -175,5 +166,12 @@ module.exports = class LMSClient {
         console.log("URL", "http://192.168.1.6:9000" + artwork_url);
 
         return "http://192.168.1.6:9000" + artwork_url;
+    }
+
+    parseId(str) {
+        if (!str.includes(":"))
+            return {type: "", id: str }
+        let s = str.toString().split(":")
+        return {type:s[0], id:s[1]};
     }
 }
