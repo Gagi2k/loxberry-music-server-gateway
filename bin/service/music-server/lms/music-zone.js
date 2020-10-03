@@ -102,6 +102,7 @@ module.exports = class MusicZone {
         let album = await this._client.command('album ?')
         let duration = parseFloat(await this._client.command('duration ?'))
         let artwork_url = await this._client.artworkFromUrl(path);
+        let index = await this._client.command('playlist index ?')
 
         console.log("ARTWORK", artwork_url)
 
@@ -114,6 +115,7 @@ module.exports = class MusicZone {
             "artist": artist,
             "duration": duration, // In milliseconds.
             "image": artwork_url, // Usually the cover URL, but you can also pass an SVG.
+            "qindex": index
         }
         console.log(JSON.stringify(this._track))
   }
@@ -300,7 +302,8 @@ module.exports = class MusicZone {
   }
 
   async next() {
-    await this._client.command('playlist index +1')
+    // Just using +1 didn't work very reliable
+    await this._client.command('playlist index +01')
     this._pushAudioEvent();
   }
 
@@ -396,6 +399,7 @@ module.exports = class MusicZone {
       artist: '',
       duration: 0,
       image: null,
+      qindex: 0
     };
   }
 
