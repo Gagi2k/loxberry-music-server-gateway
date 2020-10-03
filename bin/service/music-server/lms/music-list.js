@@ -19,14 +19,16 @@ module.exports = class List {
                  }
              });
             this.get_call = async (start, length) => {
-                console.log("GET GLOBAL FAV")
+                console.log("GET FAVS")
                 let response = await this._client.command('favorites items ' + start + ' ' + length + ' want_url%3A1');
                 let data = this._client.parseAdvancedQueryResponse(response, 'id', ['title']);
                 let items = data.items;
                 data.items = []
                 for (var key in items) {
                     data.items.push({
-                                       id: items[key].id,
+                                       // If we don't have a url, we fallback to use the id instead
+                                       // For example in folders
+                                       id: items[key].url ? "url:" + items[key].url : "fav:" + items[key].id,
                                        title: items[key]["name"],
                                        image: await this._client.artworkFromUrl(items[key].url)
                                    })
@@ -34,6 +36,7 @@ module.exports = class List {
                 return data
             }
             this.insert_call = async (position, ...items) => {
+                console.log("INSERT FAV")
                 await this._client.command('favorites add item_id%3A' + position + 'title%3A' + items.title + ' url%3A' + items.id);
             }
             this.delete_call = async (position, length) => {
@@ -41,12 +44,10 @@ module.exports = class List {
                     // TODO Test whether we need to really increase the position
                     // TODO Check whether it is the position or the id which gets passed here
                     var item = +position + i
-                                    console.log("CALL", 'favorites delete item_id%3A' + item)
                     await this._client.command('favorites delete item_id%3A' + item);
                 }
             }
         } else { // zone favorites
-            console.log("CREATE ROOM FAV")
             let fileName = 'zone_favorite_' + this._zone._id + '.json'
             let fav_items = [{id:0, title: "Dummy"}]
             if (fs.existsSync(fileName)) {
@@ -55,12 +56,10 @@ module.exports = class List {
             }
 
             this.get_call = async (start, length) => {
-                console.log("ROOM FAV", fav_items)
                 return { count: fav_items.length, items: fav_items };
             }
             this.insert_call = async (position, ...items) => {
-                console.log("INSERT FAV", position, ...items)
-                fav_items.splice(fav_items.length, 0, ...items)
+                fav_items.splice(position, 0, ...items)
                 let data = JSON.stringify(fav_items);
                 fs.writeFileSync(fileName, data);
                 this.reset()
@@ -77,13 +76,13 @@ module.exports = class List {
     } else if (url.endsWith("playlists")) {
         this._client = new LMSClient(this._zone_id);
         this.get_call = async (start, length) => {
-            let response = await this._client.command('playlists ' + start + ' ' + length);
+            let response = await this._client.command('playlists ' + start + ' ' + length + " tags%3Au%3Aplaylist");
             let data = this._client.parseAdvancedQueryResponse(response, 'id');
             let items = data.items;
             data.items = []
             for (var key in items) {
                 data.items.push({
-                                   id: items[key].id,
+                                   id: "url:" + items[key].url,
                                    title: items[key]["playlist"],
                                    image: await this._client.artworkFromUrl(items[key].url)
                                })
@@ -105,10 +104,11 @@ module.exports = class List {
             let items = data.items.slice(1);
             data.items = []
             for (var key in items) {
+                let path = await this._client.command('playlist path ' + key + ' ?')
                 data.items.push({
-                                   id: items[key].id,
+                                   id: "url:" + path,
                                    title: items[key]["playlist"],
-                                   image: await this._client.artworkFromQueueIndex(key)
+                                   image: await this._client.artworkFromUrl(path)
                                })
             }
             return data
@@ -137,22 +137,17 @@ module.exports = class List {
   }
 
   async get(start, length) {
+    console.log("GET", start, length)
     const items = this._items;
     const end = start + (length || 1);
 
-    while (this._items.length < this._total && this._items.length < end) {
-        let chunk = {items: [], total: 0};
+    while (length > 0 && this._items.length < this._total && this._items.length < end && this.get_call) {
+        let chunk = await this.get_call(start, length)
 
-        if (this.get_call) {
-            let obj = await this.get_call(start, length)
-            chunk.total = obj.count;
-            chunk.items = obj.items;
-        }
-
-        console.log(chunk.total, items.length, JSON.stringify(chunk.items))
+        console.log(chunk.count, items.length, JSON.stringify(chunk.items))
 
       this._items.splice(items.length, 0, ...chunk.items);
-      this._total = chunk.total;
+      this._total = chunk.count;
     }
 
     return {

@@ -109,12 +109,12 @@ module.exports = class MusicZone {
         duration = duration * 1000
 
         this._track = {
-            "id": path, // Opaque identifier, you can pass anything you want.
+            "id": "track:" + path,
             "title": title,
             "album": album,
             "artist": artist,
-            "duration": duration, // In milliseconds.
-            "image": artwork_url, // Usually the cover URL, but you can also pass an SVG.
+            "duration": duration,
+            "image": artwork_url,
             "qindex": index
         }
         console.log(JSON.stringify(this._track))
@@ -127,12 +127,12 @@ module.exports = class MusicZone {
         let mode = await this._client.command('mode ?')
 
         this._player = {
-            "id": "foo", // Opaque identifier, you can pass anything you want.
+            "id": "foo",
             "mode": mode,
-            "time": 0, // will be updated with the next call
-            "volume": volume, // [0, 100] range for volume (0 = muted, 100 = maximum).
-            "repeat": repeat , // Repeat mode (0 = none, 1 = track, 2 = context).
-            "shuffle": shuffle , // Shuffle mode (0 = not shuffled, 1 = shuffled).
+            "time": 0,
+            "volume": volume,
+            "repeat": repeat,
+            "shuffle": shuffle,
         }
         console.log("FOOO")
         await this.getCurrentTime()
@@ -228,21 +228,28 @@ module.exports = class MusicZone {
 
     var type = Math.floor(favoriteId / 1000000);
     var fav_id = favoriteId % 1000000;
-    var tag = undefined;
+    let parsed_id = this._client.parseId(id);
 
     console.log(type, fav_id)
 
     if (type == 0) {
         setMode('play')
         return;
-    } else if (type == 1 || type == 2) { //Fix me once we have zone favorites
-        await this._client.command('favorites playlist play item_id%3A' + id);
-        return;
-    } else if (type == 3) {
-        tag = "playlist_id%3A" + id
+    } else {
+        if (parsed_id.type == "fav") {
+            await this._client.command('favorites playlist play item_id%3A' + parsed_id.id);
+            return;
+        } else if (parsed_id.type == "playlist") {
+            var str = "playlist_id%3A" + parsed_id.id;
+            await this._client.command('playlistcontrol cmd:load ' + str);
+            return;
+        } else if (parsed_id.type == "url"){
+            await this._client.command('playlist play ' + parsed_id.id);
+            return;
+        }
     }
 
-    await this._client.command('playlistcontrol cmd:load ' + tag);
+    console.log("PLAYING THIS TYPE IS NOT IMPLEMENTED")
   }
 
   async pause() {
