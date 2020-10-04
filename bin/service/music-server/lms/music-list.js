@@ -2,6 +2,7 @@
 
 const LMSClient = require('./lms-client');
 const fs = require('fs');
+const Mutex = require('async-mutex');
 
 module.exports = class List {
   constructor(musicServer, url, zone) {
@@ -9,6 +10,7 @@ module.exports = class List {
     this._url = url;
     this._zone = zone;
     this._zone_mac = zone ? zone._zone_mac : undefined
+    this._mutex = new Mutex.Mutex();
 
     if (url.endsWith("favorites")) {
         if (!this._zone_mac) {
@@ -150,17 +152,21 @@ module.exports = class List {
 
   async get(start, length) {
     console.log("GET", start, length)
-    const items = this._items;
     const end = start + (length || 1);
 
-    while (length > 0 && this._items.length < this._total && this._items.length < end && this.get_call) {
+    await this._mutex.runExclusive(async () => {
+
+    const items = this._items;
+
+    if (length > 0 && this._items.length < this._total && this._items.length < end && this.get_call) {
         let chunk = await this.get_call(start, length)
 
         console.log(chunk.count, items.length, JSON.stringify(chunk.items))
 
-      this._items.splice(items.length, 0, ...chunk.items);
-      this._total = chunk.count;
+        this._items.splice(items.length, 0, ...chunk.items);
+        this._total = chunk.count;
     }
+    });
 
     return {
       total: this._total,
