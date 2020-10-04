@@ -92,7 +92,8 @@ module.exports = class List {
         }
     } else if (url.endsWith("queue")) {
         this._client = new LMSClient(this._zone_mac, (data) => {
-             if (data.startsWith("playlist load") || data.startsWith("playlist play")) {
+             if (data.startsWith("playlist load") || data.startsWith("playlist play") ||
+                 data.startsWith("playlist delete")) {
                 console.log("TRIGGER QUEUE REFRESH")
                 this.reset();
                 musicServer.pushQueueEvent(this._zone)
@@ -114,7 +115,14 @@ module.exports = class List {
             }
             return data
         }
-        this.title_prop = 'title'
+        this.delete_call = async (position, length) => {
+            for (var i=0; i<length; i++) {
+                // TODO Test whether we need to really increase the position
+                // TODO Check whether it is the position or the id which gets passed here
+                var item = +position + i
+                await this._client.command('playlist delete ' + item);
+            }
+        }
     } else if (url.endsWith("library")) {
         this._client = new LMSClient(this._zone_mac);
         this.get_call = async (start, length) => {

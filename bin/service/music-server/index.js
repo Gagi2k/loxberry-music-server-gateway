@@ -517,6 +517,9 @@ module.exports = class MusicServer {
       case /(?:^|\/)audio\/\d+\/queue\/\d+(\/|$)/.test(url):
         return this._audioQueueIndex(url);
 
+      case /(?:^|\/)audio\/\d+\/queueremove\/\d+(\/|$)/.test(url):
+        return this._audioQueueDelete(url);
+
       case /(?:^|\/)audio\/\d+\/repeat\/\d+(?:\/|$)/.test(url):
         return this._audioRepeat(url);
 
@@ -973,6 +976,16 @@ module.exports = class MusicServer {
     const zone = this._zones[+zoneId - 1];
 
     await zone.setCurrentIndex(index);
+
+    return this._audioCfgGetPlayersDetails('audio/cfg/getplayersdetails');
+  }
+
+  async _audioQueueDelete(url) {
+    const [, zoneId, , position] = url.split('/');
+    const zone = this._zones[+zoneId - 1];
+
+    await zone.getQueueList().delete(+position, 1);
+    this._pushQueueEvents([zone]);
 
     return this._audioCfgGetPlayersDetails('audio/cfg/getplayersdetails');
   }
