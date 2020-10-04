@@ -106,7 +106,7 @@ module.exports = class List {
                 let path = await this._client.command('playlist path ' + key + ' ?')
                 data.items.push({
                                    id: "url:" + path,
-                                   title: items[key]["playlist"],
+                                   title: items[key]["title"],
                                    image: await this._client.artworkFromUrl(path)
                                })
             }
