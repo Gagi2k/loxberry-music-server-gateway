@@ -34,6 +34,7 @@ module.exports = class MusicZone {
     // We have to query for state regardless of the internal one, because the
     // state could be updated from the outside.
     //setInterval(this.getState.bind(this), 5000);
+
     if (!this._zone_mac) {
         console.error("No MAC configured for zone " + id);
         return;
@@ -242,10 +243,10 @@ module.exports = class MusicZone {
         return;
     } else {
         if (parsed_id.type == "fav") {
-            await this._client.command('favorites playlist play item_id%3A' + parsed_id.id);
+            await this._client.command('favorites playlist play item_id:' + parsed_id.id);
             return;
         } else if (parsed_id.type == "playlist") {
-            var str = "playlist_id%3A" + parsed_id.id;
+            var str = "playlist_id:" + parsed_id.id;
             await this._client.command('playlistcontrol cmd:load ' + str);
             return;
         } else if (parsed_id.type == "url"){

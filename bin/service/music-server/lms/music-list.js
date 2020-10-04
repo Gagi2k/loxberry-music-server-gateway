@@ -20,7 +20,7 @@ module.exports = class List {
              });
             this.get_call = async (start, length) => {
                 console.log("GET FAVS")
-                let response = await this._client.command('favorites items ' + start + ' ' + length + ' want_url%3A1');
+                let response = await this._client.command('favorites items ' + start + ' ' + length + ' want_url:1');
                 let data = this._client.parseAdvancedQueryResponse(response, 'id', ['title']);
                 let items = data.items;
                 data.items = []
@@ -37,14 +37,14 @@ module.exports = class List {
             }
             this.insert_call = async (position, ...items) => {
                 console.log("INSERT FAV")
-                await this._client.command('favorites add item_id%3A' + position + 'title%3A' + items.title + ' url%3A' + items.id);
+                await this._client.command('favorites add item_id:' + position + 'title:' + items.title + ' url:' + items.id);
             }
             this.delete_call = async (position, length) => {
                 for (var i=0; i<length; i++) {
                     // TODO Test whether we need to really increase the position
                     // TODO Check whether it is the position or the id which gets passed here
                     var item = +position + i
-                    await this._client.command('favorites delete item_id%3A' + item);
+                    await this._client.command('favorites delete item_id:' + item);
                 }
             }
         } else { // zone favorites
@@ -76,7 +76,7 @@ module.exports = class List {
     } else if (url.endsWith("playlists")) {
         this._client = new LMSClient(this._zone_mac);
         this.get_call = async (start, length) => {
-            let response = await this._client.command('playlists ' + start + ' ' + length + " tags%3Au%3Aplaylist");
+            let response = await this._client.command('playlists ' + start + ' ' + length + " tags:u:playlist");
             let data = this._client.parseAdvancedQueryResponse(response, 'id');
             let items = data.items;
             data.items = []
