@@ -17,13 +17,14 @@ module.exports = class LMSClient {
                                                });
             this.notifications.on('data', (data) => {
                                       var dataStr = data.toString();
-                                      // console.log("<<<<<<<<<<<<<<<<<<<<", dataStrs);
+
                                       // check whether the notification is for us
-                                      if (!dataStr.startsWith(this._mac))
+                                      let encoded_mac = this._mac.replace(/:/g, "%3A");
+                                      if (!dataStr.startsWith(encoded_mac))
                                           return
 
                                       // Remove the zone id from the notification
-                                      dataStr = dataStr.slice(this._mac.length + 1);
+                                      dataStr = dataStr.slice(encoded_mac.length).trim();
 
                                       this.data_callback(dataStr);
                                   });
@@ -54,6 +55,8 @@ module.exports = class LMSClient {
             returnValue = this._mac + " " + returnValue
         if (returnValue.endsWith("?"))
             returnValue = returnValue.slice(0, -2);
+
+        returnValue = returnValue.replace(/:/g, "%3A")
 
         return new Promise((resolve, reject) => {
                                var responseListener = (data) => {
@@ -125,7 +128,7 @@ module.exports = class LMSClient {
     async artworkFromTrackId(id) {
         if (!id)
             return undefined;
-        let response = await this.command('songinfo 0 100 track_id%3A' + id)
+        let response = await this.command('songinfo 0 100 track_id:' + id)
         let item = this.parseAdvancedQueryResponse(response).items[0];
 
         return this.extractArtwork("", item);
@@ -134,7 +137,7 @@ module.exports = class LMSClient {
     async artworkFromUrl(url) {
         if (!url)
             return undefined;
-        let response = await this.command('songinfo 0 100 url%3A' + url)
+        let response = await this.command('songinfo 0 100 url:' + url)
         let item = this.parseAdvancedQueryResponse(response).items[0];
 
         return this.extractArtwork(url, item);
