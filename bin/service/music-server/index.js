@@ -1131,6 +1131,7 @@ module.exports = class MusicServer {
       }
 
       this._imageStore[item.id] = item.image;
+      type = item.type ? item.type : type
 
       return {
         type,
