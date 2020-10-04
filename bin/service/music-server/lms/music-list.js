@@ -100,14 +100,15 @@ module.exports = class List {
          });
         this.get_call = async (start, length) => {
             console.log("QUEUE GET", start, length)
-            let response = await this._client.command('status ' + start + ' ' + length + " tags:uKJ");
+            let response = await this._client.command('status ' + start + ' ' + length + " tags:uKJN");
             let data = this._client.parseAdvancedQueryResponse(response, 'id', [''], "playlist_tracks");
             let items = data.items.slice(1);
             data.items = []
             for (var key in items) {
                 data.items.push({
                                    id: "url:" + items[key].url,
-                                   title: items[key]["title"],
+                                   title: items[key].remote_title ? "" : items[key]["title"],
+                                   station: items[key].remote_title,
                                    image: await this._client.extractArtwork(items[key].url, items[key])
                                })
             }

@@ -108,10 +108,15 @@ module.exports = class MusicZone {
         let artist = await this._client.command('artist ?')
         let album = await this._client.command('album ?')
         let duration = parseFloat(await this._client.command('duration ?'))
-        let artwork_url = await this._client.artworkFromUrl(path);
         let index = await this._client.command('playlist index ?')
+        let station = ""
 
-        console.log("ARTWORK", artwork_url)
+
+        let response = await this._client.command('songinfo 0 100 url:' + path)
+        let item = this._client.parseAdvancedQueryResponse(response).items[0];
+        let artwork_url = this._client.extractArtwork(path, item);
+        if (item.remote_title)
+            station = item.remote_title
 
         duration = duration * 1000
 
@@ -122,7 +127,8 @@ module.exports = class MusicZone {
             "artist": artist,
             "duration": duration,
             "image": artwork_url,
-            "qindex": index
+            "qindex": index,
+            "station": station
         }
         console.log(JSON.stringify(this._track))
   }
