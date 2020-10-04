@@ -94,6 +94,7 @@ module.exports = class MusicServer {
 
       this._pushAudioEvents(this._zones);
       this._pushAudioSyncEvents(this._zones);
+      this._pushQueueEvents(this._zones);
       this._pushRoomFavEvents(this._zones);
     });
 
