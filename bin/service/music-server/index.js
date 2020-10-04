@@ -1110,7 +1110,7 @@ module.exports = class MusicServer {
       plrepeat: repeatModes[zone.getRepeat()],
       plshuffle: zone.getShuffle(),
       power: zone.getPower(),
-      station: '',
+      station: track.station,
       time: zone.getTime() / 1000,
       qindex: track.qindex ? track.qindex : 0,
       title: track.title,
@@ -1140,6 +1140,7 @@ module.exports = class MusicServer {
         coverurl: item.image || undefined,
         id: this._encodeId(item.id, base + i),
         name: item.title,
+        station: item.station,
       };
     };
   }
