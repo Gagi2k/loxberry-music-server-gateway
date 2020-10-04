@@ -91,8 +91,7 @@ module.exports = class List {
         }
     } else if (url.endsWith("queue")) {
         this._client = new LMSClient(this._zone_mac, (data) => {
-             if (data.startsWith("playlist loadtracks")) {
-//             if (data.startsWith("playlist load")) {
+             if (data.startsWith("playlist load") || data.startsWith("playlist play")) {
                 console.log("TRIGGER QUEUE REFRESH")
                 this.reset();
                 musicServer.pushQueueEvent(this._zone)
