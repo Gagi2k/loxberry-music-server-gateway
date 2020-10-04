@@ -1112,6 +1112,7 @@ module.exports = class MusicServer {
       power: zone.getPower(),
       station: '',
       time: zone.getTime() / 1000,
+      qindex: track.qindex ? track.qindex : 0,
       title: track.title,
       volume: zone.getVolume(),
     };
@@ -1134,7 +1135,6 @@ module.exports = class MusicServer {
       return {
         type,
         slot: start + i + 1,
-        qindex: +start + i + 1,
         audiopath: this._encodeId(item.id, base + i),
         coverurl: item.image || undefined,
         id: this._encodeId(item.id, base + i),
