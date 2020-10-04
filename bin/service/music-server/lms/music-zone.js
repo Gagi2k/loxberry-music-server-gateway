@@ -326,6 +326,11 @@ module.exports = class MusicZone {
     this._pushAudioEvent();
   }
 
+  async setCurrentIndex(index) {
+    await this._client.command('playlist index ' + index)
+    this._pushAudioEvent();
+  }
+
   async power(power) {
     this._power = power;
 

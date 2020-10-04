@@ -385,6 +385,30 @@ module.exports = class MusicZone {
     this._pushAudioEvent();
   }
 
+  async setCurrentIndex(index) {
+    const transaction = this._transaction();
+
+    this._track = this._getEmptyTrack();
+    this._player.time = 0;
+    this._setMode('buffer');
+
+    transaction.end();
+
+    try {
+      await this._sendPlayerCommand('POST', '/setCurrentIndex/' + index);
+    } catch (err) {
+      if (err.type === 'BACKEND_ERROR') {
+        console.error('[ERR!] Invalid reply for "next": ' + err.message);
+        transaction.rollback();
+      } else {
+        console.error('[ERR!] Default behavior for "next": ' + err.message);
+        this._setMode('play');
+      }
+    }
+
+    this._pushAudioEvent();
+  }
+
   async power(power) {
     this._power = power;
 
