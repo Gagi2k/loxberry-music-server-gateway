@@ -84,7 +84,8 @@ module.exports = class List {
                 data.items.push({
                                    id: "url:" + items[key].url,
                                    title: items[key]["playlist"],
-                                   image: await this._client.artworkFromUrl(items[key].url)
+                                   // playlists don't have a artwork
+                                   image: undefined
                                })
             }
             return data
@@ -98,16 +99,16 @@ module.exports = class List {
              }
          });
         this.get_call = async (start, length) => {
-            let response = await this._client.command('status ' + start + ' ' + length);
+            console.log("QUEUE GET", start, length)
+            let response = await this._client.command('status ' + start + ' ' + length + " tags:uKJ");
             let data = this._client.parseAdvancedQueryResponse(response, 'id', [''], "playlist_tracks");
             let items = data.items.slice(1);
             data.items = []
             for (var key in items) {
-                let path = await this._client.command('playlist path ' + key + ' ?')
                 data.items.push({
-                                   id: "url:" + path,
+                                   id: "url:" + items[key].url,
                                    title: items[key]["title"],
-                                   image: await this._client.artworkFromUrl(path)
+                                   image: await this._client.extractArtwork(items[key].url, items[key])
                                })
             }
             return data
