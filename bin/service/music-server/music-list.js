@@ -59,6 +59,16 @@ module.exports = class List {
     this.reset();
   }
 
+  async move(position, destination) {
+    try {
+      await this._call('POST', this._url + '/move/' + position + '/' + destination);
+    } catch (err) {
+      console.error('[ERR!] Could not move list fragment: ' + err.message);
+    }
+
+    this.reset();
+  }
+
   async delete(position, length) {
     try {
       await this._call('DELETE', this._url + '/' + position + '/' + length);

@@ -93,7 +93,7 @@ module.exports = class List {
     } else if (url.endsWith("queue")) {
         this._client = new LMSClient(this._zone_mac, (data) => {
              if (data.startsWith("playlist load") || data.startsWith("playlist play") ||
-                 data.startsWith("playlist delete")) {
+                 data.startsWith("playlist delete") || data.startsWith("playlist move")) {
                 console.log("TRIGGER QUEUE REFRESH")
                 this.reset();
                 musicServer.pushQueueEvent(this._zone)
@@ -114,6 +114,9 @@ module.exports = class List {
                                })
             }
             return data
+        }
+        this.move_call = async (position, destination) => {
+            await this._client.command('playlist move ' + position + " " + destination);
         }
         this.delete_call = async (position, length) => {
             for (var i=0; i<length; i++) {
@@ -177,9 +180,19 @@ module.exports = class List {
   }
 
   async replace(position, ...items) {
-    console.log("REPLACE", position, ...items)
+     console.log("REPLACE", position, ...items)
      await this.delete(position, 1)
      await this.insert(position, ...items)
+  }
+
+  async move(position, destination) {
+    console.log("MOVE", position, destination)
+    if (!this.move_call) {
+        console.log("NOT IMPLEMENTED!")
+        return;
+    }
+
+    await this.move_call(position, destination)
   }
 
   async delete(position, length) {
