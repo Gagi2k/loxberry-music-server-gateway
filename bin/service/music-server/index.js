@@ -421,6 +421,9 @@ module.exports = class MusicServer {
       case /(?:^|\/)audio\/cfg\/favorites\/addpath\//.test(url):
         return this._audioCfgFavoritesAddPath(url);
 
+      case /(?:^|\/)audio\/cfg\/favorites\/delete\//.test(url):
+        return this._audioCfgFavoritesDelete(url);
+
       case /(?:^|\/)audio\/cfg\/getfavorites\//.test(url):
         return this._audioCfgGetFavorites(url);
 
@@ -637,6 +640,31 @@ module.exports = class MusicServer {
       title: decodeURIComponent(name),
       image: this._imageStore[decodedId],
     });
+
+    return this._emptyCommand(url, []);
+  }
+
+  async _audioCfgFavoritesDelete(url) {
+    const [name, id] = url.split('/').slice(-2);
+    const [decodedId] = this._decodeId(id);
+
+    const {total, items} = await this._favorites.get(0, 50);
+
+    console.log("ID: ", decodedId)
+
+    var foundIndex = undefined
+    for (var i in items) {
+        if (items[i].id == decodedId) {
+            foundIndex = i;
+            break;
+        }
+    }
+    if (!foundIndex) {
+        console.log("Coudln't find the requested favorite");
+        return this._emptyCommand(url, []);
+    }
+
+    await this._favorites.delete(foundIndex, 1);
 
     return this._emptyCommand(url, []);
   }
