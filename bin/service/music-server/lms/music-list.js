@@ -38,8 +38,9 @@ module.exports = class List {
                 return data
             }
             this.insert_call = async (position, ...items) => {
-                console.log("INSERT FAV")
-                await this._client.command('favorites add item_id:' + position + 'title:' + items.title + ' url:' + items.id);
+                for (var i in items) {
+                    await this._client.command('favorites add item_id:' + position + ' title:' + escape(items[i].title) + ' url:' + items[i].id);
+                }
             }
             this.delete_call = async (position, length) => {
                 for (var i=0; i<length; i++) {
