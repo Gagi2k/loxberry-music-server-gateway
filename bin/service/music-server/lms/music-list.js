@@ -93,6 +93,13 @@ module.exports = class List {
             }
             return data
         }
+        this.insert_call = async (position, ...items) => {
+            for (var i in items) {
+                //Create a new playlist
+                await this._client.command('playlists new name:' + escape(items[i].title));
+                //TODO emit change event
+            }
+        }
     } else if (url.endsWith("queue")) {
         this._client = new LMSClient(this._zone_mac, (data) => {
              if (data.startsWith("playlist load") || data.startsWith("playlist play") ||
