@@ -172,8 +172,8 @@ module.exports = class List {
 
     const items = this._items;
 
-    if (length > 0 && this._items.length < this._total && this._items.length < end && this.get_call) {
-        let chunk = await this.get_call(start, length)
+    if (this._items.length < this._total && this._items.length < end && this.get_call) {
+        let chunk = await this.get_call(start, length || 1)
 
         console.log(chunk.count, items.length, JSON.stringify(chunk.items))
 
