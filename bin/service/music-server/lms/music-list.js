@@ -117,6 +117,17 @@ module.exports = class List {
             }
             return data
         }
+        this.insert_call = async (position, ...items) => {
+            for (var i in items) {
+                let parsed_id = this._client.parseId(items[i].id);
+                if (parsed_id.type == "url")
+                    await this._client.command('playlist add ' + parsed_id.id);
+                else
+                    await this._client.command('favorites playlist add item_id:' + parsed_id.id);
+                if (position != this._total)
+                    await this.move(this._total, position)
+            }
+        }
         this.move_call = async (position, destination) => {
             await this._client.command('playlist move ' + position + " " + destination);
         }
