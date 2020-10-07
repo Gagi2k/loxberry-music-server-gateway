@@ -140,7 +140,7 @@ module.exports = class MusicZone {
         let mode = await this._client.command('mode ?')
 
         this._player = {
-            "id": "foo",
+            "id": "zone" + this._id,
             "mode": mode,
             "time": 0,
             "volume": volume,
