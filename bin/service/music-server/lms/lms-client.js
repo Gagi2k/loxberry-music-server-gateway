@@ -24,17 +24,21 @@ module.exports = class LMSClient {
         if (this.data_callback) {
 
             notificationSocket.on('data', (data) => {
-                                      var dataStr = data.toString();
+                                      var splitted = data.toString().split('\n')
 
-                                      // check whether the notification is for us
-                                      let encoded_mac = this._mac.replace(/:/g, "%3A");
-                                      if (!dataStr.startsWith(encoded_mac))
-                                          return
+                                      for (var i in splitted) {
+                                          var dataStr = splitted[i];
 
-                                      // Remove the zone id from the notification
-                                      dataStr = dataStr.slice(encoded_mac.length).trim();
+                                          // check whether the notification is for us
+                                          let encoded_mac = this._mac.replace(/:/g, "%3A");
+                                          if (!dataStr.startsWith(encoded_mac))
+                                              return
 
-                                      this.data_callback(dataStr);
+                                          // Remove the zone id from the notification
+                                          dataStr = dataStr.slice(encoded_mac.length).trim();
+
+                                          this.data_callback(dataStr);
+                                      }
                                   });
         }
 
@@ -71,18 +75,21 @@ module.exports = class LMSClient {
 
         return new Promise((resolve, reject) => {
                                var responseListener = (data) => {
-                                   var processed = data.toString()
+                                   var splitted = data.toString().split('\n')
 //                                   console.log("RESPONSE", processed)
-                                   if (processed.startsWith(returnValue)) {
-//                                       console.log("RESPONSE FOR: ", returnValue)
-//                                       console.log("RESPONSE: ", data.toString())
-                                       // Once we have the response we wait for return
-                                       cmdSocket.removeListener('data', responseListener);
-                                       processed = processed.replace(returnValue, "")
-                                       processed = processed.replace("\r", '')
-                                       processed = processed.replace("\n", '')
-                                       processed = processed.trim()
-                                       resolve(processed);
+                                   for (var i in splitted) {
+                                       var processed = splitted[i];
+                                       if (processed.startsWith(returnValue)) {
+//                                           console.log("RESPONSE FOR: ", returnValue)
+//                                           console.log("RESPONSE: ", data.toString())
+                                           // Once we have the response we wait for return
+                                           cmdSocket.removeListener('data', responseListener);
+                                           processed = processed.replace(returnValue, "")
+                                           processed = processed.replace("\r", '')
+                                           processed = processed.replace("\n", '')
+                                           processed = processed.trim()
+                                           resolve(processed);
+                                       }
                                    }
                                };
 
