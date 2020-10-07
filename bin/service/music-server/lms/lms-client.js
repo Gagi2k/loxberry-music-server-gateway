@@ -4,6 +4,9 @@ var net = require('net');
 const fs = require('fs');
 const config = JSON.parse(fs.readFileSync("config.json"));
 
+var notificationSocket
+var cmdSocket
+
 module.exports = class LMSClient {
     constructor(mac, data_callback) {
         this._mac = mac;
@@ -11,11 +14,16 @@ module.exports = class LMSClient {
             this._mac = ""
         this.data_callback = data_callback;
 
+        if (!notificationSocket) {
+            notificationSocket = net.createConnection({ host: config.lms_host, port: config.lms_cli_port }, () => {
+                                                          notificationSocket.write('listen 1 \r\n');
+                                                      });
+            notificationSocket.setMaxListeners(200);
+        }
+
         if (this.data_callback) {
-            this.notifications = net.createConnection({ host: config.lms_host, port: config.lms_cli_port }, () => {
-                                                   this.notifications.write('listen 1 \r\n');
-                                               });
-            this.notifications.on('data', (data) => {
+
+            notificationSocket.on('data', (data) => {
                                       var dataStr = data.toString();
 
                                       // check whether the notification is for us
@@ -30,22 +38,25 @@ module.exports = class LMSClient {
                                   });
         }
 
-        this.telnet = net.createConnection({ host: config.lms_host, port: config.lms_cli_port }, () => {
-                                               console.debug('doTelnet connected to server!');
-                                           });
-        this.telnet.on('end', () => {
-                           console.debug('doTelnet disconnected from server');
-                       });
-        this.telnet.on('timeout', () => {
-                           console.debug('doTelnet Socket timeout, closing');
-                           this.telnet.close();
-                       });
-        this.telnet.on('error', (err) => {
-                           console.debug('doTelnet Socket error: ' + err.message);
-                       });
-        this.telnet.on('close', (err) => {
-                           console.debug('doTelnet Socket closed');
-                       });
+        if (!cmdSocket) {
+            cmdSocket = net.createConnection({ host: config.lms_host, port: config.lms_cli_port }, () => {
+                                                   console.debug('doTelnet connected to server!');
+                                               });
+            cmdSocket.setMaxListeners(200);
+            cmdSocket.on('end', () => {
+                               console.debug('doTelnet disconnected from server');
+                           });
+            cmdSocket.on('timeout', () => {
+                               console.debug('doTelnet Socket timeout, closing');
+                               cmdSocket.close();
+                           });
+            cmdSocket.on('error', (err) => {
+                               console.debug('doTelnet Socket error: ' + err.message);
+                           });
+            cmdSocket.on('close', (err) => {
+                               console.debug('doTelnet Socket closed');
+                           });
+        }
 
     }
 
@@ -66,7 +77,7 @@ module.exports = class LMSClient {
 //                                       console.log("RESPONSE FOR: ", returnValue)
 //                                       console.log("RESPONSE: ", data.toString())
                                        // Once we have the response we wait for return
-                                       this.telnet.removeListener('data', responseListener);
+                                       cmdSocket.removeListener('data', responseListener);
                                        processed = processed.replace(returnValue, "")
                                        processed = processed.replace("\r", '')
                                        processed = processed.replace("\n", '')
@@ -75,9 +86,9 @@ module.exports = class LMSClient {
                                    }
                                };
 
-                               this.telnet.on('data', responseListener);
+                               cmdSocket.on('data', responseListener);
 //                               console.log("REQUEST: ", this._mac + " " + cmd)
-                               this.telnet.write(this._mac + " " + cmd + ' \r\n');
+                               cmdSocket.write(this._mac + " " + cmd + ' \r\n');
                            });
     }
 
