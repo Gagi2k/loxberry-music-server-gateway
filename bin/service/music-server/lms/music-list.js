@@ -134,6 +134,8 @@ module.exports = class List {
                 let parsed_id = this._client.parseId(items[i].id);
                 if (parsed_id.type == "url")
                     await this._client.command('playlist ' + cmd + ' ' + parsed_id.id);
+                else if (parsed_id.type == "playlist")
+                     await this._client.command('playlistcontrol cmd:' + cmd + ' playlist_id:' + parsed_id.id);
                 else
                     await this._client.command('favorites playlist ' + cmd + ' item_id:' + parsed_id.id);
             }
