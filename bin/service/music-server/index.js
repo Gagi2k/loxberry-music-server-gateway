@@ -12,6 +12,11 @@ const MusicZone = require(config.plugin == "lms" ? './lms/music-zone' : './music
 
 const headers = {
   'Content-Type': 'text/plain; charset=utf-8',
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": "OPTIONS, POST, GET, PUT",
+    "Access-Control-Max-Age": 2592000, // 30 days,
+    "Access-Control-Allow-Headers": "*",
+    "Access-Control-Allow-Credentials": "true"
 };
 
 const errors = {
@@ -59,9 +64,23 @@ module.exports = class MusicServer {
     const httpServer = http.createServer(async (req, res) => {
       console.log('[HTTP] Received message: ' + req.url);
 
+      if (req.method === "OPTIONS") {
+           res.writeHead(200, headers);
+           res.end();
+           return;
+      }
+
+      const chunks = [];
+
       try {
-        res.writeHead(200, headers);
-        res.end(await this._handler(req.url));
+        req.on('data', (chunk) => {
+            chunks.push(chunk);
+        });
+        req.on('end', async () => {
+            const data = Buffer.concat(chunks);
+            res.writeHead(200, headers);
+            res.end(await this._handler(req.url, data));
+        });
       } catch (err) {
         res.writeHead(500, headers);
         res.end(err.stack);
@@ -406,7 +425,7 @@ module.exports = class MusicServer {
     }
   }
 
-  _handler(method) {
+  _handler(method, data) {
     const index = method.indexOf('?');
     const url = index === -1 ? method : method.substr(0, index);
     const query = querystring.parse(method.substr(url.length + 1));
@@ -474,6 +493,12 @@ module.exports = class MusicServer {
 
       case /(?:^|\/)audio\/cfg\/scanstatus(?:\/|$)/.test(url):
         return this._emptyCommand(url, [{scanning: 0}]);
+
+      case /(?:^|\/)audio\/cfg\/upload(?:\/|$)/.test(url):
+        return this._audioUpload(url, data);
+
+      case /(?:^|\/)audio\/grouped\/playuploadedfile(?:\/|$)/.test(url):
+        return this._playUploadedFile(url);
 
       case /(?:^|\/)audio\/\d+\/(?:(fire)?alarm|bell|wecker)(?:\/|$)/.test(url):
         return this._audioAlarm(url);
@@ -1179,6 +1204,23 @@ module.exports = class MusicServer {
     }
 
     return this._audioCfgGetPlayersDetails('audio/cfg/getplayersdetails');
+  }
+
+  async _audioUpload(url, data) {
+    const [, , , , , , filename] = url.split('/');
+
+    fs.writeFileSync(config.uploadPath + '/' + filename, data);
+
+    return this._emptyCommand(url, []);
+  }
+
+  async _playUploadedFile(url) {
+    const [, , , filename, zones] = url.split('/');
+    const zone = this._zones[+zones - 1];
+
+    zone.playUploadedFile(config.uploadPlaybackPath + '/' + filename);
+
+    return this._emptyCommand(url, []);
   }
 
   _emptyCommand(url, response) {

@@ -72,11 +72,12 @@ module.exports = class LMSClient {
             returnValue = returnValue.slice(0, -2);
 
         returnValue = returnValue.replace(/:/g, "%3A")
+        returnValue = returnValue.replace(/\//g, "%2F")
 
         return new Promise((resolve, reject) => {
                                var responseListener = (data) => {
                                    var splitted = data.toString().split('\n')
-//                                   console.log("RESPONSE", processed)
+//                                   console.log("RESPONSE", splitted, returnValue)
                                    for (var i in splitted) {
                                        var processed = splitted[i];
                                        if (processed.startsWith(returnValue)) {

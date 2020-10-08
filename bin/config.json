@@ -6,5 +6,7 @@
     },
     "lms_host": "localhost",
     "lms_port": 9000,
-    "lms_cli_port": 9090
+    "lms_cli_port": 9090,
+    "uploadPath": "/Volumes/Music_Files",
+    "uploadPlaybackPath": "/home/music/music_files"
 }

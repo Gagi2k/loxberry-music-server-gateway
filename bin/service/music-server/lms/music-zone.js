@@ -5,6 +5,12 @@ const LMSClient = require('./lms-client');
 const fs = require('fs');
 const config = JSON.parse(fs.readFileSync("config.json"));
 
+function sleep(ms) {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
 module.exports = class MusicZone {
   constructor(musicServer, id) {
     this._musicServer = musicServer;
@@ -262,6 +268,14 @@ module.exports = class MusicZone {
     }
 
     console.log("PLAYING THIS TYPE IS NOT IMPLEMENTED")
+  }
+
+  async playUploadedFile(path) {
+      await this._client.command('playlist save temp' + this._id);
+      await this._client.command('playlist play ' + path);
+      let duration = await this._client.command('duration ?');
+      await sleep(+duration * 1000);
+      await this._client.command('playlist resume temp' + this._id);
   }
 
   async pause() {
