@@ -500,6 +500,12 @@ module.exports = class MusicServer {
       case /(?:^|\/)audio\/grouped\/playuploadedfile(?:\/|$)/.test(url):
         return this._playUploadedFile(url);
 
+      case /(?:^|\/)audio\/cfg\/defaultvolume(?:\/|$)/.test(url):
+        return this._audioCfgDefaultVolume(url);
+
+      case /(?:^|\/)audio\/cfg\/maxvolume(?:\/|$)/.test(url):
+        return this._audioCfgMaxVolume(url);
+
       case /(?:^|\/)audio\/\d+\/(?:(fire)?alarm|bell|wecker)(?:\/|$)/.test(url):
         return this._audioAlarm(url);
 
@@ -608,10 +614,11 @@ module.exports = class MusicServer {
           playerid: i + 1,
           players: [{playerid: i + 1}],
           clienttype: 0,
-          default_volume: zone.getVolume(),
+          default_volume: zone.getDefaultVolume(),
           enabled: true,
           internalname: 'zone-' + (i + 1),
-          max_volume: 100,
+          max_volume: zone.getMaxVolume(),
+          volume: zone.getVolume(),
           name: 'Zone ' + (i + 1),
           upnpmode: 0,
           upnppredelay: 0,
@@ -878,6 +885,28 @@ module.exports = class MusicServer {
     });
 
     return this._emptyCommand(url, []);
+  }
+
+  async _audioCfgDefaultVolume(url) {
+    const [, , , zoneId, volume] = url.split('/');
+    const zone = this._zones[+zoneId - 1];
+
+    if (volume) {
+      await zone.defaultVolume(+volume);
+    }
+
+    return this._audioCfgGetPlayersDetails('audio/cfg/getplayersdetails');
+  }
+
+  async _audioCfgMaxVolume(url) {
+    const [, , , zoneId, volume] = url.split('/');
+    const zone = this._zones[+zoneId - 1];
+
+    if (volume) {
+      await zone.maxVolume(+volume);
+    }
+
+    return this._audioCfgGetPlayersDetails('audio/cfg/getplayersdetails');
   }
 
   async _audioAlarm(url) {
@@ -1264,6 +1293,8 @@ module.exports = class MusicServer {
       qindex: track.qindex ? track.qindex : 0,
       title: track.title,
       volume: zone.getVolume(),
+      default_volume: zone.getDefaultVolume(),
+      max_volume: zone.getMaxVolume()
     };
   }
 
