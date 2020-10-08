@@ -17,6 +17,8 @@ module.exports = class MusicZone {
       mode: 'stop',
       time: 0,
       volume: 50,
+      defaultVolume: 15,
+      maxVolume: 100,
       repeat: 0,
       shuffle: 0,
     };
@@ -111,6 +113,14 @@ module.exports = class MusicZone {
 
   getVolume() {
     return this._player.volume;
+  }
+
+  getDefaultVolume() {
+    return this._player.defaultVolume;
+  }
+
+  getMaxVolume() {
+    return this._player.maxVolume;
   }
 
   getRepeat() {
@@ -298,6 +308,48 @@ module.exports = class MusicZone {
         transaction.rollback();
       } else {
         console.error('[ERR!] Default behavior for "volume": ' + err.message);
+      }
+    }
+
+    this._pushAudioEvent();
+  }
+
+  async defaultVolume(volume) {
+    const transaction = this._transaction();
+
+    this._player.defaultVolume = Math.min(Math.max(+volume, 0), 100);
+
+    transaction.end();
+
+    try {
+      await this._sendPlayerCommand('POST', '/defaultVolume/' + this._player.volume);
+    } catch (err) {
+      if (err.type === 'BACKEND_ERROR') {
+        console.error('[ERR!] Invalid reply for "defaultVolume": ' + err.message);
+        transaction.rollback();
+      } else {
+        console.error('[ERR!] Default behavior for "defaultVolume": ' + err.message);
+      }
+    }
+
+    this._pushAudioEvent();
+  }
+
+  async maxVolume(volume) {
+    const transaction = this._transaction();
+
+    this._player.maxVolume = Math.min(Math.max(+volume, 0), 100);
+
+    transaction.end();
+
+    try {
+      await this._sendPlayerCommand('POST', '/maxVolume/' + this._player.volume);
+    } catch (err) {
+      if (err.type === 'BACKEND_ERROR') {
+        console.error('[ERR!] Invalid reply for "maxVolume": ' + err.message);
+        transaction.rollback();
+      } else {
+        console.error('[ERR!] Default behavior for "maxVolume": ' + err.message);
       }
     }
 

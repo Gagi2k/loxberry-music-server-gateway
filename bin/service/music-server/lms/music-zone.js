@@ -21,6 +21,7 @@ module.exports = class MusicZone {
 
     this._favoriteId = 0;
     this._zone_mac = config.zone_map[id];
+    this._cfgFileName = "zone_config_" + this._id + ".json";
 
     this._player = {
       id: '',
@@ -30,6 +31,13 @@ module.exports = class MusicZone {
       repeat: 0,
       shuffle: 0,
     };
+
+    this._zone_cfg = {
+        defaultVolume: 15,
+        maxVolume: 100,
+    }
+
+    this.readConfig();
 
     this._track = this._getEmptyTrack();
 
@@ -47,6 +55,18 @@ module.exports = class MusicZone {
     }
 
     this.getState();
+  }
+
+  readConfig() {
+    if (fs.existsSync(this._cfgFileName)) {
+        let rawdata = fs.readFileSync(this._cfgFileName);
+        this._zone_cfg = JSON.parse(rawdata);
+    }
+  }
+
+  saveConfig() {
+    let data = JSON.stringify(this._zone_cfg);
+    fs.writeFileSync(this._cfgFileName, data);
   }
 
   async onLMSNotification(data) {
@@ -150,6 +170,8 @@ module.exports = class MusicZone {
             "mode": mode,
             "time": 0,
             "volume": volume,
+            "defaultVolume": this._zone_cfg.defaultVolume,
+            "maxVolume": this._zone_cfg.maxVolume,
             "repeat": repeat,
             "shuffle": shuffle,
         }
@@ -197,6 +219,14 @@ module.exports = class MusicZone {
 
   getVolume() {
     return this._player.volume;
+  }
+
+  getDefaultVolume() {
+    return this._zone_cfg.defaultVolume;
+  }
+
+  getMaxVolume() {
+    return this._zone_cfg.maxVolume;
   }
 
   getRepeat() {
@@ -301,6 +331,22 @@ module.exports = class MusicZone {
     this._player.volume = Math.min(Math.max(+volume, 0), 100);
 
     await this._client.command('mixer volume ' + this._player.volume)
+
+    this._pushAudioEvent();
+  }
+
+  async defaultVolume(volume) {
+    this._zone_cfg.defaultVolume = Math.min(Math.max(+volume, 0), 100);
+
+    this.saveConfig();
+
+    this._pushAudioEvent();
+  }
+
+  async maxVolume(volume) {
+    this._zone_cfg.maxVolume = Math.min(Math.max(+volume, 0), 100);
+
+    this.saveConfig();
 
     this._pushAudioEvent();
   }
