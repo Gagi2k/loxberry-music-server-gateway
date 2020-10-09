@@ -7,7 +7,7 @@ const fs = require('fs');
 
 const config = JSON.parse(fs.readFileSync("config.json"));
 
-const MusicList = require(config.plugin == "lms" ? './lms/music-list' : './music-list');
+const MusicMaster = require(config.plugin == "lms" ? './lms/music-master' : './music-master');
 const MusicZone = require(config.plugin == "lms" ? './lms/music-zone' : './music-zone');
 
 const headers = {
@@ -43,10 +43,7 @@ module.exports = class MusicServer {
 
     this._imageStore = Object.create(null);
 
-    this._inputs = new MusicList(this, '/inputs');
-    this._favorites = new MusicList(this, '/favorites');
-    this._playlists = new MusicList(this, '/playlists');
-    this._library = new MusicList(this, '/library');
+    this._master = new MusicMaster(this);
 
     this._wsConnections = new Set();
     this._miniserverIp = null;
@@ -360,7 +357,7 @@ module.exports = class MusicServer {
       case /^(data:)\s*\/favorites\/\d+\s*$/.test(url): {
         const [, , position] = url.split('/');
 
-        this._favorites.reset(+position);
+        this._master.getFavoriteList().reset(+position);
         this._pushFavoritesChangedEvent();
 
         console.log('<-- [EVTS] Reset favorites');
@@ -371,7 +368,7 @@ module.exports = class MusicServer {
       case /^(data:)?\s*\/inputs\/\d+\s*$/.test(url): {
         const [, , position] = url.split('/');
 
-        this._inputs.reset(+position);
+        this._master.getInputList().reset(+position);
         this._pushInputsChangedEvent();
 
         console.log('<-- [EVTS] Reset inputs');
@@ -382,7 +379,7 @@ module.exports = class MusicServer {
       case /^(data:)?\s*\/library\/\d+\s*$/.test(url): {
         const [, , position] = url.split('/');
 
-        this._library.reset(+position);
+        this._master.getLibraryList().reset(+position);
         this._pushLibraryChangedEvent();
         console.log('<-- [EVTS] Reset library');
 
@@ -392,7 +389,7 @@ module.exports = class MusicServer {
       case /^(data:)?\s*\/playlists\/\d+\s*$/.test(url): {
         const [, , position] = url.split('/');
 
-        this._playlists.reset(+position);
+        this._master.getPlaylistList().reset(+position);
         this._pushPlaylistsChangedEvent();
         console.log('<-- [EVTS] Reset playlists');
 
@@ -662,12 +659,12 @@ module.exports = class MusicServer {
 
   async _audioCfgFavoritesAddPath(url) {
     const [name, id] = url.split('/').slice(-2);
-    const playlists = this._favorites;
+    const playlists = this._master.getFavoriteList();
     const [decodedId] = this._decodeId(id);
 
     const {total} = await playlists.get(0, 0);
 
-    await this._favorites.insert(total, {
+    await this._master.getFavoriteList().insert(total, {
       id: decodedId,
       title: decodeURIComponent(name),
       image: this._imageStore[decodedId],
@@ -680,7 +677,7 @@ module.exports = class MusicServer {
     const [name, id] = url.split('/').slice(-2);
     const [decodedId] = this._decodeId(id);
 
-    const {total, items} = await this._favorites.get(0, 50);
+    const {total, items} = await this._master.getFavoriteList().get(0, 50);
 
     console.log("ID: ", decodedId)
 
@@ -696,14 +693,14 @@ module.exports = class MusicServer {
         return this._emptyCommand(url, []);
     }
 
-    await this._favorites.delete(foundIndex, 1);
+    await this._master.getFavoriteList().delete(foundIndex, 1);
 
     return this._emptyCommand(url, []);
   }
 
   async _audioCfgGetFavorites(url) {
     const [, , , start, length] = url.split('/');
-    const {total, items} = await this._favorites.get(+start, +length);
+    const {total, items} = await this._master.getFavoriteList().get(+start, +length);
 
     return this._response(url, 'getfavorites', [
       {
@@ -715,7 +712,7 @@ module.exports = class MusicServer {
   }
 
   async _audioCfgGetInputs(url) {
-    const {total, items} = await this._inputs.get(0, +Infinity);
+    const {total, items} = await this._master.getInputList().get(0, +Infinity);
 
     const icons = Object.assign(Object.create(null), {
       'line-in': 0,
@@ -744,7 +741,7 @@ module.exports = class MusicServer {
 
   async _audioCfgGetMediaFolder(url) {
     const [, , , requestId, start, length] = url.split('/');
-    const {total, items} = await this._library.get(+start, +length);
+    const {total, items} = await this._master.getLibraryList().get(+start, +length);
 
     return this._response(url, 'getmediafolder', [
       {
@@ -770,7 +767,7 @@ module.exports = class MusicServer {
 
   async _audioCfgGetPlaylists(url) {
     const [, , , , , requestId, start, length] = url.split('/');
-    const {total, items} = await this._playlists.get(+start, +length);
+    const {total, items} = await this._master.getPlaylistList().get(+start, +length);
 
     return this._response(url, 'getplaylists2', [
       {
@@ -840,10 +837,10 @@ module.exports = class MusicServer {
     const [, , , id, , title] = url.split('/');
     const [decodedId, favoriteId] = this._decodeId(id);
     const position = favoriteId % BASE_DELTA;
-    const item = (await this._inputs.get(position, 1)).items[0];
+    const item = (await this._master.getInputList().get(position, 1)).items[0];
 
     item.title = decodeURIComponent(title);
-    await this._inputs.replace(position, [item]);
+    await this._master.getInputList().replace(position, [item]);
 
     return this._emptyCommand(url, []);
   }
@@ -852,7 +849,7 @@ module.exports = class MusicServer {
     const [, , , id, , icon] = url.split('/');
     const [decodedId, favoriteId] = this._decodeId(id);
     const position = favoriteId % BASE_DELTA;
-    const item = (await this._inputs.get(position, 1)).items[0];
+    const item = (await this._master.getInputList().get(position, 1)).items[0];
 
     const icons = [
       `line-in`,
@@ -867,18 +864,18 @@ module.exports = class MusicServer {
     ];
 
     item.image = icons[icon];
-    await this._inputs.replace(position, [item]);
+    await this._master.getInputList().replace(position, [item]);
 
     return this._emptyCommand(url, []);
   }
 
   async _audioCfgPlaylistCreate(url) {
     const title = decodeURIComponent(url.split('/').pop());
-    const playlists = this._playlists;
+    const playlists = this._master.getPlaylistList();
 
     const {total} = await playlists.get(0, 0);
 
-    await this._playlists.insert(total, {
+    await this._master.getPlaylistList().insert(total, {
       id: null,
       title,
       image: null,
