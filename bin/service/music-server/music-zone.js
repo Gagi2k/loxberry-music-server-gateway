@@ -192,23 +192,6 @@ module.exports = class MusicZone {
     }
   }
 
-  async playUploadedFile(path) {
-    try {
-      await this._sendPlayerCommand(
-        'POST',
-        '/playUploadedFile/' + encodeURIComponent(path),
-      );
-    } catch (err) {
-      if (err.type === 'BACKEND_ERROR') {
-        console.error('[ERR!] Invalid reply for "playUploadedFile": ' + err.message);
-        transaction.rollback();
-      } else {
-        console.error('[ERR!] Default behavior for "playUploadedFile": ' + err.message);
-        this._setMode('play');
-      }
-    }
-  }
-
   async pause() {
     const transaction = this._transaction();
 

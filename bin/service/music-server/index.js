@@ -1241,10 +1241,9 @@ module.exports = class MusicServer {
   }
 
   async _playUploadedFile(url) {
-    const [, , , filename, zones] = url.split('/');
-    const zone = this._zones[+zones - 1];
+    const [, , , filename, ...zones] = url.split('/');
 
-    zone.playUploadedFile(config.uploadPlaybackPath + '/' + filename);
+    this._master.playUploadedFile(config.uploadPlaybackPath + '/' + filename, zones);
 
     return this._emptyCommand(url, []);
   }
