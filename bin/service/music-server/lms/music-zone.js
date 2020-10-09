@@ -165,13 +165,20 @@ module.exports = class MusicZone {
         let shuffle = await this._client.command('playlist shuffle ?')
         let mode = await this._client.command('mode ?')
 
+        volume = parseInt(volume);
+        let maxVolume = parseInt(this._zone_cfg.maxVolume);
+        if (volume > maxVolume) {
+            await this.volume(maxVolume);
+            volume = maxVolume;
+        }
+
         this._player = {
             "id": "zone" + this._id,
             "mode": mode,
             "time": 0,
-            "volume": parseInt(volume),
+            "volume": volume,
             "defaultVolume": parseInt(this._zone_cfg.defaultVolume),
-            "maxVolume": parseInt(this._zone_cfg.maxVolume),
+            "maxVolume": maxVolume,
             "repeat": repeat,
             "shuffle": shuffle,
         }
