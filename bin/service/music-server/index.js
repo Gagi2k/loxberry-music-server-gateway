@@ -47,6 +47,7 @@ module.exports = class MusicServer {
 
     this._wsConnections = new Set();
     this._miniserverIp = null;
+    this._miniserverPort = null;
 
     for (let i = 0; i < config.zones; i++) {
       zones[i] = new MusicZone(this, i + 1);
@@ -476,6 +477,9 @@ module.exports = class MusicServer {
       case /(?:^|\/)audio\/cfg\/iamaminiserver(?:done)?\//.test(url):
         return this._audioCfgIAmAMiniserver(url);
 
+      case /(?:^|\/)audio\/cfg\/miniserverport\//.test(url):
+        return this._audioCfgMiniserverPort(url);
+
       case /(?:^|\/)audio\/cfg\/input\/[^\/]+\/rename\//.test(url):
         return this._audioCfgInputRename(url);
 
@@ -502,6 +506,9 @@ module.exports = class MusicServer {
 
       case /(?:^|\/)audio\/cfg\/maxvolume(?:\/|$)/.test(url):
         return this._audioCfgMaxVolume(url);
+
+      case /(?:^|\/)audio\/cfg\/eventvolumes(?:\/|$)/.test(url):
+        return this._audioCfgEventVolumes(url);
 
       case /(?:^|\/)audio\/\d+\/(?:(fire)?alarm|bell|wecker)(?:\/|$)/.test(url):
         return this._audioAlarm(url);
@@ -825,6 +832,12 @@ module.exports = class MusicServer {
     });
   }
 
+  _audioCfgMiniserverPort(url) {
+    this._miniserverPort = url.split('/').pop();
+
+    return this._emptyCommand(url, []);
+  }
+
   _audioCfgMac(url) {
     return this._response(url, 'mac', [
       {
@@ -902,6 +915,16 @@ module.exports = class MusicServer {
     if (volume) {
       await zone.maxVolume(+volume);
     }
+
+    return this._audioCfgGetPlayersDetails('audio/cfg/getplayersdetails');
+  }
+
+  async _audioCfgEventVolumes(url) {
+    const [, , , zoneId, volumeString] = url.split('/');
+    const zone = this._zones[+zoneId - 1];
+
+    //TODO unclear what to do here, as the values are saved on the miniserver
+    //     and we don't know how to get the inital values.
 
     return this._audioCfgGetPlayersDetails('audio/cfg/getplayersdetails');
   }
