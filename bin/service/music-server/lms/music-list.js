@@ -91,12 +91,19 @@ module.exports = class List {
             let items = data.items;
             data.items = []
             for (var key in items) {
-                data.items.push({
-                                   id: "url:" + items[key].url,
-                                   title: items[key]["playlist"],
-                                   // playlists don't have a artwork
-                                   image: undefined
-                               })
+                // Filter all temporary playlists
+                // This won't work if this function is called multiple times as the data.count
+                // would be wrong. Instead we should fetch all favs in one call (currently 50)
+                if (!items[key].playlist.startsWith("temp_")) {
+                    data.items.push({
+                                       id: "url:" + items[key].url,
+                                       title: items[key]["playlist"],
+                                       // playlists don't have a artwork
+                                       image: undefined
+                                   })
+                } else {
+                    data.count = data.count - 1
+                }
             }
             return data
         }
