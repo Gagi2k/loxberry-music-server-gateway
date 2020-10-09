@@ -27,13 +27,20 @@ module.exports = class List {
                 let items = data.items;
                 data.items = []
                 for (var key in items) {
-                    data.items.push({
-                                       // If we don't have a url, we fallback to use the id instead
-                                       // For example in folders
-                                       id: items[key].url ? "url:" + items[key].url : "fav:" + items[key].id,
-                                       title: items[key]["name"],
-                                       image: await this._client.artworkFromUrl(items[key].url)
-                                   })
+                    // Filter all favorites which are folders
+                    // This won't work if this function is called multiple times as the data.count
+                    // would be wrong. Instead we should fetch all favs in one call (currently 50)
+                    if (items[key].isaudio == "1") {
+                        data.items.push({
+                                           // If we don't have a url, we fallback to use the id instead
+                                           // For example in folders
+                                           id: items[key].url ? "url:" + items[key].url : "fav:" + items[key].id,
+                                           title: items[key]["name"],
+                                           image: await this._client.artworkFromUrl(items[key].url)
+                                       })
+                    } else {
+                        data.count = data.count - 1
+                    }
                 }
                 return data
             }
