@@ -35,6 +35,7 @@ module.exports = class MusicZone {
     this._zone_cfg = {
         defaultVolume: 15,
         maxVolume: 100,
+        equalizer: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
     }
 
     this.readConfig();
@@ -60,7 +61,7 @@ module.exports = class MusicZone {
   readConfig() {
     if (fs.existsSync(this._cfgFileName)) {
         let rawdata = fs.readFileSync(this._cfgFileName);
-        this._zone_cfg = JSON.parse(rawdata);
+        this._zone_cfg = Object.assign(this._zone_cfg, JSON.parse(rawdata));
     }
   }
 
@@ -88,37 +89,7 @@ module.exports = class MusicZone {
   }
 
   async getEqualizer() {
-    try {
-      const equalizer = await this._musicServer.call(
-        'GET',
-        this._url() + '/equalizer',
-      );
-
-      if (
-        !Array.isArray(equalizer) ||
-        equalizer.some((band) => typeof band !== 'number')
-      ) {
-        const error = new Error(
-          'Invalid equalizer format: needs to be an array of 10 numbers',
-        );
-
-        error.type = 'BACKEND_ERROR';
-
-        throw error;
-      }
-
-      return equalizer;
-    } catch (err) {
-      if (err.type === 'BACKEND_ERROR') {
-        console.error('[ERR!] Invalid reply for "equalizer": ' + err.message);
-      } else {
-        console.error(
-          '[ERR!] Default behavior for "equalizer": ' + err.message,
-        );
-      }
-
-      return [0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    }
+      return this._zone_cfg.equalizer;
   }
 
   async getCurrentTime() {
@@ -265,6 +236,9 @@ module.exports = class MusicZone {
   }
 
   async equalizer(bands) {
+    this._zone_cfg.equalizer = bands;
+    this.saveConfig();
+
     try {
       return await this._sendPlayerCommand('PUT', '/equalizer', bands);
     } catch (err) {
