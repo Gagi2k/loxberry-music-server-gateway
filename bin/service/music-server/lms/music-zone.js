@@ -169,9 +169,9 @@ module.exports = class MusicZone {
             "id": "zone" + this._id,
             "mode": mode,
             "time": 0,
-            "volume": volume,
-            "defaultVolume": this._zone_cfg.defaultVolume,
-            "maxVolume": this._zone_cfg.maxVolume,
+            "volume": parseInt(volume),
+            "defaultVolume": parseInt(this._zone_cfg.defaultVolume),
+            "maxVolume": parseInt(this._zone_cfg.maxVolume),
             "repeat": repeat,
             "shuffle": shuffle,
         }
