@@ -669,7 +669,7 @@ module.exports = class MusicServer {
     const playlists = this._master.getFavoriteList();
     const [decodedId] = this._decodeId(id);
 
-    const {total} = await playlists.get(0, 0);
+    const {total} = await playlists.get(undefined, 0, 0);
 
     await this._master.getFavoriteList().insert(total, {
       id: decodedId,
@@ -684,7 +684,7 @@ module.exports = class MusicServer {
     const [name, id] = url.split('/').slice(-2);
     const [decodedId] = this._decodeId(id);
 
-    const {total, items} = await this._master.getFavoriteList().get(0, 50);
+    const {total, items} = await this._master.getFavoriteList().get(undefined, 0, 50);
 
     console.log("ID: ", decodedId)
 
@@ -707,7 +707,7 @@ module.exports = class MusicServer {
 
   async _audioCfgGetFavorites(url) {
     const [, , , start, length] = url.split('/');
-    const {total, items} = await this._master.getFavoriteList().get(+start, +length);
+    const {total, items} = await this._master.getFavoriteList().get(undefined, +start, +length);
 
     return this._response(url, 'getfavorites', [
       {
@@ -719,7 +719,7 @@ module.exports = class MusicServer {
   }
 
   async _audioCfgGetInputs(url) {
-    const {total, items} = await this._master.getInputList().get(0, +Infinity);
+    const {total, items} = await this._master.getInputList().get(undefined, 0, +Infinity);
 
     const icons = Object.assign(Object.create(null), {
       'line-in': 0,
@@ -748,7 +748,7 @@ module.exports = class MusicServer {
 
   async _audioCfgGetMediaFolder(url) {
     const [, , , requestId, start, length] = url.split('/');
-    const {total, items} = await this._master.getLibraryList().get(+start, +length);
+    const {total, items} = await this._master.getLibraryList().get(undefined, +start, +length);
 
     return this._response(url, 'getmediafolder', [
       {
@@ -773,12 +773,22 @@ module.exports = class MusicServer {
   }
 
   async _audioCfgGetPlaylists(url) {
-    const [, , , , , requestId, start, length] = url.split('/');
-    const {total, items} = await this._master.getPlaylistList().get(+start, +length);
+    const [, , , , , id, start, length] = url.split('/');
+    let rootItem = undefined;
+    if (id != 0) {
+        const [decodedId] = this._decodeId(id);
+        rootItem = {
+          id: decodedId,
+          title: null,
+          image: null,
+        }
+    }
+
+    const {total, items} = await this._master.getPlaylistList().get(rootItem, +start, +length);
 
     return this._response(url, 'getplaylists2', [
       {
-        id: +requestId,
+        id: id,
         totalitems: total,
         start: +start,
         items: items.map(this._convert(3, BASE_PLAYLIST, +start)),
@@ -791,7 +801,7 @@ module.exports = class MusicServer {
 
     if (+zoneId > 0) {
       const zone = this._zones[+zoneId - 1];
-      const {total, items} = await zone.getFavoritesList().get(+start, +length);
+      const {total, items} = await zone.getFavoritesList().get(undefined, +start, +length);
 
       const mappedItems = items
         .map(this._convert(4, BASE_FAVORITE_ZONE, +start))
@@ -850,7 +860,7 @@ module.exports = class MusicServer {
     const [, , , id, , title] = url.split('/');
     const [decodedId, favoriteId] = this._decodeId(id);
     const position = favoriteId % BASE_DELTA;
-    const item = (await this._master.getInputList().get(position, 1)).items[0];
+    const item = (await this._master.getInputList().get(undefined, position, 1)).items[0];
 
     item.title = decodeURIComponent(title);
     await this._master.getInputList().replace(position, [item]);
@@ -862,7 +872,7 @@ module.exports = class MusicServer {
     const [, , , id, , icon] = url.split('/');
     const [decodedId, favoriteId] = this._decodeId(id);
     const position = favoriteId % BASE_DELTA;
-    const item = (await this._master.getInputList().get(position, 1)).items[0];
+    const item = (await this._master.getInputList().get(undefined, position, 1)).items[0];
 
     const icons = [
       `line-in`,
@@ -886,7 +896,7 @@ module.exports = class MusicServer {
     const title = decodeURIComponent(url.split('/').pop());
     const playlists = this._master.getPlaylistList();
 
-    const {total} = await playlists.get(0, 0);
+    const {total} = await playlists.get(undefined, 0, 0);
 
     await this._master.getPlaylistList().insert(total, {
       id: null,
@@ -954,7 +964,7 @@ module.exports = class MusicServer {
 
     if (+zoneId > 0) {
       const zone = this._zones[+zoneId - 1];
-      let {total, items} = await zone.getQueueList().get(+start, +length);
+      let {total, items} = await zone.getQueueList().get(undefined, +start, +length);
 
       if (total === 0) {
         items = +start === 0 ? [zone.getTrack()] : [];
@@ -1116,7 +1126,7 @@ module.exports = class MusicServer {
     const zone = this._zones[+zoneId - 1];
     const [decodedId] = this._decodeId(id);
 
-    const {total} = await zone.getQueueList().get(0, 0);
+    const {total} = await zone.getQueueList().get(undefined, 0, 0);
 
     await zone.getQueueList().insert(total, {
       id: decodedId,
@@ -1169,7 +1179,7 @@ module.exports = class MusicServer {
     const [, zoneId, , , position] = url.split('/');
     const zone = this._zones[+zoneId - 1];
 
-    const favorites = await zone.getFavoritesList().get(+position - 1, 1);
+    const favorites = await zone.getFavoritesList().get(undefined, +position - 1, 1);
     const id = favorites.items[0].id;
 
     await zone.play(id, BASE_FAVORITE_ZONE + (+position - 1));
@@ -1183,7 +1193,7 @@ module.exports = class MusicServer {
     const [, zoneId] = url.split('/');
     const zone = this._zones[+zoneId - 1];
     const favoriteId = zone.getFavoriteId();
-    const favorites = await zone.getFavoritesList().get(0, 8);
+    const favorites = await zone.getFavoritesList().get(undefined, 0, 8);
 
     let position =
       BASE_DELTA * Math.floor(favoriteId / BASE_DELTA) === BASE_FAVORITE_ZONE

@@ -16,7 +16,7 @@ module.exports = class List {
     this._items.splice(start, Infinity);
   }
 
-  async get(start, length) {
+  async get(rootItem, start, length) {
     const items = this._items;
     const end = start + (length || 1);
 

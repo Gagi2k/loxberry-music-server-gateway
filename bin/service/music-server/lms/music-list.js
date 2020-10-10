@@ -20,7 +20,7 @@ module.exports = class List {
                      musicServer._pushFavoritesChangedEvent();
                  }
              });
-            this.get_call = async (start, length) => {
+            this.get_call = async (rootItem, start, length) => {
                 console.log("GET FAVS")
                 let response = await this._client.command('favorites items ' + start + ' ' + length + ' want_url:1');
                 let data = this._client.parseAdvancedQueryResponse(response, 'id', ['title']);
@@ -65,7 +65,7 @@ module.exports = class List {
                 fav_items = JSON.parse(rawdata);
             }
 
-            this.get_call = async (start, length) => {
+            this.get_call = async (rootItem, start, length) => {
                 return { count: fav_items.length, items: fav_items };
             }
             this.insert_call = async (position, ...items) => {
@@ -85,7 +85,7 @@ module.exports = class List {
         }
     } else if (url.endsWith("playlists")) {
         this._client = new LMSClient(this._zone_mac);
-        this.get_call = async (start, length) => {
+        this.get_call = async (rootItem, start, length) => {
             let response = await this._client.command('playlists ' + start + ' ' + length + " tags:u:playlist");
             let data = this._client.parseAdvancedQueryResponse(response, 'id');
             let items = data.items;
@@ -99,7 +99,8 @@ module.exports = class List {
                                        id: "url:" + items[key].url,
                                        title: items[key]["playlist"],
                                        // playlists don't have a artwork
-                                       image: undefined
+                                       image: undefined,
+                                       type: 7
                                    })
                 } else {
                     data.count = data.count - 1
@@ -123,7 +124,7 @@ module.exports = class List {
                 musicServer.pushQueueEvent(this._zone)
              }
          });
-        this.get_call = async (start, length) => {
+        this.get_call = async (rootItem, start, length) => {
             console.log("QUEUE GET", start, length)
             let response = await this._client.command('status ' + start + ' ' + length + " tags:uKJN");
             let data = this._client.parseAdvancedQueryResponse(response, 'id', [''], "playlist_tracks");
@@ -167,7 +168,7 @@ module.exports = class List {
         }
     } else if (url.endsWith("library")) {
         this._client = new LMSClient(this._zone_mac);
-        this.get_call = async (start, length) => {
+        this.get_call = async (rootItem, start, length) => {
             var data = [];
             for (var i=0; i<10; i++) {
                 data.push({ id: i, title: "FOO " + i, type:1});
@@ -178,36 +179,47 @@ module.exports = class List {
         this.title_prop = 'title'
     }
 
-    this._total = Infinity;
-    this._items = [];
+    this.reset();
   }
 
   reset(start = 0) {
-    this._total = Infinity;
-    this._items.splice(start, Infinity);
+    this._itemMap = new Map;
+    this._itemMap.set(undefined, {
+                          total: Infinity,
+                          items: [],
+                      })
   }
 
-  async get(start, length) {
-    console.log("GET", start, length)
+  async get(rootItem, start, length) {
+    console.log("GET", rootItem, start, length)
     const end = start + (length || 1);
 
     await this._mutex.runExclusive(async () => {
+        let {_total, _items} = this._itemMap.get(rootItem);
+        if (_total == undefined) {
+            _total = Infinity;
+            _items = [];
+        }
 
-    const items = this._items;
+        if (_items.length < _total && _items.length < end && this.get_call) {
+            let chunk = await this.get_call(rootItem, start, length || 1)
 
-    if (this._items.length < this._total && this._items.length < end && this.get_call) {
-        let chunk = await this.get_call(start, length || 1)
+            console.log(chunk.count, _items.length, JSON.stringify(chunk.items))
 
-        console.log(chunk.count, items.length, JSON.stringify(chunk.items))
-
-        this._items.splice(items.length, 0, ...chunk.items);
-        this._total = chunk.count;
-    }
+            _items.splice(_total.length, 0, ...chunk.items)
+            _total = chunk.count,
+            this._itemMap.set(rootItem, {
+                                  total: _total,
+                                  items: _items
+                              });
+        }
     });
 
+    let {total, items} = this._itemMap.get(rootItem);
+
     return {
-      total: this._total,
-      items: this._items.slice(start, end),
+      total: total,
+      items: items.slice(start, end),
     };
 
   }
