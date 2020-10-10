@@ -791,7 +791,7 @@ module.exports = class MusicServer {
         id: id,
         totalitems: total,
         start: +start,
-        items: items.map(this._convert(3, BASE_PLAYLIST, +start)),
+        items: items.map(this._convert(11, BASE_PLAYLIST, +start)),
       },
     ]);
   }
