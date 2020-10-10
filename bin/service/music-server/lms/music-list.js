@@ -86,27 +86,44 @@ module.exports = class List {
     } else if (url.endsWith("playlists")) {
         this._client = new LMSClient(this._zone_mac);
         this.get_call = async (rootItem, start, length) => {
-            let response = await this._client.command('playlists ' + start + ' ' + length + " tags:u:playlist");
-            let data = this._client.parseAdvancedQueryResponse(response, 'id');
-            let items = data.items;
-            data.items = []
-            for (var key in items) {
-                // Filter all temporary playlists
-                // This won't work if this function is called multiple times as the data.count
-                // would be wrong. Instead we should fetch all favs in one call (currently 50)
-                if (!items[key].playlist.startsWith("temp_")) {
+            if (!rootItem) {
+                let response = await this._client.command('playlists ' + start + ' ' + length + " tags:u:playlist");
+                let data = this._client.parseAdvancedQueryResponse(response, 'id');
+                let items = data.items;
+                data.items = []
+                for (var key in items) {
+                    // Filter all temporary playlists
+                    // This won't work if this function is called multiple times as the data.count
+                    // would be wrong. Instead we should fetch all favs in one call (currently 50)
+                    if (!items[key].playlist.startsWith("temp_")) {
+                        data.items.push({
+                                           id: "playlist:" + items[key].id,
+                                           title: items[key]["playlist"],
+                                           // playlists don't have a artwork
+                                           image: undefined,
+                                       })
+                    } else {
+                        data.count = data.count - 1
+                    }
+                }
+                return data;
+            } else {
+                let parsed_id = this._client.parseId(rootItem.id);
+                let response = await this._client.command('playlists tracks ' + start + ' ' + length + " playlist_id:" + parsed_id.id + " tags:uKJN");
+                let data = this._client.parseAdvancedQueryResponse(response, 'playlist%20index');
+                let items = data.items;
+                data.items = []
+                for (var key in items) {
                     data.items.push({
                                        id: "url:" + items[key].url,
-                                       title: items[key]["playlist"],
-                                       // playlists don't have a artwork
-                                       image: undefined,
-                                       type: 7
+                                       title: items[key].title,
+                                       image: await this._client.extractArtwork(items[key].url, items[key]),
+                                       type: 2 //File
                                    })
-                } else {
-                    data.count = data.count - 1
                 }
+                console.log(data);
+                return data;
             }
-            return data
         }
         this.insert_call = async (position, ...items) => {
             for (var i in items) {
@@ -195,8 +212,12 @@ module.exports = class List {
     const end = start + (length || 1);
 
     await this._mutex.runExclusive(async () => {
-        let {_total, _items} = this._itemMap.get(rootItem);
-        if (_total == undefined) {
+        let _total, _items = undefined;
+        if (this._itemMap.has(rootItem)) {
+            let data = this._itemMap.get(rootItem);
+            _total = data.total;
+            _items = data.items;
+        } else {
             _total = Infinity;
             _items = [];
         }
