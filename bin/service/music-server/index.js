@@ -588,6 +588,9 @@ module.exports = class MusicServer {
       case /(?:^|\/)audio\/\d+\/serviceplayinsert\//.test(url):
         return this._audioServicePlayInsert(url);
 
+      case /(?:^|\/)audio\/\d+\/serviceplayadd\//.test(url):
+        return this._audioServicePlayAdd(url);
+
       case /(?:^|\/)audio\/\d+\/shuffle\/\d+(?:\/|$)/.test(url):
         return this._audioShuffle(url);
 
@@ -1256,6 +1259,22 @@ module.exports = class MusicServer {
         qindex = 0
 
     await zone.getQueueList().insert(qindex + 1, {
+      id: decodedId,
+      title: null,
+      image: null,
+    });
+
+    return this._emptyCommand(url, []);
+  }
+
+  async _audioServicePlayAdd(url) {
+    const [, zoneId, , , , id] = url.split('/');
+    const zone = this._zones[+zoneId - 1];
+    const [decodedId] = this._decodeId(id);
+
+    const {total} = await zone.getQueueList().get(undefined, 0, 0);
+
+    await zone.getQueueList().insert(total, {
       id: decodedId,
       title: null,
       image: null,
