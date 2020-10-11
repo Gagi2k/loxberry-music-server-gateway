@@ -82,6 +82,9 @@ module.exports = class MusicZone {
         this._pushAudioEvent();
     } else if (data.startsWith("playlist shuffle") ||
                data.startsWith("playlist repeat")  ||
+               data.startsWith("playlist stop")  ||
+               data.startsWith("playlist pause")  ||
+               data.startsWith("playlist play")  ||
                data.startsWith("mixer volume")) {
         await this.getState();
         this._pushAudioEvent();
