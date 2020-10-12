@@ -128,9 +128,18 @@ module.exports = class List {
         this.insert_call = async (position, ...items) => {
             for (var i in items) {
                 //Create a new playlist
-                await this._client.command('playlists new name:' + escape(items[i].title));
-                //TODO emit change event
+                let response = await this._client.command('playlists new name:' + escape(items[i].title));
+                const [ , id] = response.split("%3A")
+                this.reset();
+                musicServer._pushPlaylistsChangedEvent("playlist:" + id, "create", items[i].title);
             }
+        }
+        this.delete_call = async (position, length) => {
+            // Instead of passing the position, we pass the playlist_id directly
+            let parsed_id = this._client.parseId(position);
+            await this._client.command('playlists delete playlist_id:' + parsed_id.id);
+            this.reset();
+            musicServer._pushPlaylistsChangedEvent(position, "delete");
         }
     } else if (url.endsWith("queue")) {
         this._client = new LMSClient(this._zone_mac, (data) => {
