@@ -6,10 +6,10 @@ module.exports = class MusicMaster {
   constructor(musicServer) {
     this._musicServer = musicServer;
 
-    this._inputs = new MusicList(this, '/inputs');
-    this._favorites = new MusicList(this, '/favorites');
-    this._playlists = new MusicList(this, '/playlists');
-    this._library = new MusicList(this, '/library');
+    this._inputs = new MusicList(musicServer, '/inputs');
+    this._favorites = new MusicList(musicServer, '/favorites');
+    this._playlists = new MusicList(musicServer, '/playlists');
+    this._library = new MusicList(musicServer, '/library');
 
     this._last = Promise.resolve();
   }
