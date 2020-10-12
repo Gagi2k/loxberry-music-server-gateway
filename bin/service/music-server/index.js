@@ -251,23 +251,22 @@ module.exports = class MusicServer {
     });
   }
 
-  _pushPlaylistsChangedEvent() {
-    console.log('Playlists update not implemented yet');
+  _pushPlaylistsChangedEvent(playlistId, actionName, playlistName) {
+     const playlistsChangedEventMessage = JSON.stringify({
+       playlistchanged_event: [
+         {
+           cmd: 'lms',
+           user: 'noUser',
+           playlistid: this._encodeId(playlistId, BASE_PLAYLIST),
+           action: actionName,
+           name: playlistName
+         },
+       ],
+     });
 
-    // This code updates one playlist, not the list of playlists:
-
-    // const playlistsChangedEventMessage = JSON.stringify({
-    //   playlistchanged_event: [
-    //     {
-    //       cmd: 'lms',
-    //       user: 'noUser',
-    //     },
-    //   ],
-    // });
-
-    // this._wsConnections.forEach((connection) => {
-    //   connection.send(playlistsChangedEventMessage);
-    // });
+     this._wsConnections.forEach((connection) => {
+       connection.send(playlistsChangedEventMessage);
+     });
   }
 
   _pushRoomFavEvents(zones) {
@@ -491,6 +490,9 @@ module.exports = class MusicServer {
 
       case /(?:^|\/)audio\/cfg\/playlist\/create(?:\/|$)/.test(url):
         return this._audioCfgPlaylistCreate(url);
+
+      case /(?:^|\/)audio\/cfg\/playlist\/deletelist\//.test(url):
+        return this._audioCfgPlaylistDeleteList(url);
 
       case /(?:^|\/)audio\/cfg\/scanstatus(?:\/|$)/.test(url):
         return this._emptyCommand(url, [{scanning: 0}]);
@@ -800,7 +802,7 @@ module.exports = class MusicServer {
         id: id,
         totalitems: total,
         start: +start,
-        items: items.map(this._convert(11, BASE_PLAYLIST, +start)),
+        items: items.map(this._convert(11, BASE_PLAYLIST)),
       },
     ]);
   }
@@ -914,6 +916,15 @@ module.exports = class MusicServer {
     });
 
     return this._emptyCommand(url, []);
+  }
+
+  async _audioCfgPlaylistDeleteList(url) {
+    const [name, id] = url.split('/').slice(-2);
+    const [decodedId] = this._decodeId(id);
+
+    await this._master.getPlaylistList().delete(decodedId, 1);
+
+    return this._emptyCommand(url, [{items: []}]);
   }
 
   async _audioCfgDefaultVolume(url) {
@@ -1394,13 +1405,16 @@ module.exports = class MusicServer {
 
       this._imageStore[item.id] = item.image;
       type = item.type ? item.type : type
+      let newBase = base
+      if (start != undefined)
+            newBase += i;
 
       return {
         type,
         slot: start + i + 1,
-        audiopath: this._encodeId(item.id, base + i),
+        audiopath: this._encodeId(item.id, newBase),
         coverurl: item.image || undefined,
-        id: this._encodeId(item.id, base + i),
+        id: this._encodeId(item.id, newBase),
         name: item.title,
         station: item.station,
       };
