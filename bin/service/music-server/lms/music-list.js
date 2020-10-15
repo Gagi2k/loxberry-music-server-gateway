@@ -45,6 +45,9 @@ module.exports = class List {
                 return data
             }
             this.insert_call = async (position, ...items) => {
+                //TODO the items we are getting here might be playslists or other items which
+                // don't use a track as an id, we need to resolve the track first from the id
+
                 for (var i in items) {
                     await this._client.command('favorites add item_id:' + position + ' title:' + escape(items[i].title) + ' url:' + items[i].id);
                 }
@@ -203,7 +206,48 @@ module.exports = class List {
 
             return { count: data.length, items: data }
         }
-        this.title_prop = 'title'
+    } else if (url.endsWith("radios")) {
+        this._client = new LMSClient(this._zone_mac);
+        this.get_call = async (rootItem, start, length) => {
+            let response = await this._client.command('radios ' + start + ' ' + length);
+            let data = this._client.parseAdvancedQueryResponse2(response, ["name", "icon", "type", "cmd", "weight"]);
+            let items = data.items;
+            data.items = []
+            for (var key in items) {
+                // Filter the search Folder
+                if (items[key].cmd == "search") {
+                    data.count--;
+                    continue;
+                }
+
+                data.items.push({
+                                   // Always 0, as this is indicates no item_id for the servicefolder command
+                                   id: 0,
+                                   cmd: items[key].cmd,
+                                   name: unescape(items[key].name),
+                                   icon: await this._client.extractArtwork(items[key].url, items[key])
+                               })
+            }
+            return data
+        }
+    } else if (url.endsWith("servicefolder")) {
+        this._client = new LMSClient(this._zone_mac);
+        this.get_call = async (rootItem, start, length) => {
+            var itemId = rootItem.id ? "item_id:" + this._client.parseId(rootItem.id).id : ""
+            let response = await this._client.command(rootItem.cmd + ' items ' + start + ' ' + length + ' want_url:1 ' + itemId);
+            let data = this._client.parseAdvancedQueryResponse(response, 'id');
+            let items = data.items.slice(1);
+            data.items = []
+            for (var key in items) {
+                data.items.push({
+                                   id: "service/" + rootItem.cmd + ":" + items[key].id,
+                                   title: unescape(items[key].name),
+                                   image: await this._client.extractArtwork(items[key].url, items[key]),
+                                   type: items[key].hasitems == "1" ? 1 : 2
+                               })
+            }
+            return data
+        }
     }
 
     this.reset();

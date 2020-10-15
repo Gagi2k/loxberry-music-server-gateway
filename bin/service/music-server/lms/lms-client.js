@@ -144,6 +144,41 @@ module.exports = class LMSClient {
         };
     }
 
+    parseAdvancedQueryResponse2(data, requiredKeys, count_key = 'count') {
+        // Remove leading/trailing white spaces
+        let count = 0
+        let response = data.trim();
+        let strings = response.split(' ')
+        let current_item = {}
+        let items = []
+        for (let i in strings) {
+            var str = strings[i];
+            var colon = '%3A';
+            var index = str.indexOf(colon)
+            var key = str.slice(0, index);
+            var value = str.slice(index + colon.length);
+
+            if (key == count_key) {
+                count = parseInt(value);
+                continue
+            }
+            current_item[key] = value;
+
+            const keys = Object.keys(current_item);
+            if (requiredKeys.every(val => keys.includes(val))) {
+                items.push(current_item);
+                current_item = {};
+            }
+        }
+        if (Object.keys(current_item).length !== 0)
+            items.push(current_item);
+
+        return {
+            count: count,
+            items: items
+        };
+    }
+
     async artworkFromTrackId(id) {
         if (!id)
             return undefined;
@@ -165,6 +200,14 @@ module.exports = class LMSClient {
     extractArtwork(url, item) {
         if ('artwork_track_id' in item) {
             return "http://" + config.lms_host + ":" + config.lms_port + "/music/" + item['artwork_track_id'] + "/cover"
+        }
+
+        if ('image' in item) {
+            return "http://" + config.lms_host + ":" + config.lms_port + item['image']
+        }
+
+        if ('icon' in item) {
+            return "http://" + config.lms_host + ":" + config.lms_port + item['icon']
         }
 
         if ('artwork_url' in item) {

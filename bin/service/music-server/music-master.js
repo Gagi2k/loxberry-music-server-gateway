@@ -10,6 +10,8 @@ module.exports = class MusicMaster {
     this._favorites = new MusicList(this, '/favorites');
     this._playlists = new MusicList(this, '/playlists');
     this._library = new MusicList(this, '/library');
+    this._radios = new MusicList(musicServer, '/radios');
+    this._serviceFolder = new MusicList(musicServer, '/servicefolder');
 
     this._last = Promise.resolve();
   }
@@ -28,6 +30,14 @@ module.exports = class MusicMaster {
 
   getLibraryList() {
     return this._library;
+  }
+
+  getRadioList() {
+    return this._radios;
+  }
+
+  getServiceFolderList() {
+    return this._serviceFolder;
   }
 
   async playUploadedFile(path, zones) {
