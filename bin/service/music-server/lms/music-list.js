@@ -230,9 +230,20 @@ module.exports = class List {
             }
             return data
         }
+    } else if (url.endsWith("services")) {
+        this._client = new LMSClient(this._zone_mac);
+        this.get_call = async (rootItem, start, length) => {
+            let response = await this._client.command('spotty items 0 1');
+            let data = this._client.parseAdvancedQueryResponse(response, 'id');
+            if (data.count == 0)
+                return { count: 0, items: [] };
+            return { count: 1, items: [{ id: 0, cmd: "spotify", user: "Standard User" }] };
+        }
     } else if (url.endsWith("servicefolder")) {
         this._client = new LMSClient(this._zone_mac);
         this.get_call = async (rootItem, start, length) => {
+            if (rootItem.cmd == "spotify")
+                rootItem.cmd = "spotty";
             var itemId = rootItem.id ? "item_id:" + this._client.parseId(rootItem.id).id : ""
             let response = await this._client.command(rootItem.cmd + ' items ' + start + ' ' + length + ' want_url:1 ' + itemId);
             let data = this._client.parseAdvancedQueryResponse(response, 'id');
@@ -243,7 +254,8 @@ module.exports = class List {
                                    id: "service/" + rootItem.cmd + ":" + items[key].id,
                                    title: unescape(items[key].name),
                                    image: await this._client.extractArtwork(items[key].url, items[key]),
-                                   type: items[key].hasitems == "1" ? 1 : 2
+                                   type: items[key].type == "playlist" ? 11 //playlist
+                                                                       : items[key].isaudio == "1" ? 2 : 1 //folder
                                })
             }
             return data

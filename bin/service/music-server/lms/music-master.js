@@ -12,6 +12,7 @@ module.exports = class MusicMaster {
     this._library = new MusicList(musicServer, '/library');
     this._radios = new MusicList(musicServer, '/radios');
     // This is not zone specific but we still need to use a zone for the call to work correctly
+    this._services = new MusicList(musicServer, '/services', musicServer._zones[0]);
     this._serviceFolder = new MusicList(musicServer, '/servicefolder', musicServer._zones[0]);
 
     this._last = Promise.resolve();
@@ -35,6 +36,10 @@ module.exports = class MusicMaster {
 
   getRadioList() {
     return this._radios;
+  }
+
+  getServiceList() {
+    return this._services;
   }
 
   getServiceFolderList() {

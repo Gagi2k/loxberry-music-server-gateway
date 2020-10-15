@@ -11,6 +11,7 @@ module.exports = class MusicMaster {
     this._playlists = new MusicList(this, '/playlists');
     this._library = new MusicList(this, '/library');
     this._radios = new MusicList(musicServer, '/radios');
+    this._services = new MusicList(musicServer, '/services');
     this._serviceFolder = new MusicList(musicServer, '/servicefolder');
 
     this._last = Promise.resolve();
@@ -34,6 +35,10 @@ module.exports = class MusicMaster {
 
   getRadioList() {
     return this._radios;
+  }
+
+  getServiceList() {
+    return this._services;
   }
 
   getServiceFolderList() {

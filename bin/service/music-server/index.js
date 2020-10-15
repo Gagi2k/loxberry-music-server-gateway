@@ -469,7 +469,8 @@ module.exports = class MusicServer {
         return this._audioCfgGetRoomFavs(url);
 
       case /(?:^|\/)audio\/cfg\/get(?:available)?services(?:\/|$)/.test(url):
-        return this._emptyCommand(url, []);
+        return this._audioCfgGetServices(url);
+
       case /(?:^|\/)audio\/cfg\/getservicefolder(?:\/|$)/.test(url):
         return this._audioCfgGetServiceFolder(url);
 
@@ -840,6 +841,12 @@ module.exports = class MusicServer {
     return this._response(url, 'getroomfavs', []);
   }
 
+  async _audioCfgGetServices(url) {
+    const {total, items} = await this._master.getServiceList().get(undefined, 0, 50);
+
+    return this._emptyCommand(url, items);
+  }
+
   async _audioFavoritePlay(url) {
     const [, zoneId, , id] = url.split('/');
     const zone = this._zones[+zoneId - 1];
@@ -852,14 +859,12 @@ module.exports = class MusicServer {
 
   async _audioCfgGetServiceFolder(url) {
     let [, , , service, user, requestId, start, length] = url.split('/');
-    if (service == "spotify")
-        return this._emptyCommand(url, []);
 
     let rootItem = {
         cmd: service,
     };
 
-    if (requestId != 0) {
+    if (requestId != 0 && requestId != 'start') {
         const [decodedId] = this._decodeId(requestId);
         rootItem.id = decodedId
     }
