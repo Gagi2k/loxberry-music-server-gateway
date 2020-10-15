@@ -203,17 +203,15 @@ module.exports = class LMSClient {
         }
 
         if ('image' in item) {
-            return "http://" + config.lms_host + ":" + config.lms_port + item['image']
+            return this.resolveUrl(unescape(item['image']));
         }
 
         if ('icon' in item) {
-            return "http://" + config.lms_host + ":" + config.lms_port + item['icon']
+            return this.resolveUrl(unescape(item['icon']));
         }
 
         if ('artwork_url' in item) {
             let artwork_url = unescape(item['artwork_url']);
-            if (artwork_url.startsWith("http"))
-                return artwork_url;
 
             // Before accepting this default icon, try to be smart and parse the ID of the station
             // and resolve the icon ourself
@@ -225,13 +223,20 @@ module.exports = class LMSClient {
                 }
             }
 
-            if (!artwork_url.startsWith("/"))
-                artwork_url = "/" + artwork_url
-
-            return "http://" + config.lms_host + ":" + config.lms_port + artwork_url;
+            return this.resolveUrl(artwork_url);
         }
 
         return undefined
+    }
+
+    resolveUrl(str) {
+        if (str.startsWith("http"))
+            return str;
+
+        if (!str.startsWith("/"))
+            str = "/" + str
+
+        return "http://" + config.lms_host + ":" + config.lms_port + str;
     }
 
     parseId(str) {
