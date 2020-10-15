@@ -280,6 +280,10 @@ module.exports = class MusicZone {
     } else if (parsed_id.type == "url"){
         await this._client.command('playlist play ' + parsed_id.id);
         return;
+    } else if (parsed_id.type.startsWith("service")){
+        const [, cmd] = parsed_id.type.split("/");
+        await this._client.command(cmd + ' playlist play item_id:' + parsed_id.id);
+        return;
     }
 
     console.log("PLAYING THIS TYPE IS NOT IMPLEMENTED")

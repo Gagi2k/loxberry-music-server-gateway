@@ -10,6 +10,9 @@ module.exports = class MusicMaster {
     this._favorites = new MusicList(musicServer, '/favorites');
     this._playlists = new MusicList(musicServer, '/playlists');
     this._library = new MusicList(musicServer, '/library');
+    this._radios = new MusicList(musicServer, '/radios');
+    // This is not zone specific but we still need to use a zone for the call to work correctly
+    this._serviceFolder = new MusicList(musicServer, '/servicefolder', musicServer._zones[0]);
 
     this._last = Promise.resolve();
   }
@@ -28,6 +31,14 @@ module.exports = class MusicMaster {
 
   getLibraryList() {
     return this._library;
+  }
+
+  getRadioList() {
+    return this._radios;
+  }
+
+  getServiceFolderList() {
+    return this._serviceFolder;
   }
 
   async playUploadedFile(path, zones) {

@@ -33,6 +33,7 @@ const BASE_FAVORITE_GLOBAL = 2 * BASE_DELTA;
 const BASE_PLAYLIST = 3 * BASE_DELTA;
 const BASE_LIBRARY = 4 * BASE_DELTA;
 const BASE_INPUT = 5 * BASE_DELTA;
+const BASE_SERVICE = 6 * BASE_DELTA;
 
 module.exports = class MusicServer {
   constructor(cfg) {
@@ -43,8 +44,6 @@ module.exports = class MusicServer {
 
     this._imageStore = Object.create(null);
 
-    this._master = new MusicMaster(this);
-
     this._wsConnections = new Set();
     this._miniserverIp = null;
     this._miniserverPort = null;
@@ -52,6 +51,8 @@ module.exports = class MusicServer {
     for (let i = 0; i < config.zones; i++) {
       zones[i] = new MusicZone(this, i + 1);
     }
+
+    this._master = new MusicMaster(this);
   }
 
   start() {
@@ -462,13 +463,15 @@ module.exports = class MusicServer {
         return this._audioCfgGetPlaylists(url);
 
       case /(?:^|\/)audio\/cfg\/getradios(?:\/|$)/.test(url):
-        return this._emptyCommand(url, []);
+        return this._audioCfgGetRadios(url);
 
       case /(?:^|\/)audio\/cfg\/getroomfavs\//.test(url):
         return this._audioCfgGetRoomFavs(url);
 
       case /(?:^|\/)audio\/cfg\/get(?:available)?services(?:\/|$)/.test(url):
         return this._emptyCommand(url, []);
+      case /(?:^|\/)audio\/cfg\/getservicefolder(?:\/|$)/.test(url):
+        return this._audioCfgGetServiceFolder(url);
 
       case /(?:^|\/)audio\/cfg\/getsyncedplayers(?:\/|$)/.test(url):
         return this._audioCfgGetSyncedPlayers(url);
@@ -807,6 +810,12 @@ module.exports = class MusicServer {
     ]);
   }
 
+  async _audioCfgGetRadios(url) {
+    const {total, items} = await this._master.getRadioList().get(undefined, 0, 50);
+
+    return this._response(url, 'getradios', items);
+  }
+
   async _audioCfgGetRoomFavs(url) {
     const [, , , zoneId, start, length] = url.split('/');
 
@@ -839,6 +848,34 @@ module.exports = class MusicServer {
     await zone.play(decodedId, favoriteId);
 
     return this._audioCfgGetPlayersDetails('audio/cfg/getplayersdetails');
+  }
+
+  async _audioCfgGetServiceFolder(url) {
+    let [, , , service, user, requestId, start, length] = url.split('/');
+    if (service == "spotify")
+        return this._emptyCommand(url, []);
+
+    let rootItem = {
+        cmd: service,
+    };
+
+    if (requestId != 0) {
+        const [decodedId] = this._decodeId(requestId);
+        rootItem.id = decodedId
+    }
+
+    const {total, items} = await this._master.getServiceFolderList().get(rootItem, start, length);
+
+    return this._response(url, 'getservicefolder/' + service + '/' + user, [
+      {
+        id: requestId,
+        totalitems: total,
+        start: +start,
+        items: items.map(this._convert(2, BASE_SERVICE, +start)),
+      },
+    ]);
+
+    return this._response(url, 'getservicefolder/' + service + '/' + user, items);
   }
 
   _audioCfgGetSyncedPlayers(url) {
