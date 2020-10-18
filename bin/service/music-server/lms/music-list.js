@@ -179,9 +179,15 @@ module.exports = class List {
                 let parsed_id = this._client.parseId(items[i].id);
                 if (parsed_id.type == "url")
                     await this._client.command('playlist ' + cmd + ' ' + parsed_id.id);
-                else if (parsed_id.type == "playlist")
-                     await this._client.command('playlistcontrol cmd:' + cmd + ' playlist_id:' + parsed_id.id);
-                else
+                else if (parsed_id.type == "playlist" ||
+                         parsed_id.type == "artist" ||
+                         parsed_id.type == "album" ||
+                         parsed_id.type == "year" ||
+                         parsed_id.type == "genre" ||
+                         parsed_id.type == "folder") {
+                     var str = parsed_id.type + "_id:" + parsed_id.id;
+                     await this._client.command('playlistcontrol cmd:' + cmd + " " + str);
+                } else
                     await this._client.command('favorites playlist ' + cmd + ' item_id:' + parsed_id.id);
             }
         }
@@ -199,12 +205,47 @@ module.exports = class List {
     } else if (url.endsWith("library")) {
         this._client = new LMSClient(this._zone_mac);
         this.get_call = async (rootItem, start, length) => {
-            var data = [];
-            for (var i=0; i<10; i++) {
-                data.push({ id: i, title: "FOO " + i, type:1});
-            }
+            const itemMap = [{ name: 'Artists', cmd: 'artists', next_cmd: 'albums', filter_key: "artist_id", name_key: 'artist', split_key: 'id', id_key: 'artist' },
+                             { name: 'Albums', cmd: 'albums', next_cmd: 'tracks', filter_key: "album_id", name_key: 'title', split_key: 'id', id_key: 'album' },
+                             { name: 'Tracks', cmd: 'tracks', next_cmd: '', filter_key: "track_id", name_key: 'title', split_key: 'id', id_key: 'url' },
+                             { name: 'Years', cmd: 'years', next_cmd: 'artists', filter_key: "year", name_key: 'year', split_key: 'year', id_key: 'year' },
+                             { name: 'Genres', cmd: 'genres', next_cmd: 'artists', filter_key: "genre_id", name_key: 'genre', split_key: 'id', id_key: 'genre' },
+                             { name: 'Folders', cmd: 'musicfolder', next_cmd: 'musicfolder', filter_key: "folder_id", name_key: 'title', split_key: 'id', id_key: 'folder' }
+                            ];
+            if (!rootItem) {
+                var data = [];
+                for (var key in itemMap) {
+                    data.push({ id: itemMap[key].cmd + ':0', title: itemMap[key].name, type:1 });
+                }
 
-            return { count: data.length, items: data }
+                return { count: data.length, items: data }
+            } else {
+                let parsed_id = this._client.parseId(rootItem.id);
+                let cmd = parsed_id.type;
+                let filter = "";
+                if (parsed_id.id != 0) {
+                    let cur_config = itemMap.find(element => parsed_id.type == element.id_key);
+                    cmd = cur_config.next_cmd;
+                    filter = " " + cur_config.filter_key + ':' +  parsed_id.id;
+                }
+                let config = itemMap.find(element => cmd == element.cmd);
+                let name_key = config.name_key;
+                let split_key = config.split_key;
+
+                let response = await this._client.command(cmd + ' ' + start + ' ' + length + filter + " tags:uKjJt");
+                let data = this._client.parseAdvancedQueryResponse(response, split_key);
+                let items = data.items;
+                data.items = []
+                for (var key in items) {
+                    data.items.push({
+                                       id: items[key].type == "track" ? "url:" + items[key].url : config.id_key + ":" + items[key][config.split_key],
+                                       title: items[key][name_key],
+                                       image: await this._client.extractArtwork(items[key].url, items[key]),
+                                       type: cmd == "tracks" || items[key].type == "track"  ? 2 : 1
+                                   })
+                }
+                return data
+            }
         }
     } else if (url.endsWith("radios")) {
         this._client = new LMSClient(this._zone_mac);
