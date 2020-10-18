@@ -763,11 +763,22 @@ module.exports = class MusicServer {
 
   async _audioCfgGetMediaFolder(url) {
     const [, , , requestId, start, length] = url.split('/');
-    const {total, items} = await this._master.getLibraryList().get(undefined, +start, +length);
+
+    let rootItem = undefined;
+    if (requestId != 0) {
+        const [decodedId] = this._decodeId(requestId);
+        rootItem = {
+          id: decodedId,
+          title: null,
+          image: null,
+        }
+    }
+
+    const {total, items} = await this._master.getLibraryList().get(rootItem, +start, +length);
 
     return this._response(url, 'getmediafolder', [
       {
-        id: +requestId,
+        id: requestId,
         totalitems: total,
         start: +start,
         items: items.map(this._convert(2, BASE_LIBRARY, +start)),

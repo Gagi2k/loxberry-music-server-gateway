@@ -262,7 +262,7 @@ module.exports = class MusicZone {
     var fav_id = favoriteId % 1000000;
 
     if (type == 0) {
-        setMode('play')
+        this.setMode('play')
         return;
     }
 
@@ -273,16 +273,21 @@ module.exports = class MusicZone {
     if (parsed_id.type == "fav") {
         await this._client.command('favorites playlist play item_id:' + parsed_id.id);
         return;
-    } else if (parsed_id.type == "playlist") {
-        var str = "playlist_id:" + parsed_id.id;
-        await this._client.command('playlistcontrol cmd:load ' + str);
-        return;
     } else if (parsed_id.type == "url"){
         await this._client.command('playlist play ' + parsed_id.id);
         return;
     } else if (parsed_id.type.startsWith("service")){
         const [, cmd] = parsed_id.type.split("/");
         await this._client.command(cmd + ' playlist play item_id:' + parsed_id.id);
+        return;
+    } else if (parsed_id.type == "playlist" ||
+               parsed_id.type == "artist" ||
+               parsed_id.type == "album" ||
+               parsed_id.type == "year" ||
+               parsed_id.type == "genre" ||
+               parsed_id.type == "folder") {
+        var str = parsed_id.type + "_id:" + parsed_id.id;
+        await this._client.command('playlistcontrol cmd:load ' + str);
         return;
     }
 
