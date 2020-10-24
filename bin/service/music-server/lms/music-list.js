@@ -36,7 +36,7 @@ module.exports = class List {
                                            // For example in folders
                                            id: items[key].url ? "url:" + items[key].url : "fav:" + items[key].id,
                                            title: items[key]["name"],
-                                           image: await this._client.artworkFromUrl(items[key].url)
+                                           image: await this._client.extractArtwork(items[key].url, items[key])
                                        })
                     } else {
                         data.count = data.count - 1
