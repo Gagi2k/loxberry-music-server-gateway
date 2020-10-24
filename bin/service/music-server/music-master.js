@@ -45,6 +45,33 @@ module.exports = class MusicMaster {
     return this._serviceFolder;
   }
 
+  getSearchableTypes() {
+    // Every key corresponds to one search == one list of result
+    // The sample does three searches
+    // Every key contains a list of categories which should be searched in
+    // All of this is passed to the search function
+    return {
+        spotify: ['all'],
+        local: ['all'],
+        radios: ['all']
+    }
+  }
+
+  async search(type, category, search, start, length) {
+    let chunk = {items: [], total: 0};
+
+    try {
+      chunk = await this._call('GET', '/search/' + type + '/' + category + '/' + search + '/' + start + '/' + length);
+    } catch (err) {
+      console.error('[ERR!] Could not fetch search result: ' + err.message);
+    }
+
+    return {
+      total: chunk.total,
+      items: chunk.items,
+    };
+  }
+
   async playUploadedFile(path, zones) {
     try {
       await this._call(

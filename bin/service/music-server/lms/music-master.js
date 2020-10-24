@@ -1,5 +1,6 @@
 'use strict';
 
+const LMSClient = require('./lms-client');
 const MusicList = require('./music-list');
 
 module.exports = class MusicMaster {
@@ -44,6 +45,53 @@ module.exports = class MusicMaster {
 
   getServiceFolderList() {
     return this._serviceFolder;
+  }
+
+  getSearchableTypes() {
+    // Every key corresponds to one search == one list of result
+    // The sample does three searches
+    // Every key contains a list of categories which should be searched in
+    // All of this is passed to the search function
+    return {
+//        spotify: ['all'],
+        local: ['artists', 'albums', 'playlists', 'genres', 'tracks'],
+        radios: ['all']
+    }
+  }
+
+  async search(type, category, search, start, length) {
+    this._client = new LMSClient();
+
+    if (type == 'local') {
+        // This is a copy from the music-list
+        // TODO get rid of the copy and share it somehow
+        const itemMap = [{ name: 'Artists', cmd: 'artists', next_cmd: 'albums', filter_key: "artist_id", name_key: 'artist', split_key: 'id', id_key: 'artist' },
+                         { name: 'Albums', cmd: 'albums', next_cmd: 'tracks', filter_key: "album_id", name_key: 'title', split_key: 'id', id_key: 'album' },
+                         { name: 'Tracks', cmd: 'tracks', next_cmd: '', filter_key: "track_id", name_key: 'title', split_key: 'id', id_key: 'url' },
+                         { name: 'Years', cmd: 'years', next_cmd: 'artists', filter_key: "year", name_key: 'year', split_key: 'year', id_key: 'year' },
+                         { name: 'Genres', cmd: 'genres', next_cmd: 'artists', filter_key: "genre_id", name_key: 'genre', split_key: 'id', id_key: 'genre' },
+                         { name: 'Folders', cmd: 'musicfolder', next_cmd: 'musicfolder', filter_key: "folder_id", name_key: 'title', split_key: 'id', id_key: 'folder' },
+                         { name: 'Playlists', cmd: 'playlists', next_cmd: '', filter_key: "playlist_id", name_key: 'playlist', split_key: 'id', id_key: 'playlist' }
+                        ];
+
+        let config = itemMap.find( element => { return category == element.cmd });
+        let response = await this._client.command(category + ' ' + start + ' ' + length + " search:" + search + " tags:uKjJt");
+        let data = this._client.parseAdvancedQueryResponse(response, config.split_key);
+
+        let items = data.items;
+        data.name = config.name;
+        data.items = []
+        for (var key in items) {
+            data.items.push({
+                                id: category == "tracks" ? "url:" + items[key].url : config.id_key + ":" + items[key][config.split_key],
+                                title: items[key][config.name_key],
+                                image: await this._client.extractArtwork(items[key].url, items[key]),
+                                type: category == "tracks" || items[key].type == "track"  ? 2 : 1
+                           })
+        }
+        console.log(data);
+        return data;
+    }
   }
 
   async playUploadedFile(path, zones) {

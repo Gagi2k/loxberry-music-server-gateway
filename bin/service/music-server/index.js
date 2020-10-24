@@ -477,6 +477,12 @@ module.exports = class MusicServer {
       case /(?:^|\/)audio\/cfg\/getsyncedplayers(?:\/|$)/.test(url):
         return this._audioCfgGetSyncedPlayers(url);
 
+      case /(?:^|\/)audio\/cfg\/globalsearch\/describe(?:\/|$)/.test(url):
+        return this._audioCfgGlobalSearchDescribe(url);
+
+      case /(?:^|\/)audio\/cfg\/globalsearch\//.test(url):
+        return this._audioCfgGlobalSearch(url);
+
       case /(?:^|\/)audio\/cfg\/iamaminiserver(?:done)?\//.test(url):
         return this._audioCfgIAmAMiniserver(url);
 
@@ -896,6 +902,41 @@ module.exports = class MusicServer {
 
   _audioCfgGetSyncedPlayers(url) {
     return this._emptyCommand(url, []);
+  }
+
+  _audioCfgGlobalSearchDescribe(url) {
+    return this._response(url, 'globalsearch', this._master.getSearchableTypes());
+  }
+
+  async _audioCfgGlobalSearch(url) {
+    const [, , , inputString, search] = url.split('/');
+
+    const splitted = inputString.split('|');
+    for (var i in splitted) {
+        const [type, catNumbers] = splitted[i].split(':');
+        let cats = catNumbers.split(',');
+
+        var search_result = {};
+        for (var j in cats) {
+            const [category, length] = cats[j].split('#');
+            let response = await this._master.search(type, category, search, 0, length);
+            response.items = response.items.map(this._convert(2, BASE_SERVICE)),
+            response.caption = response.name;
+            if (response.count > length) {
+                response.link = "FOOOOOOO";
+            }
+
+            search_result[category] = response;
+        }
+
+        var search_response = {
+            globalsearch_result: search_result,
+            type: type,
+            command: url,
+        };
+
+        return JSON.stringify(search_response, null, 2)
+    }
   }
 
   _audioCfgIAmAMiniserver(url) {
