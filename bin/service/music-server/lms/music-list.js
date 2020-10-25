@@ -283,16 +283,28 @@ module.exports = class List {
     } else if (url.endsWith("servicefolder")) {
         this._client = new LMSClient(this._zone_mac);
         this.get_call = async (rootItem, start, length) => {
+
+            var cmd = rootItem.cmd;
             if (rootItem.cmd == "spotify")
-                rootItem.cmd = "spotty";
+                cmd = "spotty";
+
+            if (rootItem.id) {
+                let parsed_id = this._client.parseId(rootItem.id);
+                // The app forwards from a radio search using the "local" cmd
+                // This is a hack to make it work.
+                if (parsed_id.type == "service/search")
+                    cmd = "search";
+            }
+
             var itemId = rootItem.id ? "item_id:" + this._client.parseId(rootItem.id).id : ""
-            let response = await this._client.command(rootItem.cmd + ' items ' + start + ' ' + length + ' want_url:1 ' + itemId);
+
+            let response = await this._client.command(cmd + ' items ' + start + ' ' + length + ' want_url:1 ' + itemId);
             let data = this._client.parseAdvancedQueryResponse(response, 'id');
             let items = data.items.slice(1);
             data.items = []
             for (var key in items) {
                 data.items.push({
-                                   id: "service/" + rootItem.cmd + ":" + items[key].id,
+                                   id: "service/" + cmd + ":" + items[key].id,
                                    title: unescape(items[key].name),
                                    image: await this._client.extractArtwork(items[key].url, items[key]),
                                    type: items[key].type == "playlist" ? 11 //playlist

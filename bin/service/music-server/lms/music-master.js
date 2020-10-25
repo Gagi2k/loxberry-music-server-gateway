@@ -55,12 +55,12 @@ module.exports = class MusicMaster {
     return {
 //        spotify: ['all'],
         local: ['artists', 'albums', 'playlists', 'genres', 'tracks'],
-        radios: ['all']
+        tunein: ['all']
     }
   }
 
   async search(type, category, search, start, length) {
-    this._client = new LMSClient();
+    this._client = new LMSClient(this._musicServer._zones[1]._zone_mac);
 
     if (type == 'local') {
         // This is a copy from the music-list
@@ -89,7 +89,25 @@ module.exports = class MusicMaster {
                                 type: category == "tracks" || items[key].type == "track"  ? 2 : 1
                            })
         }
-        console.log(data);
+        return data;
+    } else if (type == 'tunein') {
+        let response = await this._client.command('search items ' + start + ' ' + length + " search:" + search);
+        let data = this._client.parseAdvancedQueryResponse(response, 'id');
+
+        let items = data.items;
+        data.name = "Stations";
+        data.items = []
+        for (var key in items) {
+            if (!items[key].id)
+                continue;
+            data.items.push({
+                                id: "service/search:" + items[key].id,
+                                title: items[key].name,
+                                image: await this._client.extractArtwork(items[key].url, items[key]),
+                                type: items[key].type != "link"  ? 2 : 1
+                           })
+        }
+        console.log(data)
         return data;
     }
   }
