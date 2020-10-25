@@ -935,8 +935,14 @@ module.exports = class MusicServer {
             command: url,
         };
 
-        return JSON.stringify(search_response, null, 2)
+        // Each search needs to send its own result
+
+        this._wsConnections.forEach((connection) => {
+          connection.send(JSON.stringify(search_response, null, 2));
+        });
     }
+
+    return this._emptyCommand(url, []);
   }
 
   _audioCfgIAmAMiniserver(url) {
