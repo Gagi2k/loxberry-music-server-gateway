@@ -483,6 +483,9 @@ module.exports = class MusicServer {
       case /(?:^|\/)audio\/cfg\/globalsearch\//.test(url):
         return this._audioCfgGlobalSearch(url);
 
+      case /(?:^|\/)audio\/cfg\/search\//.test(url):
+        return this._audioCfgSearch(url);
+
       case /(?:^|\/)audio\/cfg\/iamaminiserver(?:done)?\//.test(url):
         return this._audioCfgIAmAMiniserver(url);
 
@@ -923,7 +926,7 @@ module.exports = class MusicServer {
             response.items = response.items.map(this._convert(2, BASE_SERVICE)),
             response.caption = response.name;
             if (response.count > length) {
-                response.link = "FOOOOOOO";
+                response.link = ['audio/cfg/search', type, category, search, 0, 50].join('/');
             }
 
             search_result[category] = response;
@@ -943,6 +946,24 @@ module.exports = class MusicServer {
     }
 
     return this._emptyCommand(url, []);
+  }
+
+  async _audioCfgSearch(url) {
+    const [, , , type, category, search, start, length] = url.split('/');
+
+    const data = await this._master.search(type, category, search, start, length);
+
+    return this._response(url, 'search/', [
+      {
+        results: [
+            {
+                totalitems: data.count,
+                start: +start,
+                items: data.items.map(this._convert(2, BASE_SERVICE, +start)),
+            }
+        ],
+      }
+    ]);
   }
 
   _audioCfgIAmAMiniserver(url) {

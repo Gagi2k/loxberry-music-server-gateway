@@ -75,8 +75,17 @@ module.exports = class LMSClient {
         returnValue = returnValue.replace(/\//g, "%2F")
 
         return new Promise((resolve, reject) => {
+                               let response = "";
                                var responseListener = (data) => {
-                                   var splitted = data.toString().split('\n')
+//                                   console.log("DATA ", data.toString())
+                                   response += data;
+                                   if (!response.toString().endsWith('\n')) {
+//                                       console.log("WAITING FOR MORE")
+                                       return;
+                                   }
+//                                   console.log("RESPONSE ", response.toString())
+
+                                   var splitted = response.toString().split('\n')
 //                                   console.log("RESPONSE", splitted, returnValue)
                                    for (var i in splitted) {
                                        var processed = splitted[i];
