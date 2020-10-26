@@ -60,7 +60,7 @@ module.exports = class MusicMaster {
   }
 
   async search(type, category, search, start, length) {
-    this._client = new LMSClient(this._musicServer._zones[1]._zone_mac);
+    this._client = new LMSClient(this._musicServer._zones[0]._zone_mac);
 
     if (type == 'local') {
         // This is a copy from the music-list
@@ -107,7 +107,6 @@ module.exports = class MusicMaster {
                                 type: items[key].type != "link"  ? 2 : 1
                            })
         }
-        console.log(data)
         return data;
     }
   }
