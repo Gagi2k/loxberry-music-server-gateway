@@ -16,6 +16,8 @@ module.exports = class MusicMaster {
     this._services = new MusicList(musicServer, '/services', musicServer._zones[0]);
     this._serviceFolder = new MusicList(musicServer, '/servicefolder', musicServer._zones[0]);
 
+    this._client = new LMSClient(this._musicServer._zones[0]._zone_mac);
+
     this._last = Promise.resolve();
   }
 
@@ -47,21 +49,34 @@ module.exports = class MusicMaster {
     return this._serviceFolder;
   }
 
-  getSearchableTypes() {
+  async getSearchableTypes() {
+    // Spotify is a bit tricky as the search results are mixed
+    // folders and tracks
+    // Here we just retrieve the folders to build a list of categories supported
+    let response = await this._client.command('spotty items 0 100 item_id:0.0');
+    let data = this._client.parseAdvancedQueryResponse(response, 'id');
+
+    // Use the base search folder to get results for tracks as well
+    this.spotify_categories = { '0.0': "Tracks" }
+    for (var key in data.items) {
+        if (!data.items[key].id)
+            continue;
+        this.spotify_categories[data.items[key].id] = data.items[key].name
+    }
+    console.log(this.spotify_categories)
+
     // Every key corresponds to one search == one list of result
     // The sample does three searches
     // Every key contains a list of categories which should be searched in
     // All of this is passed to the search function
     return {
-//        spotify: ['all'],
+        spotify: Object.keys(this.spotify_categories),
         local: ['artists', 'albums', 'playlists', 'genres', 'tracks'],
         tunein: ['all']
     }
   }
 
   async search(type, category, search, start, length) {
-    this._client = new LMSClient(this._musicServer._zones[0]._zone_mac);
-
     if (type == 'local') {
         // This is a copy from the music-list
         // TODO get rid of the copy and share it somehow
@@ -105,6 +120,42 @@ module.exports = class MusicMaster {
                                 title: items[key].name,
                                 image: await this._client.extractArtwork(items[key].url, items[key]),
                                 type: items[key].type != "link"  ? 2 : 1
+                           })
+        }
+        return data;
+    } else if (type == 'spotify') {
+        const folderLength = Object.keys(this.spotify_categories).length - 1;
+
+        // In this id we get tracks and folders mixed.
+        // The first X tracks are folder so we need to fetch more just to get tracks
+        if (category == "0.0" && start == 0)
+            length = Number(length) + folderLength;
+
+        let response = await this._client.command('spotty items ' + start + ' ' + length + " search:" + search + " item_id:" + category);
+        let data = this._client.parseAdvancedQueryResponse(response, 'id');
+
+        // In this id we get tracks and folders mixed.
+        // Use the already retrieved folders to calculate the correct count
+        if (category == "0.0")
+            data.count = data.count - folderLength
+
+        data.name = this.spotify_categories[category];
+
+        let items = data.items;
+        data.items = []
+        for (var key in items) {
+            if (!items[key].id)
+                continue;
+
+            if (category == "0.0" && key <= folderLength)
+                continue;
+
+            data.items.push({
+                                id: "service/spotty:" + items[key].id,
+                                title: unescape(items[key].name),
+                                image: await this._client.extractArtwork(items[key].url, items[key]),
+                                type: items[key].type == "playlist" ? 11 //playlist
+                                                                    : items[key].isaudio == "1" ? 2 : 1 //folder
                            })
         }
         return data;
