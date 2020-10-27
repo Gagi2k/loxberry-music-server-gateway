@@ -907,8 +907,8 @@ module.exports = class MusicServer {
     return this._emptyCommand(url, []);
   }
 
-  _audioCfgGlobalSearchDescribe(url) {
-    return this._response(url, 'globalsearch', this._master.getSearchableTypes());
+  async _audioCfgGlobalSearchDescribe(url) {
+    return this._response(url, 'globalsearch', await this._master.getSearchableTypes());
   }
 
   async _audioCfgGlobalSearch(url) {
@@ -916,8 +916,9 @@ module.exports = class MusicServer {
 
     const splitted = inputString.split('|');
     for (var i in splitted) {
-        const [type, catNumbers] = splitted[i].split(':');
+        const [typeUser, catNumbers] = splitted[i].split(':');
         let cats = catNumbers.split(',');
+        let type = typeUser.split('@')[0];
 
         var search_result = {};
         for (var j in cats) {
@@ -933,7 +934,7 @@ module.exports = class MusicServer {
         }
 
         var search_response = {
-            globalsearch_result: search_result,
+            globalsearch_result: type == "spotify" ? { result: search_result } : search_result,
             type: type,
             command: url,
         };

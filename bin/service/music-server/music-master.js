@@ -45,7 +45,7 @@ module.exports = class MusicMaster {
     return this._serviceFolder;
   }
 
-  getSearchableTypes() {
+  async getSearchableTypes() {
     // Every key corresponds to one search == one list of result
     // The sample does three searches
     // Every key contains a list of categories which should be searched in
