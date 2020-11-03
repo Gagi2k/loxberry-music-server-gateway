@@ -160,8 +160,6 @@ module.exports = class MusicZone {
         console.log(JSON.stringify(this._player))
 
         await this.getCurrentTrack()
-
-        this._musicServer.pushQueueEvent(this);
   }
 
   getPower() {
