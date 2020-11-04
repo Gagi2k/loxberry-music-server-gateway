@@ -62,7 +62,7 @@ module.exports = class List {
             }
         } else { // zone favorites
             let fileName = 'zone_favorite_' + this._zone._id + '.json'
-            let fav_items = [{id:0, title: "Dummy"}]
+            let fav_items = [{id:-1, title: "Dummy"}]
             if (fs.existsSync(fileName)) {
                 let rawdata = fs.readFileSync(fileName);
                 fav_items = JSON.parse(rawdata);

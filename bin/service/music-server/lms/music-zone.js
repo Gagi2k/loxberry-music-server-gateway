@@ -264,6 +264,9 @@ module.exports = class MusicZone {
         return;
     }
 
+    if (id == -1)
+        return;
+
     let parsed_id = this._client.parseId(id);
 
     console.log(type, fav_id)
