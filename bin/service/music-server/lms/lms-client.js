@@ -3,6 +3,7 @@
 var net = require('net');
 const fs = require('fs');
 const config = JSON.parse(fs.readFileSync("config.json"));
+const os = require('os');
 
 var notificationSocket
 var cmdSocket
@@ -14,8 +15,13 @@ module.exports = class LMSClient {
             this._mac = ""
         this.data_callback = data_callback;
 
+        if (config.lms_host == "localhost" || config.lms_host == "127.0.0.1")
+            this._host = config.ip ? config.ip : os.hostname();
+        else
+            this._host = config.lms_host;
+
         if (!notificationSocket) {
-            notificationSocket = net.createConnection({ host: config.lms_host, port: config.lms_cli_port }, () => {
+            notificationSocket = net.createConnection({ host: this._host, port: config.lms_cli_port }, () => {
                                                           notificationSocket.write('listen 1 \r\n');
                                                       });
             notificationSocket.setMaxListeners(200);
@@ -43,7 +49,7 @@ module.exports = class LMSClient {
         }
 
         if (!cmdSocket) {
-            cmdSocket = net.createConnection({ host: config.lms_host, port: config.lms_cli_port }, () => {
+            cmdSocket = net.createConnection({ host: this._host, port: config.lms_cli_port }, () => {
                                                    console.debug('doTelnet connected to server!');
                                                });
             cmdSocket.setMaxListeners(200);
@@ -208,7 +214,7 @@ module.exports = class LMSClient {
 
     extractArtwork(url, item) {
         if ('artwork_track_id' in item) {
-            return "http://" + config.lms_host + ":" + config.lms_port + "/music/" + item['artwork_track_id'] + "/cover"
+            return "http://" + this._host + ":" + config.lms_port + "/music/" + item['artwork_track_id'] + "/cover"
         }
 
         if ('image' in item) {
@@ -228,7 +234,7 @@ module.exports = class LMSClient {
                 var regex = /id%3Ds(\d+)%26/
                 var match = regex.exec(url);
                 if (match && match[1]) {
-                    return "http://" + config.lms_host + ":" + config.lms_port + '/imageproxy/http%3A%2F%2Fcdn-radiotime-logos.tunein.com%2Fs' + match[1] + 'q.png/image.png'
+                    return "http://" + this._host + ":" + config.lms_port + '/imageproxy/http%3A%2F%2Fcdn-radiotime-logos.tunein.com%2Fs' + match[1] + 'q.png/image.png'
                 }
             }
 
@@ -245,7 +251,7 @@ module.exports = class LMSClient {
         if (!str.startsWith("/"))
             str = "/" + str
 
-        return "http://" + config.lms_host + ":" + config.lms_port + str;
+        return "http://" + this._host + ":" + config.lms_port + str;
     }
 
     parseId(str) {
