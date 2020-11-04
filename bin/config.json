@@ -9,4 +9,5 @@
     "lms_cli_port": 9090,
     "uploadPath": "/Volumes/Music_Files",
     "uploadPlaybackPath": "/home/music/music_files"
+    "cors_port": 7092
 }

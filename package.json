@@ -14,6 +14,7 @@
   },
   "dependencies": {
     "async-mutex": "^0.2.4",
+    "cors-anywhere": "^0.4.3",
     "telnet-client": "^1.4.6",
     "websocket": "^1.0.32"
   }
