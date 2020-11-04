@@ -1,9 +1,11 @@
 'use strict';
 
 const http = require('http');
+const cors_proxy = require('cors-anywhere');
 const querystring = require('querystring');
 const websocket = require('websocket');
 const fs = require('fs');
+const os = require('os');
 
 const config = JSON.parse(fs.readFileSync("config.json"));
 
@@ -47,6 +49,7 @@ module.exports = class MusicServer {
     this._wsConnections = new Set();
     this._miniserverIp = null;
     this._miniserverPort = null;
+    this._hostIp = config.ip ? config.ip : os.hostname();
 
     for (let i = 0; i < config.zones; i++) {
       zones[i] = new MusicZone(this, i + 1);
@@ -117,6 +120,7 @@ module.exports = class MusicServer {
     });
 
     httpServer.listen(this._config.port);
+    cors_proxy.createServer().listen(config.cors_port)
 
     this._initSse();
 
@@ -763,7 +767,7 @@ module.exports = class MusicServer {
       items.map((item, i) => ({
         id: this._encodeId(item.id, BASE_INPUT + i),
         name: item.title,
-        coverurl: item.image in icons ? undefined : item.image,
+        coverurl: this._imageUrl(item.image in icons ? undefined : item.image),
         icontype: icons[item.image] || 0,
         enabled: true,
       })),
@@ -1496,7 +1500,7 @@ module.exports = class MusicServer {
       artist: track.artist,
       audiopath: this._encodeId(track.id, 0),
       audiotype: 2,
-      coverurl: track.image || '',
+      coverurl: this._imageUrl(track.image || ''),
       duration: mode === 'buffer' ? 0 : Math.ceil(track.duration / 1000),
       mode: mode === 'buffer' ? 'play' : mode,
       players: [{playerid: playerId}],
@@ -1535,7 +1539,7 @@ module.exports = class MusicServer {
         type,
         slot: start + i + 1,
         audiopath: this._encodeId(item.id, newBase),
-        coverurl: item.image || undefined,
+        coverurl: this._imageUrl(item.image || undefined),
         id: this._encodeId(item.id, newBase),
         name: item.title,
         station: item.station,
@@ -1593,5 +1597,11 @@ module.exports = class MusicServer {
       .padStart(5, '0');
 
     return '50:4f:94:ff:' + portAsMacAddress;
+  }
+
+  _imageUrl(url) {
+    if (!url)
+        return;
+    return 'http://' + this._hostIp + ':' + config.cors_port + '/' + url;
   }
 };
