@@ -111,7 +111,7 @@ module.exports = class List {
                 }
                 return data;
             } else {
-                let parsed_id = this._client.parseId(rootItem.id);
+                let parsed_id = this._client.parseId(rootItem);
                 let response = await this._client.command('playlists tracks ' + start + ' ' + length + " playlist_id:" + parsed_id.id + " tags:uKJN");
                 let data = this._client.parseAdvancedQueryResponse(response, 'playlist%20index');
                 let items = data.items;
@@ -220,7 +220,7 @@ module.exports = class List {
 
                 return { count: data.length, items: data }
             } else {
-                let parsed_id = this._client.parseId(rootItem.id);
+                let parsed_id = this._client.parseId(rootItem);
                 let cmd = parsed_id.type;
                 let filter = "";
                 if (parsed_id.id != 0) {
@@ -284,19 +284,19 @@ module.exports = class List {
         this._client = new LMSClient(this._zone_mac);
         this.get_call = async (rootItem, start, length) => {
 
-            var cmd = rootItem.cmd;
-            if (rootItem.cmd == "spotify")
+            var [cmd, id] = rootItem.split('%');
+            if (cmd == "spotify")
                 cmd = "spotty";
 
-            if (rootItem.id) {
-                let parsed_id = this._client.parseId(rootItem.id);
+            if (id) {
+                let parsed_id = this._client.parseId(id);
                 // The app forwards from a radio search using the "local" cmd
                 // This is a hack to make it work.
                 if (parsed_id.type == "service/search")
                     cmd = "search";
             }
 
-            var itemId = rootItem.id ? "item_id:" + this._client.parseId(rootItem.id).id : ""
+            var itemId = id ? "item_id:" + this._client.parseId(id).id : ""
 
             let response = await this._client.command(cmd + ' items ' + start + ' ' + length + ' want_url:1 ' + itemId);
             let data = this._client.parseAdvancedQueryResponse(response, 'id');
@@ -346,8 +346,8 @@ module.exports = class List {
 
             console.log(chunk.count, _items.length, JSON.stringify(chunk.items))
 
-            _items.splice(_total.length, 0, ...chunk.items)
-            _total = chunk.count,
+            _items.splice(_items.length, 0, ...chunk.items)
+            _total = chunk.count
             this._itemMap.set(rootItem, {
                                   total: _total,
                                   items: _items
