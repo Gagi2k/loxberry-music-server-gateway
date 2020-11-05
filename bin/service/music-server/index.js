@@ -780,11 +780,7 @@ module.exports = class MusicServer {
     let rootItem = undefined;
     if (requestId != 0) {
         const [decodedId] = this._decodeId(requestId);
-        rootItem = {
-          id: decodedId,
-          title: null,
-          image: null,
-        }
+        rootItem = decodedId;
     }
 
     const {total, items} = await this._master.getLibraryList().get(rootItem, +start, +length);
@@ -816,11 +812,7 @@ module.exports = class MusicServer {
     let rootItem = undefined;
     if (id != 0) {
         const [decodedId] = this._decodeId(id);
-        rootItem = {
-          id: decodedId,
-          title: null,
-          image: null,
-        }
+        rootItem = decodedId;
     }
 
     const {total, items} = await this._master.getPlaylistList().get(rootItem, +start, +length);
@@ -884,13 +876,11 @@ module.exports = class MusicServer {
   async _audioCfgGetServiceFolder(url) {
     let [, , , service, user, requestId, start, length] = url.split('/');
 
-    let rootItem = {
-        cmd: service,
-    };
+    let rootItem = service
 
     if (requestId != 0 && requestId != 'start') {
         const [decodedId] = this._decodeId(requestId);
-        rootItem.id = decodedId
+        rootItem = rootItem + '%' + decodedId
     }
 
     const {total, items} = await this._master.getServiceFolderList().get(rootItem, start, length);
