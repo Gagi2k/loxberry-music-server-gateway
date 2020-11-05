@@ -35,7 +35,7 @@ module.exports = class List {
                                            // If we don't have a url, we fallback to use the id instead
                                            // For example in folders
                                            id: items[key].url ? "url:" + items[key].url : "fav:" + items[key].id,
-                                           title: items[key]["name"],
+                                           title: decodeURI(items[key]["name"]),
                                            image: await this._client.extractArtwork(items[key].url, items[key])
                                        })
                     } else {
@@ -49,7 +49,7 @@ module.exports = class List {
                 // don't use a track as an id, we need to resolve the track first from the id
 
                 for (var i in items) {
-                    await this._client.command('favorites add item_id:' + position + ' title:' + escape(items[i].title) + ' url:' + items[i].id);
+                    await this._client.command('favorites add item_id:' + position + ' title:' + encodeURI(items[i].title) + ' url:' + items[i].id);
                 }
             }
             this.delete_call = async (position, length) => {
@@ -101,7 +101,7 @@ module.exports = class List {
                     if (!items[key].playlist.startsWith("temp_")) {
                         data.items.push({
                                            id: "playlist:" + items[key].id,
-                                           title: items[key]["playlist"],
+                                           title: decodeURI(items[key]["playlist"]),
                                            // playlists don't have a artwork
                                            image: undefined,
                                        })
@@ -119,7 +119,7 @@ module.exports = class List {
                 for (var key in items) {
                     data.items.push({
                                        id: "url:" + items[key].url,
-                                       title: items[key].title,
+                                       title: decodeURI(items[key].title),
                                        image: await this._client.extractArtwork(items[key].url, items[key]),
                                        type: 2 //File
                                    })
@@ -131,7 +131,7 @@ module.exports = class List {
         this.insert_call = async (position, ...items) => {
             for (var i in items) {
                 //Create a new playlist
-                let response = await this._client.command('playlists new name:' + escape(items[i].title));
+                let response = await this._client.command('playlists new name:' + encodeURI(items[i].title));
                 const [ , id] = response.split("%3A")
                 this.reset();
                 musicServer._pushPlaylistsChangedEvent("playlist:" + id, "create", items[i].title);
@@ -163,8 +163,8 @@ module.exports = class List {
             for (var key in items) {
                 data.items.push({
                                    id: "url:" + items[key].url,
-                                   title: items[key].remote_title ? "" : items[key]["title"],
-                                   station: items[key].remote_title,
+                                   title: decodeURI(items[key].remote_title ? "" : items[key]["title"]),
+                                   station: decodeURI(items[key].remote_title),
                                    image: await this._client.extractArtwork(items[key].url, items[key])
                                })
             }
@@ -239,7 +239,7 @@ module.exports = class List {
                 for (var key in items) {
                     data.items.push({
                                        id: items[key].type == "track" ? "url:" + items[key].url : config.id_key + ":" + items[key][config.split_key],
-                                       title: items[key][name_key],
+                                       title: decodeURI(items[key][name_key]),
                                        image: await this._client.extractArtwork(items[key].url, items[key]),
                                        type: cmd == "tracks" || items[key].type == "track"  ? 2 : 1
                                    })
@@ -265,7 +265,7 @@ module.exports = class List {
                                    // Always 0, as this is indicates no item_id for the servicefolder command
                                    id: 0,
                                    cmd: items[key].cmd,
-                                   name: unescape(items[key].name),
+                                   name: decodeURI(items[key].name),
                                    icon: await this._client.extractArtwork(items[key].url, items[key])
                                })
             }
@@ -305,7 +305,7 @@ module.exports = class List {
             for (var key in items) {
                 data.items.push({
                                    id: "service/" + cmd + ":" + items[key].id,
-                                   title: unescape(items[key].name),
+                                   title: decodeURI(items[key].name),
                                    image: await this._client.extractArtwork(items[key].url, items[key]),
                                    type: items[key].type == "playlist" ? 11 //playlist
                                                                        : items[key].isaudio == "1" ? 2 : 1 //folder
