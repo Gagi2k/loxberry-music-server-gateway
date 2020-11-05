@@ -19,6 +19,7 @@ module.exports = class LMSClient {
             this._host = config.ip ? config.ip : os.hostname();
         else
             this._host = config.lms_host;
+        this._hostUrl = "http://" + this._host + ":" + config.lms_port;
 
         if (!notificationSocket) {
             notificationSocket = net.createConnection({ host: this._host, port: config.lms_cli_port }, () => {
@@ -214,7 +215,7 @@ module.exports = class LMSClient {
 
     extractArtwork(url, item) {
         if ('artwork_track_id' in item) {
-            return "http://" + this._host + ":" + config.lms_port + "/music/" + item['artwork_track_id'] + "/cover"
+            return this._hostUrl + "/music/" + item['artwork_track_id'] + "/cover"
         }
 
         if ('image' in item) {
@@ -234,7 +235,7 @@ module.exports = class LMSClient {
                 var regex = /id%3Ds(\d+)%26/
                 var match = regex.exec(url);
                 if (match && match[1]) {
-                    return "http://" + this._host + ":" + config.lms_port + '/imageproxy/http%3A%2F%2Fcdn-radiotime-logos.tunein.com%2Fs' + match[1] + 'q.png/image.png'
+                    return 'http://cdn-radiotime-logos.tunein.com/s' + match[1] + 'q.png/image.png'
                 }
             }
 
@@ -245,13 +246,21 @@ module.exports = class LMSClient {
     }
 
     resolveUrl(str) {
+        str = unescape(str);
+
+        // The imageproxy urls are correct, but the app unescapes the URL before using it
+        // This doesn't work as the escaping is needed to make the parameters work
+        // We double escape it here as workaround
+        if (str.startsWith("/imageproxy"))
+            str = str.replace("?t=", "%253Ft%253D");
+
         if (str.startsWith("http"))
             return str;
 
         if (!str.startsWith("/"))
             str = "/" + str
 
-        return "http://" + this._host + ":" + config.lms_port + str;
+        return this._hostUrl + str;
     }
 
     parseId(str) {
