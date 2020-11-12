@@ -1435,11 +1435,19 @@ module.exports = class MusicServer {
   async _audioVolume(url) {
     const [, zoneId, , volume] = url.split('/');
     const zone = this._zones[+zoneId - 1];
-
-    if (/^[+-]/.test(volume)) {
+	//T5 Control
+	//If player state is stop/pause the player will be set to play/resumed without changing the volume.
+	//If player state is play the volume will be changed.
+	if (zone.getMode() === 'stop') {
+      await zone.play(null, 0);
+    } else if (zone.getMode() === 'pause') {
+	  await zone.resume();
+	} else {
+	  if (/^[+-]/.test(volume)) {
       await zone.volume(zone.getVolume() + +volume);
     } else {
       await zone.volume(+volume);
+    }
     }
 
     return this._audioCfgGetPlayersDetails('audio/cfg/getplayersdetails');
