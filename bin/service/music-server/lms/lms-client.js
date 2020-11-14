@@ -252,7 +252,7 @@ module.exports = class LMSClient {
         // This doesn't work as the escaping is needed to make the parameters work
         // We double escape it here as workaround
         if (str.startsWith("/imageproxy"))
-            str = str.replace("?t=", "%253Ft%253D");
+            str = str.replace(/\?t=.*\//g, "/");
 
         if (str.startsWith("http"))
             return str;
