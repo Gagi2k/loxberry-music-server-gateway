@@ -22,10 +22,26 @@ module.exports = class LMSClient {
         this._hostUrl = "http://" + this._host + ":" + config.lms_port;
 
         if (!notificationSocket) {
-            notificationSocket = net.createConnection({ host: this._host, port: config.lms_cli_port }, () => {
-                                                          notificationSocket.write('listen 1 \r\n');
-                                                      });
+            const options = { host: this._host, port: config.lms_cli_port };
+            const connection_listener = () => {
+                notificationSocket.write('listen 1 \r\n');
+            }
+            notificationSocket = net.createConnection(options, connection_listener);
             notificationSocket.setMaxListeners(200);
+            notificationSocket.on('end', () => {
+                               console.debug('disconnected from server');
+                           });
+            notificationSocket.on('timeout', () => {
+                               console.debug('Socket timeout, closing');
+                               notificationSocket.close();
+                           });
+            notificationSocket.on('error', (err) => {
+                               console.debug('Socket error: ' + err.message);
+                           });
+            notificationSocket.on('close', (err) => {
+                               console.debug('Socket closed. Reconnecting...');
+                               setTimeout(() => { notificationSocket.connect(options, connection_listener) }, 1000);
+                           });
         }
 
         if (this.data_callback) {
@@ -50,22 +66,25 @@ module.exports = class LMSClient {
         }
 
         if (!cmdSocket) {
-            cmdSocket = net.createConnection({ host: this._host, port: config.lms_cli_port }, () => {
-                                                   console.debug('doTelnet connected to server!');
-                                               });
+            const options = { host: this._host, port: config.lms_cli_port };
+            const connection_listener = () => {
+                console.debug('connected to server!');
+            }
+            cmdSocket = net.createConnection(options, connection_listener);
             cmdSocket.setMaxListeners(200);
             cmdSocket.on('end', () => {
-                               console.debug('doTelnet disconnected from server');
+                               console.debug('disconnected from server');
                            });
             cmdSocket.on('timeout', () => {
-                               console.debug('doTelnet Socket timeout, closing');
+                               console.debug('Socket timeout, closing');
                                cmdSocket.close();
                            });
             cmdSocket.on('error', (err) => {
-                               console.debug('doTelnet Socket error: ' + err.message);
+                               console.debug('Socket error: ' + err.message);
                            });
             cmdSocket.on('close', (err) => {
-                               console.debug('doTelnet Socket closed');
+                               console.debug('Socket closed. Reconnecting...');
+                               setTimeout(() => { cmdSocket.connect(options, connection_listener) }, 3000);
                            });
         }
 
