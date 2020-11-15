@@ -261,7 +261,7 @@ module.exports = class MusicZone {
     var fav_id = favoriteId % 1000000;
 
     if (type == 0) {
-        this.setMode('play')
+        this._setMode('play')
         return;
     }
 
