@@ -163,18 +163,7 @@ module.exports = class MusicMaster {
   }
 
   async playUploadedFile(path, zones) {
-    try {
-      await this._call(
-        'POST',
-        '/audio/grouped/playuploadedfile/' + encodeURIComponent(path) + '/' + zones.join('/'),
-      );
-    } catch (err) {
-      if (err.type === 'BACKEND_ERROR') {
-        console.error('[ERR!] Invalid reply for "audio/grouped/playuploadedfile": ' + err.message);
-      } else {
-        console.error('[ERR!] Default behavior for "audio/grouped/playuploadedfile": ' + err.message);
-      }
-    }
+    this._client.execute_script("playUploadedFile", { zones, path })
   }
 
   _call() {

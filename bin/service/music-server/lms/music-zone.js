@@ -241,17 +241,7 @@ module.exports = class MusicZone {
     this._zone_cfg.equalizer = bands;
     this.saveConfig();
 
-    try {
-      return await this._sendPlayerCommand('PUT', '/equalizer', bands);
-    } catch (err) {
-      if (err.type === 'BACKEND_ERROR') {
-        console.error('[ERR!] Invalid reply for "equalizer": ' + err.message);
-      } else {
-        console.error(
-          '[ERR!] Default behavior for "equalizer": ' + err.message,
-        );
-      }
-    }
+    this._client.execute_script("changeEqualizer", { zones: this._id })
   }
 
   async play(id, favoriteId) {
@@ -328,6 +318,9 @@ module.exports = class MusicZone {
 
     this.saveConfig();
 
+    this._client.execute_script("changeDefaultVolume", { zones: this._id,
+                                                         defaultVolume: this._zone_cfg.defaultVolume})
+
     this._pushAudioEvent();
   }
 
@@ -335,6 +328,9 @@ module.exports = class MusicZone {
     this._zone_cfg.maxVolume = Math.min(Math.max(+volume, 0), 100);
 
     this.saveConfig();
+
+    this._client.execute_script("changeMaxVolume", { zones: this._id,
+                                                     maxVolume: this._zone_cfg.maxVolume})
 
     this._pushAudioEvent();
   }

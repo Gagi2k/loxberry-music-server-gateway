@@ -10,4 +10,10 @@
     "uploadPath": "/Volumes/Music_Files",
     "uploadPlaybackPath": "/home/music/music_files"
     "cors_port": 7092
+    "scripts": {
+        "playUploadedFile": "echo {{name}} {{zones}} {{path}}",
+        "changeEqualizer": "echo {{name}} {{zones}}",
+        "changeDefaultVolume": "echo {{name}} {{zones}} {{defaultVolume}}",
+        "changeMaxVolume": "echo {{name}} {{zones}} {{maxVolume}}"
+    }
 }

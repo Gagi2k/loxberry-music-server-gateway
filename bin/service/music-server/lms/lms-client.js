@@ -4,6 +4,7 @@ var net = require('net');
 const fs = require('fs');
 const config = JSON.parse(fs.readFileSync("config.json"));
 const os = require('os');
+const process = require('child_process');
 
 var notificationSocket
 var cmdSocket
@@ -287,5 +288,28 @@ module.exports = class LMSClient {
             return {type: "", id: str }
         let s = str.toString().split(":")
         return {type:s[0], id:s[1]};
+    }
+
+    execute_script(name, args) {
+        var script = config.scripts ? config.scripts[name] : undefined
+        if (!script) {
+            console.error(`no script configured for: ${name}`);
+            return
+        }
+
+        script = script.replace('{{name}}', name);
+        for (var key in args)
+            script = script.replace('{{' + key + '}}', args[key]);
+
+        process.exec(script, (err, stdout, stderr) => {
+            if (err) {
+                //some err occurred
+                console.error(`failed to execute ${script}: ${err}`);
+            } else {
+               // the *entire* stdout and stderr (buffered)
+               console.log(`script ${name} stdout: ${stdout}`);
+               console.log(`script ${name} stderr: ${stderr}`);
+            }
+        })
     }
 }
