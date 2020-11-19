@@ -283,6 +283,12 @@ module.exports = class LMSClient {
         return this._hostUrl + str;
     }
 
+    toStorableUrl(url) {
+        if (url.startsWith(this._hostUrl))
+            return url.replace(this._hostUrl, "");
+        return url;
+    }
+
     parseId(str) {
         if (!str.includes(":"))
             return {type: "", id: str }

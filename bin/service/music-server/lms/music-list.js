@@ -61,6 +61,7 @@ module.exports = class List {
                 }
             }
         } else { // zone favorites
+            this._client = new LMSClient(this._zone_mac);
             let fileName = 'zone_favorite_' + this._zone._id + '.json'
             let fav_items = [{id:-1, title: "Dummy"}]
             if (fs.existsSync(fileName)) {
@@ -69,10 +70,16 @@ module.exports = class List {
             }
 
             this.get_call = async (rootItem, start, length) => {
+                for (var key in fav_items) {
+                    fav_items[key].image = this._client.resolveUrl(fav_items[key].image)
+                }
                 return { count: fav_items.length, items: fav_items };
             }
             this.insert_call = async (position, ...items) => {
                 fav_items.splice(position, 0, ...items)
+                for (var key in fav_items) {
+                    fav_items[key].image = this._client.toStorableUrl(fav_items[key].image);
+                }
                 let data = JSON.stringify(fav_items);
                 fs.writeFileSync(fileName, data);
                 this.reset()
