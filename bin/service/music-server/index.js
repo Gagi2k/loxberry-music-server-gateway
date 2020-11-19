@@ -1531,8 +1531,11 @@ module.exports = class MusicServer {
         audiopath: this._encodeId(item.id, newBase),
         coverurl: this._imageUrl(item.image || undefined),
         id: this._encodeId(item.id, newBase),
-        name: item.title,
-        station: item.station,
+        name: item.name ? item.name : "",
+        title: item.title ? item.title : "",
+        artist: item.artist ? item.artist : "",
+        album: item.album ? item.album : "",
+        station: item.station ? item.station : "",
       };
     };
   }
