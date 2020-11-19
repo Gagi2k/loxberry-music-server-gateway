@@ -318,4 +318,67 @@ module.exports = class LMSClient {
             }
         })
     }
+
+    async resolveAudioUrl(id) {
+        let parsed_id = this.parseId(id);
+        console.log("RESOLVE AUDIO URL", id)
+
+        if (parsed_id.type == "fav") {
+            let response = await this.command('favorites items 0 1 want_url:1 item_id:' + parsed_id.id);
+            let data = this.parseAdvancedQueryResponse(response, 'id');
+            return data.items[0].url;
+        } else if (parsed_id.type == "url"){
+            return parsed_id.id;
+        } else if (parsed_id.type.startsWith("service")){
+            const [, cmd] = parsed_id.type.split("/");
+            let response = await this.command(cmd + ' items 0 1 want_url:1 item_id:' + parsed_id.id);
+            let data = this.parseAdvancedQueryResponse(response, 'id');
+//            if (data.count == 0 || !data.items[0].url) { //Try with a modified id (e.g. for spotty this is needed)
+//                let splitted = parsed_id.id.split(".")
+//                let new_id = splitted.slice(-1).join("."); //The id without the last index
+//                let index = splitted[-1]; //only the last index
+
+//                response = await this.command(cmd + ' items ' + index + ' 1 want_url:1 item_id:' + parsed_id.id);
+//                data = this.parseAdvancedQueryResponse(response, 'id');
+//            }
+
+            return data.items[0].url;
+        } else if (parsed_id.type == "playlist") {
+            let response = await this.command('playlists 0 100 tags:u:playlist');
+            let data = this.parseAdvancedQueryResponse(response, 'id');
+            for (var key in data.items) {
+                if (data.items[key].id == parsed_id.id)
+                    return data.items[key].url
+            }
+            console.log("ERROR: Couldn't find playlist with id: " + parsed_id.id);
+        } else if (parsed_id.type == "artist" ||
+                   parsed_id.type == "album" ||
+                   parsed_id.type == "year" ||
+                   parsed_id.type == "genre" ||
+                   parsed_id.type == "folder") {
+            const itemMap = [{ name: 'Artists', cmd: 'artists', next_cmd: 'albums', filter_key: "artist_id", name_key: 'artist', split_key: 'id', id_key: 'artist', db_filter: 'db:contributor.name' },
+                             { name: 'Albums', cmd: 'albums', next_cmd: 'tracks', filter_key: "album_id", name_key: 'title', split_key: 'id', id_key: 'album', db_filter: 'db:album.title' },
+                             { name: 'Tracks', cmd: 'tracks', next_cmd: '', filter_key: "track_id", name_key: 'title', split_key: 'id', id_key: 'url' },
+                             { name: 'Years', cmd: 'years', next_cmd: 'artists', filter_key: "year", name_key: 'year', split_key: 'year', id_key: 'year', db_filter: 'db:year.id' },
+                             { name: 'Genres', cmd: 'genres', next_cmd: 'artists', filter_key: "genre_id", name_key: 'genre', split_key: 'id', id_key: 'genre', db_filter: 'db:genre.name' },
+                             { name: 'Folders', cmd: 'musicfolder', next_cmd: 'musicfolder', filter_key: "folder_id", name_key: 'title', split_key: 'id', id_key: 'folder' }
+                            ];
+            let cur_config = itemMap.find(element => parsed_id.type == element.id_key);
+            let cmd = cur_config.cmd;
+            let filter = " " + cur_config.filter_key + ':' +  parsed_id.id;
+            let response = await this.command(cmd + ' 0 100 tags:uKjJt' + filter);
+            let data = this.parseAdvancedQueryResponse(response, config.split_key);
+            let url = data.items[0].url;
+            if (url)
+                return url;
+            console.log(data);
+
+            let name = data.items[0][cur_config.name_key];
+            if (cur_config.db_filter)
+                return cur_config.db_filter + "=" + name;
+        }
+
+        console.log("ERROR: Can't store " + parsed_id.type + " in favorites");
+        return undefined;
+    }
 }

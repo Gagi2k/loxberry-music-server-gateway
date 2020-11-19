@@ -42,7 +42,7 @@ module.exports = class MusicZone {
 
     this._track = this._getEmptyTrack();
 
-    this._favorites = new MusicList(musicServer, this._url() + '/favorites', this);
+    this._favorites = new MusicList(musicServer, this._url() + '/zone_favorites', this);
     this._queue = new MusicList(musicServer, this._url() + '/queue', this);
     this._client = new LMSClient(this._zone_mac, (data) => { this.onLMSNotification(data); });
 
@@ -122,7 +122,7 @@ module.exports = class MusicZone {
         duration = duration * 1000
 
         this._track = {
-            "id": "track:" + path,
+            "id": "url:" + path,
             "title": title,
             "album": album,
             "artist": artist,

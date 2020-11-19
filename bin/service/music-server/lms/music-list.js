@@ -12,86 +12,92 @@ module.exports = class List {
     this._zone_mac = zone ? zone._zone_mac : undefined
     this._mutex = new Mutex.Mutex();
 
-    if (url.endsWith("favorites")) {
-        if (!this._zone_mac) {
-            this._client = new LMSClient(this._zone_mac, (data) => {
-                 if (data.startsWith("favorites")) {
-                     this.reset()
-                     musicServer._pushFavoritesChangedEvent();
-                 }
-             });
-            this.get_call = async (rootItem, start, length) => {
-                console.log("GET FAVS")
-                let response = await this._client.command('favorites items ' + start + ' ' + length + ' want_url:1');
-                let data = this._client.parseAdvancedQueryResponse(response, 'id', ['title']);
-                let items = data.items;
-                data.items = []
-                for (var key in items) {
-                    // Filter all favorites which are folders
-                    // This won't work if this function is called multiple times as the data.count
-                    // would be wrong. Instead we should fetch all favs in one call (currently 50)
-                    if (items[key].isaudio == "1") {
-                        data.items.push({
-                                           // If we don't have a url, we fallback to use the id instead
-                                           // For example in folders
-                                           id: items[key].url ? "url:" + items[key].url : "fav:" + items[key].id,
-                                           title: decodeURI(items[key]["name"]),
-                                           image: await this._client.extractArtwork(items[key].url, items[key])
-                                       })
-                    } else {
-                        data.count = data.count - 1
-                    }
+    if (url.endsWith("/favorites")) {
+        this._client = new LMSClient(this._zone_mac, (data) => {
+             if (data.startsWith("favorites")) {
+                 this.reset()
+                 musicServer._pushFavoritesChangedEvent();
+             }
+         });
+        this.get_call = async (rootItem, start, length) => {
+            console.log("GET FAVS")
+            let response = await this._client.command('favorites items ' + start + ' ' + length + ' want_url:1');
+            let data = this._client.parseAdvancedQueryResponse(response, 'id', ['title']);
+            let items = data.items;
+            data.items = []
+            for (var key in items) {
+                // Filter all favorites which are folders
+                // This won't work if this function is called multiple times as the data.count
+                // would be wrong. Instead we should fetch all favs in one call (currently 50)
+                if (items[key].isaudio == "1") {
+                    data.items.push({
+                                       // If we don't have a url, we fallback to use the id instead
+                                       // For example in folders
+                                       id: items[key].url ? "url:" + items[key].url : "fav:" + items[key].id,
+                                       title: decodeURI(items[key]["name"]),
+                                       image: await this._client.extractArtwork(items[key].url, items[key])
+                                   })
+                } else {
+                    data.count = data.count - 1
                 }
-                return data
             }
-            this.insert_call = async (position, ...items) => {
-                //TODO the items we are getting here might be playslists or other items which
-                // don't use a track as an id, we need to resolve the track first from the id
+            return data
+        }
+        this.insert_call = async (position, ...items) => {
+            for (var i in items) {
+                let url = await this._client.resolveAudioUrl(items[i].id)
+                if (!url)
+                    continue;
+                var cmd = 'favorites add item_id:' + position + ' title:' + encodeURI(items[i].title) + ' url:' + url;
+                if (items[i].image)
+                    cmd += " icon:" + this._client.toStorableUrl(items[i].image)
+                await this._client.command(cmd);
+            }
+        }
+        this.delete_call = async (position, length) => {
+            for (var i=0; i<length; i++) {
+                var item = +position + i
+                await this._client.command('favorites delete item_id:' + item);
+            }
+        }
+    } else if (url.endsWith("zone_favorites")) {
+        this._client = new LMSClient(this._zone_mac);
+        let fileName = 'zone_favorite_' + this._zone._id + '.json'
+        let fav_items = [{id:-1, title: "Dummy"}]
+        if (fs.existsSync(fileName)) {
+            let rawdata = fs.readFileSync(fileName);
+            fav_items = JSON.parse(rawdata);
+        }
 
-                for (var i in items) {
-                    await this._client.command('favorites add item_id:' + position + ' title:' + encodeURI(items[i].title) + ' url:' + items[i].id);
-                }
+        this.get_call = async (rootItem, start, length) => {
+            for (var key in fav_items) {
+                fav_items[key].image = this._client.resolveUrl(fav_items[key].image)
             }
-            this.delete_call = async (position, length) => {
-                for (var i=0; i<length; i++) {
-                    // TODO Test whether we need to really increase the position
-                    // TODO Check whether it is the position or the id which gets passed here
-                    var item = +position + i
-                    await this._client.command('favorites delete item_id:' + item);
-                }
-            }
-        } else { // zone favorites
-            this._client = new LMSClient(this._zone_mac);
-            let fileName = 'zone_favorite_' + this._zone._id + '.json'
-            let fav_items = [{id:-1, title: "Dummy"}]
-            if (fs.existsSync(fileName)) {
-                let rawdata = fs.readFileSync(fileName);
-                fav_items = JSON.parse(rawdata);
+            return { count: fav_items.length, items: fav_items };
+        }
+        this.insert_call = async (position, ...items) => {
+            for (var key in items) {
+                let url = await this._client.resolveAudioUrl(items[key].id)
+                if (!url)
+                    return;
+                items[key].id = url;
             }
 
-            this.get_call = async (rootItem, start, length) => {
-                for (var key in fav_items) {
-                    fav_items[key].image = this._client.resolveUrl(fav_items[key].image)
-                }
-                return { count: fav_items.length, items: fav_items };
+            fav_items.splice(position, 0, ...items)
+            for (var key in fav_items) {
+                fav_items[key].image = this._client.toStorableUrl(fav_items[key].image);
             }
-            this.insert_call = async (position, ...items) => {
-                fav_items.splice(position, 0, ...items)
-                for (var key in fav_items) {
-                    fav_items[key].image = this._client.toStorableUrl(fav_items[key].image);
-                }
-                let data = JSON.stringify(fav_items);
-                fs.writeFileSync(fileName, data);
-                this.reset()
-                musicServer._pushRoomFavChangedEvents([this._zone]);
-            }
-            this.delete_call = async (position, length) => {
-                fav_items.splice(position, length)
-                let data = JSON.stringify(fav_items);
-                fs.writeFileSync(fileName, data);
-                this.reset()
-                musicServer._pushRoomFavChangedEvents([this._zone]);
-            }
+            let data = JSON.stringify(fav_items);
+            fs.writeFileSync(fileName, data);
+            this.reset()
+            musicServer._pushRoomFavChangedEvents([this._zone]);
+        }
+        this.delete_call = async (position, length) => {
+            fav_items.splice(position, length)
+            let data = JSON.stringify(fav_items);
+            fs.writeFileSync(fileName, data);
+            this.reset()
+            musicServer._pushRoomFavChangedEvents([this._zone]);
         }
     } else if (url.endsWith("playlists")) {
         this._client = new LMSClient(this._zone_mac);
@@ -246,11 +252,12 @@ module.exports = class List {
                 let items = data.items;
                 data.items = []
                 for (var key in items) {
+                    let isTrack = cmd == "tracks" || items[key].type == "track";
                     data.items.push({
-                                       id: items[key].type == "track" ? "url:" + items[key].url : config.id_key + ":" + items[key][config.split_key],
+                                       id: isTrack ? "url:" + items[key].url : config.id_key + ":" + items[key][config.split_key],
                                        title: decodeURI(items[key][name_key]),
                                        image: await this._client.extractArtwork(items[key].url, items[key]),
-                                       type: cmd == "tracks" || items[key].type == "track"  ? 2 : 1
+                                       type: isTrack  ? 2 : 1
                                    })
                 }
                 return data

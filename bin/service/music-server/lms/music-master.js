@@ -8,7 +8,7 @@ module.exports = class MusicMaster {
     this._musicServer = musicServer;
 
     this._inputs = new MusicList(musicServer, '/inputs');
-    this._favorites = new MusicList(musicServer, '/favorites');
+    this._favorites = new MusicList(musicServer, '/favorites', musicServer._zones[0]);
     this._playlists = new MusicList(musicServer, '/playlists');
     this._library = new MusicList(musicServer, '/library');
     this._radios = new MusicList(musicServer, '/radios');
@@ -97,11 +97,12 @@ module.exports = class MusicMaster {
         data.name = config.name;
         data.items = []
         for (var key in items) {
+            let isTrack = category == "tracks" || items[key].type == "track";
             data.items.push({
-                                id: category == "tracks" ? "url:" + items[key].url : config.id_key + ":" + items[key][config.split_key],
+                                id: isTrack ? "url:" + items[key].url : config.id_key + ":" + items[key][config.split_key],
                                 title: decodeURI(items[key][config.name_key]),
                                 image: await this._client.extractArtwork(items[key].url, items[key]),
-                                type: category == "tracks" || items[key].type == "track"  ? 2 : 1
+                                type: isTrack ? 2 : 1
                            })
         }
         return data;
