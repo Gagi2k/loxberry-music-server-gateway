@@ -1584,6 +1584,10 @@ module.exports = class MusicServer {
   }
 
   _mac() {
+    if (config.macAddress != undefined && config.macAddress != "") {
+        return config.macAddress;
+    }
+
     const portAsMacAddress = (this._config.port / 256)
       .toString(16)
       .replace('.', ':')
