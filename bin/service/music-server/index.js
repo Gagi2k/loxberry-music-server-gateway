@@ -880,7 +880,7 @@ module.exports = class MusicServer {
 
     if (requestId != 0 && requestId != 'start') {
         const [decodedId] = this._decodeId(requestId);
-        rootItem = rootItem + '%' + decodedId
+        rootItem = rootItem + '%%%' + decodedId
     }
 
     const {total, items} = await this._master.getServiceFolderList().get(rootItem, start, length);

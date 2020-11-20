@@ -300,7 +300,7 @@ module.exports = class List {
         this._client = new LMSClient(this._zone_mac);
         this.get_call = async (rootItem, start, length) => {
 
-            var [cmd, id] = rootItem.split('%');
+            var [cmd, id] = rootItem.split('%%%');
             if (cmd == "spotify")
                 cmd = "spotty";
 
