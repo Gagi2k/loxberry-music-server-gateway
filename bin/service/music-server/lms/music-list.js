@@ -161,7 +161,9 @@ module.exports = class List {
         this._client = new LMSClient(this._zone_mac, (data) => {
              if (data.startsWith("playlist load") || data.startsWith("playlist play") ||
                  data.startsWith("playlist delete") || data.startsWith("playlist move") ||
-                 data.startsWith("playlist addtracks") || data.startsWith("playlist shuffle")) {
+                 data.startsWith("playlist addtracks") || data.startsWith("playlist shuffle") ||
+                 data.startsWith("newmetadata") ||
+                 /playlist newsong [A-Za-z]+/.test(data)) {
                 console.log("TRIGGER QUEUE REFRESH")
                 this.reset();
                 musicServer.pushQueueEvent(this._zone)
