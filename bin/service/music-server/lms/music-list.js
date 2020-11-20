@@ -348,7 +348,7 @@ module.exports = class List {
 
     await this._mutex.runExclusive(async () => {
         let _total, _items = undefined;
-        if (this._itemMap.has(rootItem)) {
+        if (this._itemMap.has(rootItem) && this._useCache) {
             let data = this._itemMap.get(rootItem);
             _total = data.total;
             _items = data.items;
@@ -360,10 +360,17 @@ module.exports = class List {
         if (_items.length < _total && _items.length < end && this.get_call) {
             let chunk = await this.get_call(rootItem, start, length || 1)
 
-            console.log(chunk.count, _items.length, JSON.stringify(chunk.items))
+            console.log(chunk.count, chunk.items.length, JSON.stringify(chunk.items))
 
-            _items.splice(_items.length, 0, ...chunk.items)
             _total = chunk.count
+
+            // With cache enabled we always calculate the complete list here and store it
+            // Without we just store the latest result to return it outside of this async function.
+            if (this._useCache)
+                _items.splice(_items.length, 0, ...chunk.items)
+            else
+                _items = chunk.items
+
             this._itemMap.set(rootItem, {
                                   total: _total,
                                   items: _items
@@ -373,11 +380,11 @@ module.exports = class List {
 
     let {total, items} = this._itemMap.get(rootItem);
 
-    console.log(items);
-
     return {
       total: total,
-      items: items.slice(start, end),
+      // With cache we need to return the data which was requested from the complete cached data
+      // Without cache we just return the data the async function just stored.
+      items: this._useCache ? items.slice(start, end) : items,
     };
 
   }
