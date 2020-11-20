@@ -1325,8 +1325,8 @@ module.exports = class MusicServer {
     const [, zoneId, , , position] = url.split('/');
     const zone = this._zones[+zoneId - 1];
 
-    const favorites = await zone.getFavoritesList().get(undefined, +position - 1, 1);
-    const id = favorites.items[0].id;
+    const favorites = await zone.getFavoritesList().get(undefined, 0, 50);
+    const id = favorites.items[+position - 1].id;
 
     await zone.play(id, BASE_FAVORITE_ZONE + (+position - 1));
 
