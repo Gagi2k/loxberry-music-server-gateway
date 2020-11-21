@@ -290,7 +290,7 @@ module.exports = class LMSClient {
     }
 
     toStorableUrl(url) {
-        if (url.startsWith(this._hostUrl))
+        if (url && url.startsWith(this._hostUrl))
             return url.replace(this._hostUrl, "");
         return url;
     }
@@ -298,8 +298,9 @@ module.exports = class LMSClient {
     parseId(str) {
         if (!str.includes(":"))
             return {type: "", id: str }
-        let s = str.toString().split(":")
-        return {type:s[0], id:s[1]};
+        let [type, ...id] = str.toString().split(":")
+        id = id.join(":");
+        return {type, id};
     }
 
     execute_script(name, args) {
@@ -356,9 +357,10 @@ module.exports = class LMSClient {
                     return data.items[key].url
             }
             console.log("ERROR: Couldn't find playlist with id: " + parsed_id.id);
+        } else if (parsed_id.type == "year" ) {
+            return "db:year.id=" + parsed_id.id;
         } else if (parsed_id.type == "artist" ||
                    parsed_id.type == "album" ||
-                   parsed_id.type == "year" ||
                    parsed_id.type == "genre" ||
                    parsed_id.type == "folder") {
             const itemMap = [{ name: 'Artists', cmd: 'artists', next_cmd: 'albums', filter_key: "artist_id", name_key: 'artist', split_key: 'id', id_key: 'artist', db_filter: 'db:contributor.name' },

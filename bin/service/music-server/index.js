@@ -602,7 +602,11 @@ module.exports = class MusicServer {
         return this._audioRoomFavPlus(url);
 
       case /(?:^|\/)audio\/\d+\/roomfav\/savepath\/\d+\//.test(url):
+      case /(?:^|\/)audio\/\d+\/roomfav\/saveid\/\d+\//.test(url):
         return this._audioRoomFavSavePath(url);
+
+      case /(?:^|\/)audio\/\d+\/roomfav\/saveexternalid\/\d+\//.test(url):
+        return this._audioRoomFavSaveExternalId(url);
 
       case /(?:^|\/)audio\/\d+\/serviceplay\//.test(url):
         return this._audioServicePlay(url);
@@ -1364,6 +1368,23 @@ module.exports = class MusicServer {
 
   async _audioRoomFavSavePath(url) {
     const [, zoneId, , , position, id, title] = url.split('/');
+    const zone = this._zones[+zoneId - 1];
+    const [decodedId] = this._decodeId(id);
+
+    const item = {
+      id: decodedId,
+      title,
+      image: this._imageStore[decodedId],
+    };
+
+    await zone.getFavoritesList().replace(+position - 1, item);
+    this._pushRoomFavChangedEvents([zone]);
+
+    return this._emptyCommand(url, []);
+  }
+
+  async _audioRoomFavSaveExternalId(url) {
+    const [, zoneId, , , position, ,id, title] = url.split('/');
     const zone = this._zones[+zoneId - 1];
     const [decodedId] = this._decodeId(id);
 
