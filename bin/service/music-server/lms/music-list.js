@@ -318,15 +318,22 @@ module.exports = class List {
 
             let response = await this._client.command(cmd + ' items ' + start + ' ' + length + ' want_url:1 ' + itemId);
             let data = this._client.parseAdvancedQueryResponse(response, 'id');
+            let isAudio = false
+            // Special handling for Transfer Playback
+            // We need to play those items to transfer it to the correct zone
+            if (data.items[0].title == "Transfer%20Playback")
+                isAudio = true
+
             let items = data.items.slice(1);
             data.items = []
+
             for (var key in items) {
                 data.items.push({
                                    id: "service/" + cmd + ":" + items[key].id,
                                    name: decodeURI(items[key].name),
                                    image: await this._client.extractArtwork(items[key].url, items[key]),
                                    type: items[key].type == "playlist" ? 11 //playlist
-                                                                       : items[key].isaudio == "1" ? 2 : 1 //folder
+                                                                       : isAudio || items[key].isaudio == "1" ? 2 : 1 //folder
                                })
             }
             return data
