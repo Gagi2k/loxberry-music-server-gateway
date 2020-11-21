@@ -86,7 +86,8 @@ module.exports = class MusicZone {
                data.startsWith("playlist pause")  ||
                data.startsWith("playlist play")  ||
                data.startsWith("playlist open")  ||
-               data.startsWith("mixer volume")) {
+               data.startsWith("mixer volume") ||
+               data.startsWith("client new")) {
         await this.getState();
         this._pushAudioEvent();
     }

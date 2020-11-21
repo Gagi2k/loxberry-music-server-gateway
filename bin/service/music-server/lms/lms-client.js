@@ -119,6 +119,12 @@ module.exports = class LMSClient {
                                        if (processed.startsWith(returnValue)) {
 //                                           console.log("RESPONSE FOR: ", returnValue)
 //                                           console.log("RESPONSE: ", data.toString())
+
+                                           // If the response contains also the ? at the end
+                                           // it is invalid
+                                           if (processed.endsWith("%3F"))
+                                               resolve(undefined);
+
                                            // Once we have the response we wait for return
                                            cmdSocket.removeListener('data', responseListener);
                                            processed = processed.replace(returnValue, "")
