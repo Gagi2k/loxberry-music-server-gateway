@@ -18,6 +18,13 @@ module.exports = class MusicMaster {
 
     this._client = new LMSClient(this._musicServer._zones[0]._zone_mac);
 
+    this._globalClient = new LMSClient(undefined, (data) => {
+        if (data == "rescan done") {
+            console.log("RESCAN DONE");
+            musicServer._pushScanStatusChangedEvent(0);
+        }
+    });
+
     this._last = Promise.resolve();
   }
 
@@ -47,6 +54,16 @@ module.exports = class MusicMaster {
 
   getServiceFolderList() {
     return this._serviceFolder;
+  }
+
+  async scanStatus() {
+    return await this._globalClient.command('rescan ?');
+  }
+
+  async rescanLibrary() {
+    await this._globalClient.command('rescan');
+
+    this._musicServer._pushScanStatusChangedEvent(1);
   }
 
   async getSearchableTypes() {

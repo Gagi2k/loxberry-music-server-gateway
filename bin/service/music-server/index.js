@@ -256,6 +256,19 @@ module.exports = class MusicServer {
     });
   }
 
+  _pushScanStatusChangedEvent(status) {
+      const message = JSON.stringify({
+        rescan_event: [
+           {
+              status
+           },
+        ],
+      });
+      this._wsConnections.forEach((connection) => {
+        connection.send(message);
+      });
+  }
+
   _pushPlaylistsChangedEvent(playlistId, actionName, playlistName) {
      const playlistsChangedEventMessage = JSON.stringify({
        playlistchanged_event: [
@@ -322,6 +335,7 @@ module.exports = class MusicServer {
       });
     });
   }
+
 
   _initSse() {
     http
@@ -512,7 +526,10 @@ module.exports = class MusicServer {
         return this._audioCfgPlaylistDeleteList(url);
 
       case /(?:^|\/)audio\/cfg\/scanstatus(?:\/|$)/.test(url):
-        return this._emptyCommand(url, [{scanning: 0}]);
+        return this._audioCfgScanStatus(url);
+
+      case /(?:^|\/)audio\/cfg\/rescan(?:\/|$)/.test(url):
+        return this._audioCfgRescan(url);
 
       case /(?:^|\/)audio\/cfg\/upload(?:\/|$)/.test(url):
         return this._audioUpload(url, data);
@@ -1045,6 +1062,18 @@ module.exports = class MusicServer {
     await this._master.getPlaylistList().delete(decodedId, 1);
 
     return this._emptyCommand(url, [{items: []}]);
+  }
+
+  async _audioCfgScanStatus(url) {
+    let status = await this._master.scanStatus();
+
+    return this._emptyCommand(url, [{scanning: +status}]);
+  }
+
+  async _audioCfgRescan(url) {
+    await this._master.rescanLibrary();
+
+    return this._emptyCommand(url, []);
   }
 
   async _audioCfgDefaultVolume(url) {

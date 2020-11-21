@@ -45,6 +45,14 @@ module.exports = class MusicMaster {
     return this._serviceFolder;
   }
 
+  async scanStatus() {
+    return false;
+  }
+
+  async rescanLibrary() {
+
+  }
+
   async getSearchableTypes() {
     // Every key corresponds to one search == one list of result
     // The sample does three searches
