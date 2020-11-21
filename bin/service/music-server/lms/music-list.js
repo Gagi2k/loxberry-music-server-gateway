@@ -204,8 +204,12 @@ module.exports = class List {
                          parsed_id.type == "folder") {
                      var str = parsed_id.type + "_id:" + parsed_id.id;
                      await this._client.command('playlistcontrol cmd:' + cmd + " " + str);
-                } else
+                } else if (parsed_id.type == "fav"){
                     await this._client.command('favorites playlist ' + cmd + ' item_id:' + parsed_id.id);
+                } else if (parsed_id.type.startsWith("service")){
+                    const [, cat] = parsed_id.type.split("/");
+                    await this._client.command(cat + ' playlist ' + cmd + ' item_id:' + parsed_id.id);
+                }
             }
         }
         this.move_call = async (position, destination) => {
