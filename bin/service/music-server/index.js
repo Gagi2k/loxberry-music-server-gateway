@@ -269,6 +269,19 @@ module.exports = class MusicServer {
       });
   }
 
+    _pushReloadAppEvent() {
+        const message = JSON.stringify({
+          reloadmusicapp_event: [
+             {
+
+             },
+          ],
+        });
+        this._wsConnections.forEach((connection) => {
+          connection.send(message);
+        });
+    }
+
   _pushPlaylistsChangedEvent(playlistId, actionName, playlistName) {
      const playlistsChangedEventMessage = JSON.stringify({
        playlistchanged_event: [
