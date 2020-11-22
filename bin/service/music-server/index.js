@@ -120,7 +120,8 @@ module.exports = class MusicServer {
     });
 
     httpServer.listen(this._config.port);
-    cors_proxy.createServer().listen(config.cors_port)
+    if (config.cors_port)
+        cors_proxy.createServer().listen(config.cors_port)
 
     this._initSse();
 
@@ -1668,7 +1669,7 @@ module.exports = class MusicServer {
   }
 
   _imageUrl(url) {
-    if (!url)
+    if (!url || !config.cors_port)
         return;
     return 'http://' + this._hostIp + ':' + config.cors_port + '/' + url;
   }
