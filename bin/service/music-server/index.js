@@ -1670,7 +1670,7 @@ module.exports = class MusicServer {
 
   _imageUrl(url) {
     if (!url || !config.cors_port)
-        return;
+        return url;
     return 'http://' + this._hostIp + ':' + config.cors_port + '/' + url;
   }
 };
