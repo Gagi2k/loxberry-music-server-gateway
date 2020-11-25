@@ -251,6 +251,19 @@ module.exports = class MusicZone {
     }
   }
 
+  async sleep(time) {
+    try {
+      await this._sendPlayerCommand('POST', '/sleep/' + time);
+    } catch (err) {
+      if (err.type === 'BACKEND_ERROR') {
+        console.error('[ERR!] Invalid reply for "sleep": ' + err.message);
+        transaction.rollback();
+      } else {
+        console.error('[ERR!] Default behavior for "sleep": ' + err.message);
+      }
+    }
+  }
+
   async time(time) {
     const transaction = this._transaction();
 

@@ -299,6 +299,12 @@ module.exports = class MusicZone {
     this._setMode('stop');
   }
 
+  async sleep(time) {
+    await this._client.command('sleep ' + time)
+
+    this._pushAudioEvent();
+  }
+
   async time(time) {
     this._player.time = time;
     await this._client.command('time ' + this._player.time / 1000)
