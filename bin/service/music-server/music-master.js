@@ -53,6 +53,15 @@ module.exports = class MusicMaster {
 
   }
 
+  // error: returnValue
+  // NONE: 0,
+  // NON_EXISTENT: 1,
+  // UNREACHABLE: 2,
+  // INVALIDE_CREDS: 12
+  async addNetworkShare(config) {
+     return 0;
+  }
+
   async getSearchableTypes() {
     // Every key corresponds to one search == one list of result
     // The sample does three searches

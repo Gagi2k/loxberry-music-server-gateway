@@ -15,6 +15,7 @@
         "playUploadedFile": "echo {{name}} {{zones}} {{path}}",
         "changeEqualizer": "echo {{name}} {{zones}}",
         "changeDefaultVolume": "echo {{name}} {{zones}} {{defaultVolume}}",
-        "changeMaxVolume": "echo {{name}} {{zones}} {{maxVolume}}"
+        "changeMaxVolume": "echo {{name}} {{zones}} {{maxVolume}}",
+        "addNetworkShare": "echo {{name}} {{server}} {{guest}} {{username}} {{password}} {{configBase64}}"
     }
 }

@@ -6,6 +6,7 @@ const querystring = require('querystring');
 const websocket = require('websocket');
 const fs = require('fs');
 const os = require('os');
+const NodeRSA = require('node-rsa');
 
 const config = JSON.parse(fs.readFileSync("config.json"));
 
@@ -50,6 +51,23 @@ module.exports = class MusicServer {
     this._miniserverIp = null;
     this._miniserverPort = null;
     this._hostIp = config.ip ? config.ip : os.hostname();
+
+    // public and private key for encryption of passwords
+    // generated on the fly if not passed in config
+    if (config.publicKey && config.privateKey) {
+        this._rsaKey = new NodeRSA();
+        if (!fs.existsSync(config.privateKey))
+            console.error("Private Key: " + config.privateKey + " doesn't exist!")
+        if (!fs.existsSync(config.publicKey))
+            console.error("Public Key: " + config.publicKey + " doesn't exist!")
+
+        this._rsaKey.importKey(fs.readFileSync(config.privateKey), "private");
+        this._rsaKey.importKey(fs.readFileSync(config.publicKey), "public");
+    } else {
+        this._rsaKey = new NodeRSA({b: 1024});
+    }
+    this._rsaKey.setOptions({encryptionScheme: 'pkcs1'});
+
 
     for (let i = 0; i < config.zones; i++) {
       zones[i] = new MusicZone(this, i + 1);
@@ -480,7 +498,7 @@ module.exports = class MusicServer {
         return this._audioCfgGetInputs(url);
 
       case /(?:^|\/)audio\/cfg\/getkey(?:\/|$)/.test(url):
-        return this._emptyCommand(url, [{pubkey: ''}]);
+        return this._audioCfgGetKey(url);
 
       case /(?:^|\/)audio\/cfg\/getmediafolder(?:\/|$)/.test(url):
         return this._audioCfgGetMediaFolder(url, []);
@@ -544,6 +562,9 @@ module.exports = class MusicServer {
 
       case /(?:^|\/)audio\/cfg\/rescan(?:\/|$)/.test(url):
         return this._audioCfgRescan(url);
+
+      case /(?:^|\/)audio\/cfg\/storage\/add(?:\/|$)/.test(url):
+        return this._audioCfgStorageAdd(url);
 
       case /(?:^|\/)audio\/cfg\/upload(?:\/|$)/.test(url):
         return this._audioUpload(url, data);
@@ -807,6 +828,11 @@ module.exports = class MusicServer {
         enabled: true,
       })),
     );
+  }
+
+  _audioCfgGetKey(url) {
+    const data = [{pubkey: this._rsaKey.keyPair.n.toString(16), exp: this._rsaKey.keyPair.e }];
+    return this._emptyCommand(url, data);
   }
 
   async _audioCfgGetMediaFolder(url) {
@@ -1088,6 +1114,26 @@ module.exports = class MusicServer {
     await this._master.rescanLibrary();
 
     return this._emptyCommand(url, []);
+  }
+
+  async _audioCfgStorageAdd(url) {
+    const config = url.split('/').pop();
+    const decodedConfig = this._decodeId(config);
+
+    // used when decrypting doesn't work
+    // Invalid creds
+    var configerror = 12;
+    try {
+        if (decodedConfig.password)
+            decodedConfig.password = this._rsaKey.decrypt(decodedConfig.password).toString();
+        configerror = await this._master.addNetworkShare(decodedConfig);
+    } catch (err) {
+        console.error("[ERR!] Couldn't decrypt password: " + err.message);
+    }
+
+    console.log(configerror)
+
+    return this._emptyCommand(url, { configerror });
   }
 
   async _audioCfgDefaultVolume(url) {

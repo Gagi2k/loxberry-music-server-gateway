@@ -66,6 +66,17 @@ module.exports = class MusicMaster {
     this._musicServer._pushScanStatusChangedEvent(1);
   }
 
+  // error: returnValue
+  // NONE: 0,
+  // NON_EXISTENT: 1,
+  // UNREACHABLE: 2,
+  // INVALIDE_CREDS: 12
+  async addNetworkShare(config) {
+    config.configBase64 = Buffer.from(JSON.stringify(config), 'utf-8').toString("base64");
+    this._client.execute_script("addNetworkShare", config)
+    return 0;
+  }
+
   async getSearchableTypes() {
     // Spotify is a bit tricky as the search results are mixed
     // folders and tracks
