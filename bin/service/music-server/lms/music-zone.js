@@ -250,6 +250,7 @@ module.exports = class MusicZone {
 
   async play(id, favoriteId) {
     console.log("PLAY  ", id, favoriteId)
+    this._favoriteId = favoriteId;
 
     var type = Math.floor(favoriteId / 1000000);
     var fav_id = favoriteId % 1000000;
