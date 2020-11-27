@@ -16,7 +16,6 @@ module.exports = class MusicZone {
     this._musicServer = musicServer;
     this._id = id;
 
-    this._power = 'on';
     this._updateTime = NaN;
 
     this._favoriteId = 0;
@@ -30,6 +29,7 @@ module.exports = class MusicZone {
       volume: 0,
       repeat: 0,
       shuffle: 0,
+      power: 0
     };
 
     this._zone_cfg = {
@@ -87,7 +87,8 @@ module.exports = class MusicZone {
                data.startsWith("playlist play")  ||
                data.startsWith("playlist open")  ||
                data.startsWith("mixer volume") ||
-               data.startsWith("client new")) {
+               data.startsWith("client new") ||
+               data.startsWith("power")) {
         await this.getState();
         this._pushAudioEvent();
     }
@@ -139,6 +140,7 @@ module.exports = class MusicZone {
         let volume = await this._client.command('mixer volume ?')
         let repeat = await this._client.command('playlist repeat ?')
         let shuffle = await this._client.command('playlist shuffle ?')
+        let power = await this._client.command('power ?')
         let mode = await this._client.command('mode ?')
 
         volume = parseInt(volume);
@@ -157,6 +159,7 @@ module.exports = class MusicZone {
             "maxVolume": maxVolume,
             "repeat": repeat,
             "shuffle": shuffle,
+            "power": power,
         }
         await this.getCurrentTime()
         console.log(JSON.stringify(this._player))
@@ -165,7 +168,7 @@ module.exports = class MusicZone {
   }
 
   getPower() {
-    return this._power;
+    return this._player.power ? "on" : "off";
   }
 
   getFavoriteId() {
@@ -383,24 +386,26 @@ module.exports = class MusicZone {
   }
 
   async power(power) {
-    this._power = power;
+    await this._client.command('power ' + ((power == "on") ? 1 : 0))
 
-    if (power === 'off') {
-      await this.stop();
-    }
+    // Resum playing when the zone is turned on
+    if (power == "on")
+        await this.resume();
+    else
+        await this.pause();
 
     this._pushAudioEvent();
   }
 
   async _setMode(mode) {
-    this._player.mode = mode;
     await this.getCurrentTime();
+    console.log("CURRENT MODE: " + this._player.mode + " NEW MODE: " + mode)
 
-    await this._client.command('mode ' + this._player.mode)
-
-//    if (mode !== 'stop') {
-//      this.power('on');
-//    }
+    if (this._player.mode == "pause" && mode == "play")
+        await this._client.command('pause');
+    else
+        await this._client.command('mode ' + mode);
+    this._player.mode = mode;
 
     this._pushAudioEvent();
   }
