@@ -222,23 +222,7 @@ module.exports = class MusicZone {
   }
 
   async alarm(type, volume) {
-    const transaction = this._transaction();
-
-    this._setMode('pause');
-
-    transaction.end();
-
-    try {
-      await this._sendPlayerCommand('POST', '/alarm/' + type + '/' + volume);
-    } catch (err) {
-      if (err.type === 'BACKEND_ERROR') {
-        console.error('[ERR!] Invalid reply for "alarm": ' + err.message);
-        transaction.rollback();
-      } else {
-        console.error('[ERR!] Default behavior for "alarm": ' + err.message);
-        this._setMode('play');
-      }
-    }
+    this._client.execute_script("playAlarmSound", { zones: this._id, type, volume })
   }
 
   async equalizer(bands) {
