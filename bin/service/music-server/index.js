@@ -132,7 +132,7 @@ module.exports = class MusicServer {
       connection.send('LWSS V 2.3.9.2 | ~API:1.6~');
 
       this._pushAudioEvents(this._zones);
-      this._pushAudioSyncEvents(this._zones);
+      this._pushAudioSyncEvents();
       this._pushQueueEvents(this._zones);
       this._pushRoomFavEvents(this._zones);
     });
@@ -201,12 +201,21 @@ module.exports = class MusicServer {
     });
   }
 
-  pushAudioEvent(zone) {
+  async pushAudioEvent(zone) {
     this._pushAudioEvents([zone]);
-  }
 
-  pushAudioSyncEvent(zone) {
-    this._pushAudioSyncEvents([zone]);
+    const zoneId = this._zones.indexOf(zone) + 1;
+    const syncInfo = this._getSyncedGroupInfo(zoneId);
+    if (syncInfo) {
+        var zones = []
+        for (var i in syncInfo.members) {
+            if (zoneId != syncInfo.members[i]) {
+                const zoneObj = this._zones[syncInfo.members[i] - 1];
+                await zoneObj.getState();
+                this._pushAudioEvents([zoneObj]);
+            }
+        }
+    }
   }
 
   pushRoomFavEvent(zone) {
@@ -218,6 +227,7 @@ module.exports = class MusicServer {
   }
 
   _pushAudioEvents(zones) {
+
     const audioEvents = zones.map((zone) => {
       return this._getAudioState(zone);
     });
@@ -231,13 +241,20 @@ module.exports = class MusicServer {
     });
   }
 
-  _pushAudioSyncEvents(zones) {
-    const audioSyncEvents = zones.map((zone, i) => {
-      return {players: [i + 1]};
-    });
+  _pushAudioSyncEvents() {
+    const syncGroups = this._master.getSyncGroups();
+
+    var audioSyncEvent = []
+    for (var i in syncGroups) {
+        var players = []
+        for (var j in syncGroups[i]) {
+            players.push({ playerid: +syncGroups[i][j] })
+        }
+        audioSyncEvent.push({ group: +i + 1, players, masterVolume: 50});
+    }
 
     const audioSyncEventsMessage = JSON.stringify({
-      audio_sync_event: audioSyncEvents,
+      audio_sync_event: audioSyncEvent,
     });
 
     this._wsConnections.forEach((connection) => {
@@ -288,18 +305,18 @@ module.exports = class MusicServer {
       });
   }
 
-    _pushReloadAppEvent() {
-        const message = JSON.stringify({
-          reloadmusicapp_event: [
-             {
+  _pushReloadAppEvent() {
+      const message = JSON.stringify({
+        reloadmusicapp_event: [
+           {
 
-             },
-          ],
-        });
-        this._wsConnections.forEach((connection) => {
-          connection.send(message);
-        });
-    }
+           },
+        ],
+      });
+      this._wsConnections.forEach((connection) => {
+        connection.send(message);
+      });
+  }
 
   _pushPlaylistsChangedEvent(playlistId, actionName, playlistName) {
      const playlistsChangedEventMessage = JSON.stringify({
@@ -677,6 +694,15 @@ module.exports = class MusicServer {
 
       case /(?:^|\/)audio\/\d+\/shuffle\/\d+(?:\/|$)/.test(url):
         return this._audioShuffle(url);
+
+      case /(?:^|\/)audio\/\d+\/sync\/\d+(?:\/|$)/.test(url):
+        return this._audioSync(url);
+
+      case /(?:^|\/)audio\/\d+\/unsync(?:\/|$)/.test(url):
+        return this._audioUnSync(url);
+
+      case /(?:^|\/)audio\/cfg\/unsyncmulti(?:\/|$)/.test(url):
+        return this._audioUnSyncMulti(url);
 
       case /(?:^|\/)audio\/\d+\/volume\/[+-]?\d+(?:\/|$)/.test(url):
         return this._audioVolume(url);
@@ -1566,6 +1592,37 @@ module.exports = class MusicServer {
     return this._audioCfgGetPlayersDetails('audio/cfg/getplayersdetails');
   }
 
+  async _audioSync(url) {
+    const [, zoneId, , ...zones] = url.split('/');
+    const zone = this._zones[+zoneId - 1];
+
+    zone.sync(zones);
+
+    return this._emptyCommand(url, []);
+  }
+
+  async _audioUnSync(url) {
+    const [, zoneId,] = url.split('/');
+    const zone = this._zones[+zoneId - 1];
+
+    zone.unSync();
+
+    return this._emptyCommand(url, []);
+  }
+
+  async _audioUnSyncMulti(url) {
+    const [, , , ...zones] = url.split('/');
+
+    console.log(url.split('/'), zones)
+
+    for (var i in zones) {
+        const zone = this._zones[+zones[i] - 1];
+        zone.unSync();
+    }
+
+    return this._emptyCommand(url, []);
+  }
+
   async _audioVolume(url) {
     const [, zoneId, , volume] = url.split('/');
     const zone = this._zones[+zoneId - 1];
@@ -1625,7 +1682,12 @@ module.exports = class MusicServer {
 
     const track = zone.getTrack();
     const mode = zone.getMode();
+    const syncInfo = this._getSyncedGroupInfo(playerId);
 
+    // It is possible to also send a groupid here to let the app know whether this event is
+    // for a whole group.
+    // This doesn't work well with the custom power management LMS supports and doesn't work well
+    // with the way we push our changes and do the syncing.
     return {
       playerid: playerId,
       album: track.album,
@@ -1645,8 +1707,23 @@ module.exports = class MusicServer {
       title: track.title,
       volume: zone.getVolume(),
       default_volume: zone.getDefaultVolume(),
-      max_volume: zone.getMaxVolume()
+      max_volume: zone.getMaxVolume(),
     };
+  }
+
+  _getSyncedGroupInfo(zoneId) {
+     const syncGroups = this._master.getSyncGroups();
+
+     var audioSyncEvent = []
+     for (var i in syncGroups) {
+         if (syncGroups[i].includes(zoneId)) {
+             return {
+                groupid: i + 1,
+                master: syncGroups[i][0],
+                members: syncGroups[i],
+             }
+         }
+     }
   }
 
   _convert(type, base, start) {

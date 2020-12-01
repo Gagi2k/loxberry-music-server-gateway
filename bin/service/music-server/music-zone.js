@@ -484,6 +484,32 @@ module.exports = class MusicZone {
     this._pushAudioEvent();
   }
 
+  async sync(zones) {
+    try {
+      await this._sendPlayerCommand('POST', '/sync/' + zones);
+    } catch (err) {
+      if (err.type === 'BACKEND_ERROR') {
+        console.error('[ERR!] Invalid reply for "sync": ' + err.message);
+      } else {
+        console.error('[ERR!] Default behavior for "sync": ' + err.message);
+      }
+    }
+    this._musicServer.pushAudioSyncEvent();
+  }
+
+  async unSync() {
+    try {
+      await this._sendPlayerCommand('POST', '/unsync/' + zones);
+    } catch (err) {
+      if (err.type === 'BACKEND_ERROR') {
+        console.error('[ERR!] Invalid reply for "unsync": ' + err.message);
+      } else {
+        console.error('[ERR!] Default behavior for "unsync": ' + err.message);
+      }
+    }
+    this._musicServer.pushAudioSyncEvent();
+  }
+
   _setMode(mode) {
     this._player.mode = mode;
     this._player.time = this.getTime();

@@ -2,6 +2,8 @@
 
 const LMSClient = require('./lms-client');
 const MusicList = require('./music-list');
+const fs = require('fs');
+const config = JSON.parse(fs.readFileSync("config.json"));
 
 module.exports = class MusicMaster {
   constructor(musicServer) {
@@ -22,10 +24,14 @@ module.exports = class MusicMaster {
         if (data == "rescan done") {
             console.log("RESCAN DONE");
             musicServer._pushScanStatusChangedEvent(0);
+        } else if (data.includes(" sync ") ||
+                   data.includes(" power ")) {
+            //The sync master changes dynamically when the current master it turned off
+            this.fetchSyncGroups();
         }
     });
 
-    this._last = Promise.resolve();
+    this.fetchSyncGroups();
   }
 
   getInputList() {
@@ -56,6 +62,10 @@ module.exports = class MusicMaster {
     return this._serviceFolder;
   }
 
+  getSyncGroups() {
+    return this._syncGroups;
+  }
+
   async scanStatus() {
     return await this._globalClient.command('rescan ?');
   }
@@ -75,6 +85,26 @@ module.exports = class MusicMaster {
     config.configBase64 = Buffer.from(JSON.stringify(config), 'utf-8').toString("base64");
     this._client.execute_script("addNetworkShare", config)
     return 0;
+  }
+
+  async fetchSyncGroups() {
+    let response = await this._globalClient.command('syncgroups ?');
+    let data = this._client.parseAdvancedQueryResponse(response, 'sync_members');
+
+    let groups = []
+    for (var key in data.items) {
+        let macs = unescape(data.items[key].sync_members).split(',');
+        let zoneIds = []
+        for (var i in macs) {
+            var id = Object.keys(config.zone_map).find( key => config.zone_map[key] === macs[i]);
+            if (id)
+                zoneIds.push(+id)
+        }
+        groups.push(zoneIds);
+    }
+
+    this._syncGroups = groups;
+    this._musicServer._pushAudioSyncEvents();
   }
 
   async getSearchableTypes() {

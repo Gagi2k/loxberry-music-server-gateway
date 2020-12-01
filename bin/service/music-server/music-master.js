@@ -45,6 +45,10 @@ module.exports = class MusicMaster {
     return this._serviceFolder;
   }
 
+  getSyncGroups() {
+    return [];
+  }
+
   async scanStatus() {
     return false;
   }

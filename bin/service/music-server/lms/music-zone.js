@@ -85,6 +85,10 @@ module.exports = class MusicZone {
                data.startsWith("playlist stop")  ||
                data.startsWith("playlist pause")  ||
                data.startsWith("playlist play")  ||
+               data.startsWith("mode")  ||
+               data.startsWith("pause")  ||
+               data.startsWith("play")  ||
+               data.startsWith("playlist jump")  ||
                data.startsWith("playlist open")  ||
                data.startsWith("mixer volume") ||
                data.startsWith("client new") ||
@@ -159,7 +163,7 @@ module.exports = class MusicZone {
             "maxVolume": maxVolume,
             "repeat": repeat,
             "shuffle": shuffle,
-            "power": power,
+            "power": +power,
         }
         await this.getCurrentTime()
         console.log(JSON.stringify(this._player))
@@ -373,6 +377,10 @@ module.exports = class MusicZone {
   async power(power) {
     await this._client.command('power ' + ((power == "on") ? 1 : 0))
 
+    //If we are in a sync group, powering on a slave will change the mode already to
+    //playing. Get the new state first before trying to change it.
+    await this.getState();
+
     // Resum playing when the zone is turned on
     if (power == "on")
         await this.resume();
@@ -382,13 +390,40 @@ module.exports = class MusicZone {
     this._pushAudioEvent();
   }
 
+  async sync(zones) {
+    var macs = []
+    for (var i in zones) {
+        if (!zones[i])
+            continue;
+        var mac = config.zone_map[zones[i]];
+        if (mac)
+            macs.push(mac);
+    }
+
+    if (macs.length) {
+        this.unSync();
+
+        for (var i in macs)
+            await this._client.command('sync ' + macs[i]);
+    }
+  }
+
+  async unSync() {
+    await this._client.command('sync -')
+  }
+
   async _setMode(mode) {
     await this.getCurrentTime();
-    console.log("CURRENT MODE: " + this._player.mode + " NEW MODE: " + mode)
 
+    console.log("POWER", this._player.power);
+    if (this.getPower() == "off" && mode == "play") {
+        await this.power("on");
+    }
+
+    console.log("CURRENT MODE: " + this._player.mode + " NEW MODE: " + mode)
     if (this._player.mode == "pause" && mode == "play")
-        await this._client.command('pause');
-    else
+        await this._client.command('pause 0');
+    else if (this._player.mode != mode)
         await this._client.command('mode ' + mode);
     this._player.mode = mode;
 
