@@ -162,6 +162,7 @@ module.exports = class List {
              if (data.startsWith("playlist load") || data.startsWith("playlist play") ||
                  data.startsWith("playlist delete") || data.startsWith("playlist move") ||
                  data.startsWith("playlist addtracks") || data.startsWith("playlist shuffle") ||
+                 data.startsWith("playlist clear") ||
                  data.startsWith("newmetadata") ||
                  /playlist newsong [A-Za-z]+/.test(data)) {
                 console.log("TRIGGER QUEUE REFRESH")
@@ -222,6 +223,9 @@ module.exports = class List {
                 var item = +position + i
                 await this._client.command('playlist delete ' + item);
             }
+        }
+        this.clear_call = async () => {
+            await this._client.command('playlist clear');
         }
     } else if (url.endsWith("library")) {
         this._client = new LMSClient(this._zone_mac);
@@ -435,5 +439,14 @@ module.exports = class List {
         return;
     }
     await this.delete_call(position, length)
+  }
+
+  async clear() {
+    console.log("CLEAR")
+    if (!this.clear_call) {
+        console.log("NOT IMPLEMENTED!")
+        return;
+    }
+    await this.clear_call()
   }
 };

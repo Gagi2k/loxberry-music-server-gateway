@@ -79,6 +79,16 @@ module.exports = class List {
     this.reset();
   }
 
+  async clear() {
+    try {
+      await this._call('DELETE', this._url + '/');
+    } catch (err) {
+      console.error('[ERR!] Could not clear list: ' + err.message);
+    }
+
+    this.reset();
+  }
+
   _call() {
     const callback = () => this._musicServer.call(...arguments);
 
