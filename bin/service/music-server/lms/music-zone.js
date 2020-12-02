@@ -18,7 +18,6 @@ module.exports = class MusicZone {
 
     this._updateTime = NaN;
 
-    this._favoriteId = 0;
     this._zone_mac = config.zone_map[id];
     this._cfgFileName = "zone_config_" + this._id + ".json";
 
@@ -36,6 +35,7 @@ module.exports = class MusicZone {
         defaultVolume: 15,
         maxVolume: 100,
         equalizer: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        lastRoomFav: 0,
     }
 
     this.readConfig();
@@ -176,7 +176,7 @@ module.exports = class MusicZone {
   }
 
   getFavoriteId() {
-    return this._favoriteId;
+    return this._zone_cfg.lastRoomFav;
   }
 
   getFavoritesList() {
@@ -238,7 +238,8 @@ module.exports = class MusicZone {
 
   async play(id, favoriteId) {
     console.log("PLAY  ", id, favoriteId)
-    this._favoriteId = favoriteId;
+    this._zone_cfg.lastRoomFav = favoriteId;
+    this.saveConfig();
 
     var type = Math.floor(favoriteId / 1000000);
     var fav_id = favoriteId % 1000000;
