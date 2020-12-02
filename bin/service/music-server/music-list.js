@@ -11,6 +11,11 @@ module.exports = class List {
     this._last = Promise.resolve();
   }
 
+  // The events for changes needs to be handled by index.js
+  canSendEvents() {
+    return false;
+  }
+
   reset(start = 0) {
     this._total = Infinity;
     this._items.splice(start, Infinity);

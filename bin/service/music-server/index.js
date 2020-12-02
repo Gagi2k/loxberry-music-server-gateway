@@ -1400,7 +1400,8 @@ module.exports = class MusicServer {
     const zone = this._zones[+zoneId - 1];
 
     await zone.getQueueList().delete(+position, 1);
-    this._pushQueueEvents([zone]);
+    if (!zone.getQueueList().canSendEvents)
+        this._pushQueueEvents([zone]);
 
     return this._audioCfgGetPlayersDetails('audio/cfg/getplayersdetails');
   }
@@ -1410,7 +1411,8 @@ module.exports = class MusicServer {
     const zone = this._zones[+zoneId - 1];
 
     await zone.getQueueList().clear();
-    this._pushQueueEvents([zone]);
+    if (!zone.getQueueList().canSendEvents)
+        this._pushQueueEvents([zone]);
 
     return this._audioCfgGetPlayersDetails('audio/cfg/getplayersdetails');
   }
@@ -1420,7 +1422,8 @@ module.exports = class MusicServer {
     const zone = this._zones[+zoneId - 1];
 
     await zone.getQueueList().move(+position, +destination);
-    this._pushQueueEvents([zone]);
+    if (!zone.getQueueList().canSendEvents)
+       this._pushQueueEvents([zone]);
 
     return this._audioCfgGetPlayersDetails('audio/cfg/getplayersdetails');
   }
@@ -1437,6 +1440,8 @@ module.exports = class MusicServer {
       title: null,
       image: null,
     });
+    if (!zone.getQueueList().canSendEvents)
+        this._pushQueueEvents([zone]);
 
     return this._emptyCommand(url, []);
   }
@@ -1455,6 +1460,8 @@ module.exports = class MusicServer {
       title: null,
       image: null,
     });
+    if (!zone.getQueueList().canSendEvents)
+        this._pushQueueEvents([zone]);
 
     return this._emptyCommand(url, []);
   }
@@ -1474,7 +1481,8 @@ module.exports = class MusicServer {
     const zone = this._zones[+zoneId - 1];
 
     await zone.getFavoritesList().delete(+position - 1, 1);
-    this._pushRoomFavChangedEvents([zone]);
+    if (!zone.getFavoritesList().canSendEvents)
+        this._pushRoomFavChangedEvents([zone]);
 
     return this._emptyCommand(url, []);
   }
@@ -1532,7 +1540,8 @@ module.exports = class MusicServer {
     };
 
     await zone.getFavoritesList().replace(+position - 1, item);
-    this._pushRoomFavChangedEvents([zone]);
+    if (!zone.getFavoritesList().canSendEvents)
+        this._pushRoomFavChangedEvents([zone]);
 
     return this._emptyCommand(url, []);
   }
@@ -1549,7 +1558,8 @@ module.exports = class MusicServer {
     };
 
     await zone.getFavoritesList().replace(+position - 1, item);
-    this._pushRoomFavChangedEvents([zone]);
+    if (!zone.getFavoritesList().canSendEvents)
+        this._pushRoomFavChangedEvents([zone]);
 
     return this._emptyCommand(url, []);
   }

@@ -351,6 +351,11 @@ module.exports = class List {
     this.reset();
   }
 
+  // The events for changes are send by use, don't send them in index.js
+  canSendEvents() {
+    return true;
+  }
+
   reset(start = 0) {
     this._itemMap = new Map;
     this._itemMap.set(undefined, {
