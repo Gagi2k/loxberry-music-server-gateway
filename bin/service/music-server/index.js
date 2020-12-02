@@ -491,6 +491,8 @@ module.exports = class MusicServer {
   }
 
   _handler(method, data) {
+    if (method.startsWith('/'))
+        method = method.slice(1);
     const index = method.indexOf('?');
     const url = index === -1 ? method : method.substr(0, index);
     const query = querystring.parse(method.substr(url.length + 1));
@@ -1645,7 +1647,7 @@ module.exports = class MusicServer {
   }
 
   async _audioUpload(url, data) {
-    const [, , , , , , filename] = url.split('/');
+    const [, , , , , filename] = url.split('/');
 
     fs.writeFileSync(config.uploadPath + '/' + filename, data);
 
