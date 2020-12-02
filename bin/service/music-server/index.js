@@ -1336,11 +1336,18 @@ module.exports = class MusicServer {
   }
 
   async _audioPlayUrl(url) {
-    const [, zoneId, ,id] = url.split('/');
+    const [, zoneId, , ...lastArg] = url.split('/');
+    const id = lastArg.join('/');
     const zone = this._zones[+zoneId - 1];
-    const [decodedId, favoriteId] = this._decodeId(id);
+    var decodedId, favoriteId;
+    try {
+       [decodedId, favoriteId] = this._decodeId(id);
+    } catch {}
 
-    await zone.play(decodedId, favoriteId);
+    if (decodedId)
+        await zone.play(decodedId, favoriteId);
+    else
+        await zone.play("url:" + id);
 
     return this._audioCfgGetPlayersDetails('audio/cfg/getplayersdetails');
   }
