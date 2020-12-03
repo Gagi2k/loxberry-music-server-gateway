@@ -586,6 +586,9 @@ module.exports = class MusicServer {
       case /(?:^|\/)audio\/cfg\/playlist\/create(?:\/|$)/.test(url):
         return this._audioCfgPlaylistCreate(url);
 
+      case /(?:^|\/)audio\/cfg\/playlist\/update(?:\/|$)/.test(url):
+        return this._audioCfgPlaylistUpdate(url);
+
       case /(?:^|\/)audio\/cfg\/playlist\/deletelist\//.test(url):
         return this._audioCfgPlaylistDeleteList(url);
 
@@ -1140,15 +1143,31 @@ module.exports = class MusicServer {
     const title = decodeURIComponent(url.split('/').pop());
     const playlists = this._master.getPlaylistList();
 
-    const {total} = await playlists.get(undefined, 0, 0);
-
-    await this._master.getPlaylistList().insert(total, {
+    await this._master.getPlaylistList().insert(undefined, {
       id: null,
       title,
       image: null,
     });
 
     return this._emptyCommand(url, []);
+  }
+
+  async _audioCfgPlaylistUpdate(url) {
+    const [cmd, id] = url.split('/').pop().split(':');
+    const playlist_id = url.split('/').pop();
+
+    var response = [];
+    if (cmd == 'start' || cmd == 'finish' || cmd == 'finishnochanges') {
+        this._pushPlaylistsChangedEvent(playlist_id, cmd);
+    } else {
+        const [decodedId] = this._decodeId(id);
+        const playlists = this._master.getPlaylistList();
+
+        console.log("NOT IMPLEMENTED");
+        //response = [{"action":"ok", "items": [{ title: 'foo' }]}];
+    }
+
+    return this._emptyCommand(url, response);
   }
 
   async _audioCfgPlaylistDeleteList(url) {
