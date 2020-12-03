@@ -14,6 +14,7 @@
     "scripts": {
         "playUploadedFile": "echo {{name}} {{zones}} {{path}}",
         "playAlarmSound": "echo {{name}} {{type}} {{volume}}",
+        "playTTS": "echo {{name}} {{language}} {{text}} {{volume}}",
         "changeEqualizer": "echo {{name}} {{zones}}",
         "changeDefaultVolume": "echo {{name}} {{zones}} {{defaultVolume}}",
         "changeMaxVolume": "echo {{name}} {{zones}} {{maxVolume}}",

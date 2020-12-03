@@ -229,6 +229,10 @@ module.exports = class MusicZone {
     this._client.execute_script("playAlarmSound", { zones: this._id, type, volume })
   }
 
+  async tts(language, text, volume) {
+    this._client.execute_script("playTTS", { zones: this._id, language, text, volume })
+  }
+
   async equalizer(bands) {
     this._zone_cfg.equalizer = bands;
     this.saveConfig();

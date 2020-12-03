@@ -712,6 +712,9 @@ module.exports = class MusicServer {
       case /(?:^|\/)audio\/\d+\/volume\/[+-]?\d+(?:\/|$)/.test(url):
         return this._audioVolume(url);
 
+      case /(?:^|\/)audio\/\d+\/tts\/[^\/]+\/\d+(?:\/|$)/.test(url):
+        return this._audioTTS(url);
+
       default:
         return this._unknownCommand(url);
     }
@@ -1674,6 +1677,16 @@ module.exports = class MusicServer {
     }
 
     return this._audioCfgGetPlayersDetails('audio/cfg/getplayersdetails');
+  }
+
+  async _audioTTS(url) {
+    const [, zoneId, , input, volume] = url.split('/');
+    const [language, text] = input.split('|');
+    const zone = this._zones[+zoneId - 1];
+
+    zone.tts(language, text, volume);
+
+    return this._emptyCommand(url, []);
   }
 
   async _audioUpload(url, data) {

@@ -151,6 +151,18 @@ module.exports = class MusicZone {
     }
   }
 
+  async tts(language, text) {
+    try {
+      await this._sendPlayerCommand('POST', '/tts/' + zones + '/' + language + '/' + text);
+    } catch (err) {
+      if (err.type === 'BACKEND_ERROR') {
+        console.error('[ERR!] Invalid reply for "tts": ' + err.message);
+      } else {
+        console.error('[ERR!] Default behavior for "tts": ' + err.message);
+      }
+    }
+  }
+
   async equalizer(bands) {
     try {
       return await this._sendPlayerCommand('PUT', '/equalizer', bands);
