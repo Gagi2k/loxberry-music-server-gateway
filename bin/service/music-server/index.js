@@ -222,8 +222,21 @@ module.exports = class MusicServer {
     this._pushRoomFavEvents([zone]);
   }
 
-  pushQueueEvent(zone) {
+  async pushQueueEvent(zone) {
     this._pushQueueEvents([zone]);
+
+    const zoneId = this._zones.indexOf(zone) + 1;
+    const syncInfo = this._getSyncedGroupInfo(zoneId);
+    if (syncInfo) {
+        var zones = []
+        for (var i in syncInfo.members) {
+            if (zoneId != syncInfo.members[i]) {
+                const zoneObj = this._zones[syncInfo.members[i] - 1];
+                await zoneObj.getState();
+                this._pushQueueEvents([zoneObj]);
+            }
+        }
+    }
   }
 
   _pushAudioEvents(zones) {
