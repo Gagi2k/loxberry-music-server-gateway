@@ -20,6 +20,7 @@ module.exports = class MusicZone {
 
     this._zone_mac = config.zone_map[id];
     this._cfgFileName = "zone_config_" + this._id + ".json";
+    this._audioDelay = 0;
 
     this._player = {
       id: '',
@@ -56,6 +57,7 @@ module.exports = class MusicZone {
     }
 
     this.getState();
+    this.fetchAudioDelay();
   }
 
   readConfig() {
@@ -85,16 +87,18 @@ module.exports = class MusicZone {
                data.startsWith("playlist stop")  ||
                data.startsWith("playlist pause")  ||
                data.startsWith("playlist play")  ||
-               data.startsWith("mode")  ||
-               data.startsWith("pause")  ||
-               data.startsWith("play")  ||
+               data.startsWith("mode ")  ||
+               data.startsWith("pause ")  ||
+               data.startsWith("play ")  ||
                data.startsWith("playlist jump")  ||
                data.startsWith("playlist open")  ||
                data.startsWith("mixer volume") ||
                data.startsWith("client new") ||
-               data.startsWith("power")) {
+               data.startsWith("power ")) {
         await this.getState();
         this._pushAudioEvent();
+    } else if (data.startsWith("prefset server playDelay")) {
+        this.fetchAudioDelay();
     }
   }
 
@@ -225,6 +229,14 @@ module.exports = class MusicZone {
     return this._player.shuffle;
   }
 
+  getAudioDelay() {
+    return this._audioDelay;
+  }
+
+  async fetchAudioDelay() {
+      this._audioDelay = await this._client.command('playerpref playDelay ?')
+  }
+
   async alarm(type, volume) {
     this._client.execute_script("playAlarmSound", { zones: this._id, type, volume })
   }
@@ -337,6 +349,10 @@ module.exports = class MusicZone {
                                                      maxVolume: this._zone_cfg.maxVolume})
 
     this._pushAudioEvent();
+  }
+
+  async audioDelay(delay) {
+    await this._client.command('playerpref playDelay ' + delay)
   }
 
   async repeat(repeat) {

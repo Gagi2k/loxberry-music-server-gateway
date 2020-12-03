@@ -613,6 +613,9 @@ module.exports = class MusicServer {
       case /(?:^|\/)audio\/cfg\/eventvolumes(?:\/|$)/.test(url):
         return this._audioCfgEventVolumes(url);
 
+      case /(?:^|\/)audio\/cfg\/audiodelay(?:\/|$)/.test(url):
+        return this._audioCfgAudioDelay(url);
+
       case /(?:^|\/)audio\/\d+\/(?:(fire)?alarm|bell|wecker)(?:\/|$)/.test(url):
         return this._audioAlarm(url);
 
@@ -1219,6 +1222,19 @@ module.exports = class MusicServer {
     //     and we don't know how to get the inital values.
 
     return this._audioCfgGetPlayersDetails('audio/cfg/getplayersdetails');
+  }
+
+  async _audioCfgAudioDelay(url) {
+    const [, , , zoneId, delay] = url.split('/');
+    const zone = this._zones[+zoneId - 1];
+
+    var newDelay = 0
+    if (!delay)
+        newDelay = zone.getAudioDelay();
+    else
+        zone.audioDelay(delay);
+
+    return this._emptyCommand(url, [{ "audio_delay": newDelay }]);
   }
 
   async _audioAlarm(url) {

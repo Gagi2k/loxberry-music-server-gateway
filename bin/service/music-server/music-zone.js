@@ -11,6 +11,7 @@ module.exports = class MusicZone {
     this._updateTime = NaN;
 
     this._favoriteId = 0;
+    this._audioDelay = 0;
 
     this._player = {
       id: '',
@@ -129,6 +130,10 @@ module.exports = class MusicZone {
 
   getShuffle() {
     return this._player.shuffle;
+  }
+
+  getAudioDelay() {
+    return this._audioDelay;
   }
 
   async alarm(type, volume) {
@@ -358,6 +363,27 @@ module.exports = class MusicZone {
         transaction.rollback();
       } else {
         console.error('[ERR!] Default behavior for "maxVolume": ' + err.message);
+      }
+    }
+
+    this._pushAudioEvent();
+  }
+
+  async audioDelay(delay) {
+    const transaction = this._transaction();
+
+    this._audioDelay = delay;
+
+    transaction.end();
+
+    try {
+      await this._sendPlayerCommand('POST', '/audioDelay/' + delay);
+    } catch (err) {
+      if (err.type === 'BACKEND_ERROR') {
+        console.error('[ERR!] Invalid reply for "audioDelay": ' + err.message);
+        transaction.rollback();
+      } else {
+        console.error('[ERR!] Default behavior for "audioDelay": ' + err.message);
       }
     }
 
