@@ -163,9 +163,8 @@ module.exports = class List {
                  data.startsWith("playlist delete") || data.startsWith("playlist move") ||
                  data.startsWith("playlist addtracks") || data.startsWith("playlist shuffle") ||
                  data.startsWith("playlist clear") ||
-                 data.startsWith("newmetadata") ||
-                 /playlist newsong [A-Za-z]+/.test(data)) {
-                console.log("TRIGGER QUEUE REFRESH")
+                 data.startsWith("newmetadata")) {
+                console.log("TRIGGER QUEUE REFRESH ZONE" + this._zone._id)
                 this.reset();
                 musicServer.pushQueueEvent(this._zone)
              }
