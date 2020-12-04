@@ -5,24 +5,29 @@ const MusicList = require('./music-list');
 const fs = require('fs');
 const config = JSON.parse(fs.readFileSync("config.json"));
 
+const Log = require("../log");
+const console = new Log;
+
 module.exports = class MusicMaster {
   constructor(musicServer) {
     this._musicServer = musicServer;
+    this._lc = musicServer.loggingCategory().extend("MASTER");
 
-    this._inputs = new MusicList(musicServer, '/inputs');
-    this._favorites = new MusicList(musicServer, '/favorites', musicServer._zones[0]);
-    this._playlists = new MusicList(musicServer, '/playlists');
-    this._library = new MusicList(musicServer, '/library');
-    this._radios = new MusicList(musicServer, '/radios');
+    this._inputs = new MusicList(musicServer, '/inputs', this);
+    this._favorites = new MusicList(musicServer, '/favorites', this, musicServer._zones[0]);
+    this._playlists = new MusicList(musicServer, '/playlists', this);
+    this._library = new MusicList(musicServer, '/library', this);
+    this._radios = new MusicList(musicServer, '/radios', this);
     // This is not zone specific but we still need to use a zone for the call to work correctly
-    this._services = new MusicList(musicServer, '/services', musicServer._zones[0]);
-    this._serviceFolder = new MusicList(musicServer, '/servicefolder', musicServer._zones[0]);
+    this._services = new MusicList(musicServer, '/services', this, musicServer._zones[0]);
+    this._serviceFolder = new MusicList(musicServer, '/servicefolder', this, musicServer._zones[0]);
 
-    this._client = new LMSClient(this._musicServer._zones[0]._zone_mac);
+    this._client = new LMSClient(this._musicServer._zones[0]._zone_mac, this);
 
-    this._globalClient = new LMSClient(undefined, (data) => {
+    this._globalClient = new LMSClient(undefined, this, (data) => {
+        console.log(this._lc, "LMS NOTIFICATION:", data)
         if (data == "rescan done") {
-            console.log("RESCAN DONE");
+            console.log(this._lc, "RESCAN DONE");
             musicServer._pushScanStatusChangedEvent(0);
         } else if (data.includes(" sync ") ||
                    data.includes(" power ")) {
@@ -32,6 +37,10 @@ module.exports = class MusicMaster {
     });
 
     this.fetchSyncGroups();
+  }
+
+  loggingCategory() {
+    return this._lc;
   }
 
   getInputList() {
@@ -121,7 +130,6 @@ module.exports = class MusicMaster {
             continue;
         this.spotify_categories[data.items[key].id] = data.items[key].name
     }
-    console.log(this.spotify_categories)
 
     // Every key corresponds to one search == one list of result
     // The sample does three searches

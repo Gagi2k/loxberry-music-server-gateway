@@ -4,23 +4,26 @@ const LMSClient = require('./lms-client');
 const fs = require('fs');
 const Mutex = require('async-mutex');
 
+const Log = require("../log");
+const console = new Log;
+
 module.exports = class List {
-  constructor(musicServer, url, zone) {
+  constructor(musicServer, url, parent, zone) {
     this._musicServer = musicServer;
     this._url = url;
+    this._lc = parent.loggingCategory().extend(url.split('/').pop().toUpperCase());
     this._zone = zone;
     this._zone_mac = zone ? zone._zone_mac : undefined
     this._mutex = new Mutex.Mutex();
 
     if (url.endsWith("/favorites")) {
-        this._client = new LMSClient(this._zone_mac, (data) => {
+        this._client = new LMSClient(this._zone_mac, this, (data) => {
              if (data.startsWith("favorites")) {
                  this.reset()
                  musicServer._pushFavoritesChangedEvent();
              }
          });
         this.get_call = async (rootItem, start, length) => {
-            console.log("GET FAVS")
             let response = await this._client.command('favorites items ' + start + ' ' + length + ' want_url:1');
             let data = this._client.parseAdvancedQueryResponse(response, 'id', ['title']);
             let items = data.items;
@@ -61,7 +64,7 @@ module.exports = class List {
             }
         }
     } else if (url.endsWith("zone_favorites")) {
-        this._client = new LMSClient(this._zone_mac);
+        this._client = new LMSClient(this._zone_mac, this);
         let fileName = 'zone_favorite_' + this._zone._id + '.json'
         let fav_items = [{id:-1, title: "Dummy"}]
         if (fs.existsSync(fileName)) {
@@ -100,7 +103,7 @@ module.exports = class List {
             musicServer._pushRoomFavChangedEvents([this._zone]);
         }
     } else if (url.endsWith("playlists")) {
-        this._client = new LMSClient(this._zone_mac);
+        this._client = new LMSClient(this._zone_mac, this);
         this.get_call = async (rootItem, start, length) => {
             if (!rootItem) {
                 let response = await this._client.command('playlists ' + start + ' ' + length + " tags:u:playlist");
@@ -137,7 +140,6 @@ module.exports = class List {
                                        type: 2 //File
                                    })
                 }
-                console.log(data);
                 return data;
             }
         }
@@ -158,19 +160,18 @@ module.exports = class List {
             musicServer._pushPlaylistsChangedEvent(position, "delete");
         }
     } else if (url.endsWith("queue")) {
-        this._client = new LMSClient(this._zone_mac, (data) => {
+        this._client = new LMSClient(this._zone_mac, this, (data) => {
              if (data.startsWith("playlist load") || data.startsWith("playlist play") ||
                  data.startsWith("playlist delete") || data.startsWith("playlist move") ||
                  data.startsWith("playlist addtracks") || data.startsWith("playlist shuffle") ||
                  data.startsWith("playlist clear") ||
                  data.startsWith("newmetadata")) {
-                console.log("TRIGGER QUEUE REFRESH ZONE" + this._zone._id)
+                console.log(this._lc, "TRIGGER QUEUE REFRESH ZONE" + this._zone._id)
                 this.reset();
                 musicServer.pushQueueEvent(this._zone)
              }
          });
         this.get_call = async (rootItem, start, length) => {
-            console.log("QUEUE GET", start, length)
             let response = await this._client.command('status ' + start + ' ' + length + " tags:aluKJN");
             let data = this._client.parseAdvancedQueryResponse(response, 'id', [''], "playlist_tracks");
             let items = data.items.slice(1);
@@ -227,7 +228,7 @@ module.exports = class List {
             await this._client.command('playlist clear');
         }
     } else if (url.endsWith("library")) {
-        this._client = new LMSClient(this._zone_mac);
+        this._client = new LMSClient(this._zone_mac, this);
         this.get_call = async (rootItem, start, length) => {
             const itemMap = [{ name: 'Artists', cmd: 'artists', next_cmd: 'albums', filter_key: "artist_id", name_key: 'artist', split_key: 'id', id_key: 'artist' },
                              { name: 'Albums', cmd: 'albums', next_cmd: 'tracks', filter_key: "album_id", name_key: 'title', split_key: 'id', id_key: 'album' },
@@ -273,7 +274,7 @@ module.exports = class List {
             }
         }
     } else if (url.endsWith("radios")) {
-        this._client = new LMSClient(this._zone_mac);
+        this._client = new LMSClient(this._zone_mac, this);
         this.get_call = async (rootItem, start, length) => {
             let response = await this._client.command('radios ' + start + ' ' + length);
             let data = this._client.parseAdvancedQueryResponse2(response, ["name", "icon", "type", "cmd", "weight"]);
@@ -297,7 +298,7 @@ module.exports = class List {
             return data
         }
     } else if (url.endsWith("services")) {
-        this._client = new LMSClient(this._zone_mac);
+        this._client = new LMSClient(this._zone_mac, this);
         this.get_call = async (rootItem, start, length) => {
             let response = await this._client.command('spotty items 0 1');
             let data = this._client.parseAdvancedQueryResponse(response, 'id');
@@ -306,7 +307,7 @@ module.exports = class List {
             return { count: 1, items: [{ id: 0, cmd: "spotify", user: "Standard User" }] };
         }
     } else if (url.endsWith("servicefolder")) {
-        this._client = new LMSClient(this._zone_mac);
+        this._client = new LMSClient(this._zone_mac, this);
         this.get_call = async (rootItem, start, length) => {
 
             var [cmd, id] = rootItem.split('%%%');
@@ -350,6 +351,10 @@ module.exports = class List {
     this.reset();
   }
 
+  loggingCategory() {
+    return this._lc;
+  }
+
   // The events for changes are send by use, don't send them in index.js
   canSendEvents() {
     return true;
@@ -364,7 +369,7 @@ module.exports = class List {
   }
 
   async get(rootItem, start, length) {
-    console.log("GET", rootItem, start, length)
+    console.log(this._lc, "GET", start, length, "rootItem: " + rootItem)
     const end = start + (length || 1);
 
     await this._mutex.runExclusive(async () => {
@@ -381,7 +386,7 @@ module.exports = class List {
         if (_items.length < _total && _items.length < end && this.get_call) {
             let chunk = await this.get_call(rootItem, start, length || 1)
 
-            console.log(chunk.count, chunk.items.length, JSON.stringify(chunk.items))
+            //console.log(this._lc, chunk.count, chunk.items.length, JSON.stringify(chunk.items))
 
             _total = chunk.count
 
@@ -401,56 +406,64 @@ module.exports = class List {
 
     let {total, items} = this._itemMap.get(rootItem);
 
-    return {
+    const returnValue = {
       total: total,
       // With cache we need to return the data which was requested from the complete cached data
       // Without cache we just return the data the async function just stored.
       items: this._useCache ? items.slice(start, end) : items,
     };
 
+    console.log(this._lc, "RETURN", returnValue);
+
+    return returnValue;
   }
 
   async insert(position, ...items) {
-    console.log("INSERT", position, ...items)
+    console.log(this._lc, "INSERT", position, ...items)
     if (!this.insert_call) {
-        console.log("NOT IMPLEMENTED!")
+        console.error(this._lc, "NOT IMPLEMENTED!")
         return;
     }
 
     await this.insert_call(position, ...items)
+    console.log(this._lc, "DONE");
   }
 
   async replace(position, ...items) {
-     console.log("REPLACE", position, ...items)
+     console.log(this._lc, "REPLACE", position, ...items)
      await this.delete(position, 1)
      await this.insert(position, ...items)
+     console.log(this._lc, "DONE");
   }
 
   async move(position, destination) {
-    console.log("MOVE", position, destination)
+    console.log(this._lc, "MOVE", position, destination)
     if (!this.move_call) {
-        console.log("NOT IMPLEMENTED!")
+        console.error(this._lc, "NOT IMPLEMENTED!")
         return;
     }
 
     await this.move_call(position, destination)
+    console.log(this._lc, "DONE");
   }
 
   async delete(position, length) {
-    console.log("DELETE", position, length)
+    console.log(this._lc, "DELETE", position, length)
     if (!this.delete_call) {
-        console.log("NOT IMPLEMENTED!")
+        console.error(this._lc, "NOT IMPLEMENTED!")
         return;
     }
     await this.delete_call(position, length)
+    console.log(this._lc, "DONE");
   }
 
   async clear() {
-    console.log("CLEAR")
+    console.log(this._lc, "CLEAR")
     if (!this.clear_call) {
-        console.log("NOT IMPLEMENTED!")
+        console.error(this._lc, "NOT IMPLEMENTED!")
         return;
     }
     await this.clear_call()
+    console.log(this._lc, "DONE");
   }
 };

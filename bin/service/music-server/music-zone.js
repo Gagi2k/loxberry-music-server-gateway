@@ -2,10 +2,14 @@
 
 const MusicList = require('./music-list');
 
+const Log = require("log");
+const console = new Log;
+
 module.exports = class MusicZone {
-  constructor(musicServer, id) {
+  constructor(musicServer, id, parent) {
     this._musicServer = musicServer;
     this._id = id;
+    this._lc = parent.loggingCategory().extend("ZONE-" + id);
 
     this._power = 'on';
     this._updateTime = NaN;
@@ -26,14 +30,18 @@ module.exports = class MusicZone {
 
     this._track = this._getEmptyTrack();
 
-    this._favorites = new MusicList(musicServer, this._url() + '/favorites');
-    this._queue = new MusicList(musicServer, this._url() + '/queue');
+    this._favorites = new MusicList(musicServer, this._url() + '/favorites', this);
+    this._queue = new MusicList(musicServer, this._url() + '/queue', this);
 
     // We have to query for state regardless of the internal one, because the
     // state could be updated from the outside.
     setInterval(this.getState.bind(this), 5000);
 
     this.getState();
+  }
+
+  loggingCategory() {
+    return this._lc;
   }
 
   async getEqualizer() {
@@ -59,10 +67,10 @@ module.exports = class MusicZone {
       return equalizer;
     } catch (err) {
       if (err.type === 'BACKEND_ERROR') {
-        console.error('[ERR!] Invalid reply for "equalizer": ' + err.message);
+        console.error(this._lc, 'Invalid reply for "equalizer": ' + err.message);
       } else {
-        console.error(
-          '[ERR!] Default behavior for "equalizer": ' + err.message,
+        console.error(this._lc,
+          'Default behavior for "equalizer": ' + err.message,
         );
       }
 
@@ -73,8 +81,8 @@ module.exports = class MusicZone {
   async getState() {
     try {
       await this._sendPlayerCommand('GET', '/state');
-    } catch (err) {
-      console.error('[ERR!] Could not get player "state": ' + err.message);
+    } catch (err) {this._lc,
+      console.error('Could not get player "state": ' + err.message);
     }
   }
 
@@ -147,10 +155,10 @@ module.exports = class MusicZone {
       await this._sendPlayerCommand('POST', '/alarm/' + type + '/' + volume);
     } catch (err) {
       if (err.type === 'BACKEND_ERROR') {
-        console.error('[ERR!] Invalid reply for "alarm": ' + err.message);
+        console.error(this._lc, 'Invalid reply for "alarm": ' + err.message);
         transaction.rollback();
       } else {
-        console.error('[ERR!] Default behavior for "alarm": ' + err.message);
+        console.error(this._lc, 'Default behavior for "alarm": ' + err.message);
         this._setMode('play');
       }
     }
@@ -161,9 +169,9 @@ module.exports = class MusicZone {
       await this._sendPlayerCommand('POST', '/tts/' + zones + '/' + language + '/' + text);
     } catch (err) {
       if (err.type === 'BACKEND_ERROR') {
-        console.error('[ERR!] Invalid reply for "tts": ' + err.message);
+        console.error(this._lc, 'Invalid reply for "tts": ' + err.message);
       } else {
-        console.error('[ERR!] Default behavior for "tts": ' + err.message);
+        console.error(this._lc, 'Default behavior for "tts": ' + err.message);
       }
     }
   }
@@ -173,10 +181,10 @@ module.exports = class MusicZone {
       return await this._sendPlayerCommand('PUT', '/equalizer', bands);
     } catch (err) {
       if (err.type === 'BACKEND_ERROR') {
-        console.error('[ERR!] Invalid reply for "equalizer": ' + err.message);
+        console.error(this._lc, 'Invalid reply for "equalizer": ' + err.message);
       } else {
-        console.error(
-          '[ERR!] Default behavior for "equalizer": ' + err.message,
+        console.error(this._lc,
+          'Default behavior for "equalizer": ' + err.message,
         );
       }
     }
@@ -200,10 +208,10 @@ module.exports = class MusicZone {
       );
     } catch (err) {
       if (err.type === 'BACKEND_ERROR') {
-        console.error('[ERR!] Invalid reply for "play": ' + err.message);
+        console.error(this._lc, 'Invalid reply for "play": ' + err.message);
         transaction.rollback();
       } else {
-        console.error('[ERR!] Default behavior for "play": ' + err.message);
+        console.error(this._lc, 'Default behavior for "play": ' + err.message);
         this._setMode('play');
       }
     }
@@ -220,10 +228,10 @@ module.exports = class MusicZone {
       await this._sendPlayerCommand('POST', '/pause');
     } catch (err) {
       if (err.type === 'BACKEND_ERROR') {
-        console.error('[ERR!] Invalid reply for "pause": ' + err.message);
+        console.error(this._lc, 'Invalid reply for "pause": ' + err.message);
         transaction.rollback();
       } else {
-        console.error('[ERR!] Default behavior for "pause": ' + err.message);
+        console.error(this._lc, 'Default behavior for "pause": ' + err.message);
       }
     }
   }
@@ -240,10 +248,10 @@ module.exports = class MusicZone {
       await this._sendPlayerCommand('POST', '/resume');
     } catch (err) {
       if (err.type === 'BACKEND_ERROR') {
-        console.error('[ERR!] Invalid reply for "resume": ' + err.message);
+        console.error(this._lc, 'Invalid reply for "resume": ' + err.message);
         transaction.rollback();
       } else {
-        console.error('[ERR!] Default behavior for "resume": ' + err.message);
+        console.error(this._lc, 'Default behavior for "resume": ' + err.message);
         this._setMode('play');
       }
     }
@@ -260,10 +268,10 @@ module.exports = class MusicZone {
       await this._sendPlayerCommand('POST', '/stop');
     } catch (err) {
       if (err.type === 'BACKEND_ERROR') {
-        console.error('[ERR!] Invalid reply for "stop": ' + err.message);
+        console.error(this._lc, 'Invalid reply for "stop": ' + err.message);
         transaction.rollback();
       } else {
-        console.error('[ERR!] Default behavior for "stop": ' + err.message);
+        console.error(this._lc, 'Default behavior for "stop": ' + err.message);
       }
     }
   }
@@ -273,10 +281,10 @@ module.exports = class MusicZone {
       await this._sendPlayerCommand('POST', '/sleep/' + time);
     } catch (err) {
       if (err.type === 'BACKEND_ERROR') {
-        console.error('[ERR!] Invalid reply for "sleep": ' + err.message);
+        console.error(this._lc, 'Invalid reply for "sleep": ' + err.message);
         transaction.rollback();
       } else {
-        console.error('[ERR!] Default behavior for "sleep": ' + err.message);
+        console.error(this._lc, 'Default behavior for "sleep": ' + err.message);
       }
     }
   }
@@ -293,10 +301,10 @@ module.exports = class MusicZone {
       await this._sendPlayerCommand('POST', '/time/' + time);
     } catch (err) {
       if (err.type === 'BACKEND_ERROR') {
-        console.error('[ERR!] Invalid reply for "time": ' + err.message);
+        console.error(this._lc, 'Invalid reply for "time": ' + err.message);
         transaction.rollback();
       } else {
-        console.error('[ERR!] Default behavior for "time": ' + err.message);
+        console.error(this._lc, 'Default behavior for "time": ' + err.message);
         this._setMode('play');
         this._player.time = time;
         this._updateTime = Date.now();
@@ -317,10 +325,10 @@ module.exports = class MusicZone {
       await this._sendPlayerCommand('POST', '/volume/' + this._player.volume);
     } catch (err) {
       if (err.type === 'BACKEND_ERROR') {
-        console.error('[ERR!] Invalid reply for "volume": ' + err.message);
+        console.error(this._lc, 'Invalid reply for "volume": ' + err.message);
         transaction.rollback();
-      } else {
-        console.error('[ERR!] Default behavior for "volume": ' + err.message);
+      } else {this._lc,
+        console.error('Default behavior for "volume": ' + err.message);
       }
     }
 
@@ -338,10 +346,10 @@ module.exports = class MusicZone {
       await this._sendPlayerCommand('POST', '/defaultVolume/' + this._player.volume);
     } catch (err) {
       if (err.type === 'BACKEND_ERROR') {
-        console.error('[ERR!] Invalid reply for "defaultVolume": ' + err.message);
+        console.error(this._lc, 'Invalid reply for "defaultVolume": ' + err.message);
         transaction.rollback();
       } else {
-        console.error('[ERR!] Default behavior for "defaultVolume": ' + err.message);
+        console.error(this._lc, 'Default behavior for "defaultVolume": ' + err.message);
       }
     }
 
@@ -359,10 +367,10 @@ module.exports = class MusicZone {
       await this._sendPlayerCommand('POST', '/maxVolume/' + this._player.volume);
     } catch (err) {
       if (err.type === 'BACKEND_ERROR') {
-        console.error('[ERR!] Invalid reply for "maxVolume": ' + err.message);
+        console.error(this._lc, 'Invalid reply for "maxVolume": ' + err.message);
         transaction.rollback();
       } else {
-        console.error('[ERR!] Default behavior for "maxVolume": ' + err.message);
+        console.error(this._lc, 'Default behavior for "maxVolume": ' + err.message);
       }
     }
 
@@ -380,10 +388,10 @@ module.exports = class MusicZone {
       await this._sendPlayerCommand('POST', '/audioDelay/' + delay);
     } catch (err) {
       if (err.type === 'BACKEND_ERROR') {
-        console.error('[ERR!] Invalid reply for "audioDelay": ' + err.message);
+        console.error(this._lc, 'Invalid reply for "audioDelay": ' + err.message);
         transaction.rollback();
       } else {
-        console.error('[ERR!] Default behavior for "audioDelay": ' + err.message);
+        console.error(this._lc, 'Default behavior for "audioDelay": ' + err.message);
       }
     }
 
@@ -405,10 +413,10 @@ module.exports = class MusicZone {
       await this._sendPlayerCommand('POST', '/repeat/' + repeat);
     } catch (err) {
       if (err.type === 'BACKEND_ERROR') {
-        console.error('[ERR!] Invalid reply for "repeat": ' + err.message);
+        console.error(this._lc, 'Invalid reply for "repeat": ' + err.message);
         transaction.rollback();
       } else {
-        console.error('[ERR!] Default behavior for "repeat": ' + err.message);
+        console.error(this._lc, 'Default behavior for "repeat": ' + err.message);
       }
     }
 
@@ -430,10 +438,10 @@ module.exports = class MusicZone {
       await this._sendPlayerCommand('POST', '/shuffle/' + shuffle);
     } catch (err) {
       if (err.type === 'BACKEND_ERROR') {
-        console.error('[ERR!] Invalid reply for "shuffle": ' + err.message);
+        console.error(this._lc, 'Invalid reply for "shuffle": ' + err.message);
         transaction.rollback();
       } else {
-        console.error('[ERR!] Default behavior for "shuffle": ' + err.message);
+        console.error(this._lc, 'Default behavior for "shuffle": ' + err.message);
       }
     }
 
@@ -453,10 +461,10 @@ module.exports = class MusicZone {
       await this._sendPlayerCommand('POST', '/previous');
     } catch (err) {
       if (err.type === 'BACKEND_ERROR') {
-        console.error('[ERR!] Invalid reply for "previous": ' + err.message);
+        console.error(this._lc, 'Invalid reply for "previous": ' + err.message);
         transaction.rollback();
       } else {
-        console.error('[ERR!] Default behavior for "previous": ' + err.message);
+        console.error(this._lc, 'Default behavior for "previous": ' + err.message);
         this._setMode('play');
       }
     }
@@ -477,10 +485,10 @@ module.exports = class MusicZone {
       await this._sendPlayerCommand('POST', '/next');
     } catch (err) {
       if (err.type === 'BACKEND_ERROR') {
-        console.error('[ERR!] Invalid reply for "next": ' + err.message);
+        console.error(this._lc, 'Invalid reply for "next": ' + err.message);
         transaction.rollback();
       } else {
-        console.error('[ERR!] Default behavior for "next": ' + err.message);
+        console.error(this._lc, 'Default behavior for "next": ' + err.message);
         this._setMode('play');
       }
     }
@@ -501,10 +509,10 @@ module.exports = class MusicZone {
       await this._sendPlayerCommand('POST', '/setCurrentIndex/' + index);
     } catch (err) {
       if (err.type === 'BACKEND_ERROR') {
-        console.error('[ERR!] Invalid reply for "next": ' + err.message);
+        console.error(this._lc, 'Invalid reply for "next": ' + err.message);
         transaction.rollback();
       } else {
-        console.error('[ERR!] Default behavior for "next": ' + err.message);
+        console.error(this._lc, 'Default behavior for "next": ' + err.message);
         this._setMode('play');
       }
     }
@@ -527,9 +535,9 @@ module.exports = class MusicZone {
       await this._sendPlayerCommand('POST', '/sync/' + zones);
     } catch (err) {
       if (err.type === 'BACKEND_ERROR') {
-        console.error('[ERR!] Invalid reply for "sync": ' + err.message);
+        console.error(this._lc, 'Invalid reply for "sync": ' + err.message);
       } else {
-        console.error('[ERR!] Default behavior for "sync": ' + err.message);
+        console.error(this._lc, 'Default behavior for "sync": ' + err.message);
       }
     }
     this._musicServer.pushAudioSyncEvent();
@@ -540,9 +548,9 @@ module.exports = class MusicZone {
       await this._sendPlayerCommand('POST', '/unsync/' + zones);
     } catch (err) {
       if (err.type === 'BACKEND_ERROR') {
-        console.error('[ERR!] Invalid reply for "unsync": ' + err.message);
+        console.error(this._lc, 'Invalid reply for "unsync": ' + err.message);
       } else {
-        console.error('[ERR!] Default behavior for "unsync": ' + err.message);
+        console.error(this._lc, 'Default behavior for "unsync": ' + err.message);
       }
     }
     this._musicServer.pushAudioSyncEvent();

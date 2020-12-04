@@ -5,16 +5,14 @@ const LMSClient = require('./lms-client');
 const fs = require('fs');
 const config = JSON.parse(fs.readFileSync("config.json"));
 
-function sleep(ms) {
-  return new Promise((resolve) => {
-    setTimeout(resolve, ms);
-  });
-}
+const Log = require("../log");
+const console = new Log;
 
 module.exports = class MusicZone {
-  constructor(musicServer, id) {
+  constructor(musicServer, id, parent) {
     this._musicServer = musicServer;
     this._id = id;
+    this._lc = parent.loggingCategory().extend("ZONE-" + id);
 
     this._updateTime = NaN;
 
@@ -43,21 +41,25 @@ module.exports = class MusicZone {
 
     this._track = this._getEmptyTrack();
 
-    this._favorites = new MusicList(musicServer, this._url() + '/zone_favorites', this);
-    this._queue = new MusicList(musicServer, this._url() + '/queue', this);
-    this._client = new LMSClient(this._zone_mac, (data) => { this.onLMSNotification(data); });
+    this._favorites = new MusicList(musicServer, this._url() + '/zone_favorites', this, this);
+    this._queue = new MusicList(musicServer, this._url() + '/queue', this, this);
+    this._client = new LMSClient(this._zone_mac, this, (data) => { this.onLMSNotification(data); });
 
     // We have to query for state regardless of the internal one, because the
     // state could be updated from the outside.
     //setInterval(this.getState.bind(this), 5000);
 
     if (!this._zone_mac) {
-        console.error("No MAC configured for zone " + id);
+        console.error(this._lc, "No MAC configured for zone " + id);
         return;
     }
 
     this.getState();
     this.fetchAudioDelay();
+  }
+
+  loggingCategory() {
+    return this._lc;
   }
 
   readConfig() {
@@ -73,7 +75,7 @@ module.exports = class MusicZone {
   }
 
   async onLMSNotification(data) {
-    console.log("NOTIFICATION ", data)
+    console.log(this._lc, "LMS NOTIFICATION:", data)
     // Current song changed
     if (data.startsWith("playlist newsong") || data.startsWith("newmetadata")) {
         await this.getCurrentTrack();
@@ -114,6 +116,7 @@ module.exports = class MusicZone {
 
   // A Track is always updated as a whole, all others are updated when changed
   async getCurrentTrack() {
+        console.log(this._lc, "REQUESTING TRACK INFO FROM LMS")
         let path = await this._client.command('path ?')
         let title = await this._client.command('title ?')
         let artist = await this._client.command('artist ?')
@@ -141,10 +144,12 @@ module.exports = class MusicZone {
             "qindex": index,
             "station": station
         }
-        console.log(JSON.stringify(this._track))
+
+        console.log(this._lc, "UPDATED TRACK INFO",this._track)
   }
 
   async getState() {
+        console.log(this._lc, "REQUESTING ZONE STATE FROM LMS")
         let volume = await this._client.command('mixer volume ?')
         let repeat = await this._client.command('playlist repeat ?')
         let shuffle = await this._client.command('playlist shuffle ?')
@@ -170,7 +175,7 @@ module.exports = class MusicZone {
             "power": +power,
         }
         await this.getCurrentTime()
-        console.log(JSON.stringify(this._player))
+        console.log(this._lc, "UPDATED ZONE STATE", this._player)
 
         await this.getCurrentTrack()
   }
@@ -253,7 +258,7 @@ module.exports = class MusicZone {
   }
 
   async play(id, favoriteId) {
-    console.log("PLAY  ", id, favoriteId)
+    console.log(this._lc, "PLAY  ", id, favoriteId)
     this._zone_cfg.lastRoomFav = favoriteId;
     this.saveConfig();
 
@@ -269,8 +274,6 @@ module.exports = class MusicZone {
         return;
 
     let parsed_id = this._client.parseId(id);
-
-    console.log(type, fav_id)
 
     if (parsed_id.type == "fav") {
         await this._client.command('favorites playlist play item_id:' + parsed_id.id);
@@ -293,7 +296,7 @@ module.exports = class MusicZone {
         return;
     }
 
-    console.log("PLAYING THIS TYPE IS NOT IMPLEMENTED")
+    console.error(this._lc, "PLAYING THIS TYPE IS NOT IMPLEMENTED")
   }
 
   async pause() {
@@ -436,12 +439,11 @@ module.exports = class MusicZone {
   async _setMode(mode) {
     await this.getCurrentTime();
 
-    console.log("POWER", this._player.power);
     if (this.getPower() == "off" && mode == "play") {
         await this.power("on");
     }
 
-    console.log("CURRENT MODE: " + this._player.mode + " NEW MODE: " + mode)
+    console.log(this._lc, "CURRENT MODE: " + this._player.mode + " NEW MODE: " + mode)
     if (this._player.mode == "pause" && mode == "play")
         await this._client.command('pause 0');
     else if (this._player.mode != mode)

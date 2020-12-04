@@ -6,12 +6,16 @@ const config = JSON.parse(fs.readFileSync("config.json"));
 const os = require('os');
 const process = require('child_process');
 
+const Log = require("../log");
+const console = new Log;
+
 var notificationSocket
 var cmdSocket
 
 module.exports = class LMSClient {
-    constructor(mac, data_callback) {
+    constructor(mac, parent, data_callback) {
         this._mac = mac;
+        this._lc = parent.loggingCategory().extend("LMS");
         if (!this._mac)
             this._mac = ""
         this.data_callback = data_callback;
@@ -30,17 +34,17 @@ module.exports = class LMSClient {
             notificationSocket = net.createConnection(options, connection_listener);
             notificationSocket.setMaxListeners(200);
             notificationSocket.on('end', () => {
-                               console.debug('disconnected from server');
+                               console.log(this._lc, 'disconnected from server');
                            });
             notificationSocket.on('timeout', () => {
-                               console.debug('Socket timeout, closing');
+                               console.log(this._lc, 'Socket timeout, closing');
                                notificationSocket.close();
                            });
             notificationSocket.on('error', (err) => {
-                               console.debug('Socket error: ' + err.message);
+                               console.log(this._lc, 'Socket error: ' + err.message);
                            });
             notificationSocket.on('close', (err) => {
-                               console.debug('Socket closed. Reconnecting...');
+                               console.log(this._lc, 'Socket closed. Reconnecting...');
                                setTimeout(() => { notificationSocket.connect(options, connection_listener) }, 1000);
                            });
         }
@@ -69,22 +73,22 @@ module.exports = class LMSClient {
         if (!cmdSocket) {
             const options = { host: this._host, port: config.lms_cli_port };
             const connection_listener = () => {
-                console.debug('connected to server!');
+                console.log(this._lc, 'connected to server!');
             }
             cmdSocket = net.createConnection(options, connection_listener);
             cmdSocket.setMaxListeners(200);
             cmdSocket.on('end', () => {
-                               console.debug('disconnected from server');
+                               console.log(this._lc, 'disconnected from server');
                            });
             cmdSocket.on('timeout', () => {
-                               console.debug('Socket timeout, closing');
+                               console.log(this._lc, 'Socket timeout, closing');
                                cmdSocket.close();
                            });
             cmdSocket.on('error', (err) => {
-                               console.debug('Socket error: ' + err.message);
+                               console.log(this._lc, 'Socket error: ' + err.message);
                            });
             cmdSocket.on('close', (err) => {
-                               console.debug('Socket closed. Reconnecting...');
+                               console.log(this._lc, 'Socket closed. Reconnecting...');
                                setTimeout(() => { cmdSocket.connect(options, connection_listener) }, 3000);
                            });
         }
@@ -104,21 +108,21 @@ module.exports = class LMSClient {
         return new Promise((resolve, reject) => {
                                let response = "";
                                var responseListener = (data) => {
-//                                   console.log("DATA ", data.toString())
+//                                   console.log(this._lc, "DATA ", data.toString())
                                    response += data;
                                    if (!response.toString().endsWith('\n')) {
-//                                       console.log("WAITING FOR MORE")
+//                                       console.log(this._lc, "WAITING FOR MORE")
                                        return;
                                    }
-//                                   console.log("RESPONSE ", response.toString())
+//                                   console.log(this._lc, "RESPONSE ", response.toString())
 
                                    var splitted = response.toString().split('\n')
-//                                   console.log("RESPONSE", splitted, returnValue)
+//                                   console.log(this._lc, "RESPONSE", splitted, returnValue)
                                    for (var i in splitted) {
                                        var processed = splitted[i];
                                        if (processed.startsWith(returnValue)) {
-//                                           console.log("RESPONSE FOR: ", returnValue)
-//                                           console.log("RESPONSE: ", data.toString())
+                                           console.log(this._lc, "RESPONSE FOR: ", returnValue)
+                                           console.log(this._lc, "RESPONSE: ", data.toString())
 
                                            // If the response contains also the ? at the end
                                            // it is invalid
@@ -137,7 +141,7 @@ module.exports = class LMSClient {
                                };
 
                                cmdSocket.on('data', responseListener);
-//                               console.log("REQUEST: ", this._mac + " " + cmd)
+                               console.log(this._lc, "REQUEST: ", this._mac + " " + cmd)
                                cmdSocket.write(this._mac + " " + cmd + ' \r\n');
                            });
     }

@@ -1,9 +1,13 @@
 'use strict';
 
+const Log = require("log");
+const console = new Log;
+
 module.exports = class List {
-  constructor(musicServer, url) {
+  constructor(musicServer, url, parent) {
     this._musicServer = musicServer;
     this._url = url;
+    this._lc = parent.loggingCategory().extend(url.split('/').pop().toUpperCase());
 
     this._total = Infinity;
     this._items = [];
@@ -31,7 +35,7 @@ module.exports = class List {
       try {
         chunk = await this._call('GET', this._url + '/' + items.length);
       } catch (err) {
-        console.error('[ERR!] Could not fetch list fragment: ' + err.message);
+        console.error(this._lc, 'Could not fetch list fragment: ' + err.message);
       }
 
       this._items.splice(items.length, Infinity, ...chunk.items);
@@ -48,7 +52,7 @@ module.exports = class List {
     try {
       await this._call('POST', this._url + '/' + position, items);
     } catch (err) {
-      console.error('[ERR!] Could not insert list fragment: ' + err.message);
+      console.error(this._lc, 'Could not insert list fragment: ' + err.message);
     }
 
     this.reset();
@@ -58,7 +62,7 @@ module.exports = class List {
     try {
       await this._call('PUT', this._url + '/' + position, items);
     } catch (err) {
-      console.error('[ERR!] Could not replace list fragment: ' + err.message);
+      console.error(this._lc, 'Could not replace list fragment: ' + err.message);
     }
 
     this.reset();
@@ -68,7 +72,7 @@ module.exports = class List {
     try {
       await this._call('POST', this._url + '/move/' + position + '/' + destination);
     } catch (err) {
-      console.error('[ERR!] Could not move list fragment: ' + err.message);
+      console.error(this._lc, 'Could not move list fragment: ' + err.message);
     }
 
     this.reset();
@@ -78,7 +82,7 @@ module.exports = class List {
     try {
       await this._call('DELETE', this._url + '/' + position + '/' + length);
     } catch (err) {
-      console.error('[ERR!] Could not delete list fragment: ' + err.message);
+      console.error(this._lc, 'Could not delete list fragment: ' + err.message);
     }
 
     this.reset();
@@ -88,7 +92,7 @@ module.exports = class List {
     try {
       await this._call('DELETE', this._url + '/');
     } catch (err) {
-      console.error('[ERR!] Could not clear list: ' + err.message);
+      console.error(this._lc, 'Could not clear list: ' + err.message);
     }
 
     this.reset();

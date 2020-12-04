@@ -7,11 +7,16 @@ const websocket = require('websocket');
 const fs = require('fs');
 const os = require('os');
 const NodeRSA = require('node-rsa');
+const debug = require('debug');
+const lcApp = debug('MSG');
 
 const config = JSON.parse(fs.readFileSync("config.json"));
 
 const MusicMaster = require(config.plugin == "lms" ? './lms/music-master' : './music-master');
 const MusicZone = require(config.plugin == "lms" ? './lms/music-zone' : './music-zone');
+
+const Log = require("./log");
+const console = new Log;
 
 const headers = {
   'Content-Type': 'text/plain; charset=utf-8',
@@ -44,6 +49,12 @@ module.exports = class MusicServer {
 
     this._config = cfg;
     this._zones = zones;
+    this._lc = lcApp;
+    this._lcWSCK = lcApp.extend("WSCK");
+    this._lcHTTP = lcApp.extend("HTTP");
+    // setup the default logging categories
+    if (!process.env.DEBUG)
+        debug.enable('MSG:WSCK,MSG:HTTP');
 
     this._imageStore = Object.create(null);
 
@@ -57,9 +68,9 @@ module.exports = class MusicServer {
     if (config.publicKey && config.privateKey) {
         this._rsaKey = new NodeRSA();
         if (!fs.existsSync(config.privateKey))
-            console.error("Private Key: " + config.privateKey + " doesn't exist!")
+            console.error(this._lc, "Private Key: " + config.privateKey + " doesn't exist!")
         if (!fs.existsSync(config.publicKey))
-            console.error("Public Key: " + config.publicKey + " doesn't exist!")
+            console.error(this._lc, "Public Key: " + config.publicKey + " doesn't exist!")
 
         this._rsaKey.importKey(fs.readFileSync(config.privateKey), "private");
         this._rsaKey.importKey(fs.readFileSync(config.publicKey), "public");
@@ -70,10 +81,14 @@ module.exports = class MusicServer {
 
 
     for (let i = 0; i < config.zones; i++) {
-      zones[i] = new MusicZone(this, i + 1);
+      zones[i] = new MusicZone(this, i + 1, this);
     }
 
     this._master = new MusicMaster(this);
+  }
+
+  loggingCategory() {
+    return this._lc;
   }
 
   start() {
@@ -82,7 +97,7 @@ module.exports = class MusicServer {
     }
 
     const httpServer = http.createServer(async (req, res) => {
-      console.log('[HTTP] Received message: ' + req.url);
+      console.log(this._lcHTTP, 'RECV:' + req.url);
 
       if (req.method === "OPTIONS") {
            res.writeHead(200, headers);
@@ -99,7 +114,9 @@ module.exports = class MusicServer {
         req.on('end', async () => {
             const data = Buffer.concat(chunks);
             res.writeHead(200, headers);
-            res.end(await this._handler(req.url, data));
+            const response = await this._handler(req.url, data);
+            console.log(this._lcHTTP, 'RESP:', JSON.stringify(JSON.parse(response)));
+            res.end(response);
         });
       } catch (err) {
         res.writeHead(500, headers);
@@ -116,13 +133,15 @@ module.exports = class MusicServer {
       this._wsConnections.add(connection);
 
       connection.on('message', async (message) => {
-        console.log('[WSCK] Received message: ' + message.utf8Data);
+        console.log(this._lcWSCK, 'RECV:' + message.utf8Data);
 
         if (message.type !== 'utf8') {
           throw new Error('Unknown message type: ' + message.type);
         }
 
-        connection.sendUTF(await this._handler(message.utf8Data));
+        const response = await this._handler(message.utf8Data);
+        console.log(this._lcWSCK, 'RESP:', JSON.stringify(JSON.parse(response)));
+        connection.sendUTF(response);
       });
 
       connection.on('close', () => {
@@ -155,7 +174,7 @@ module.exports = class MusicServer {
         ? JSON.stringify(body, null, 2)
         : '';
 
-    console.log('--> [CALL] Calling ' + method + ' to ' + url);
+    console.log(this._lc, '--> [CALL] Calling ' + method + ' to ' + url);
 
     return new Promise((resolve, reject) => {
       const req = http.request(
@@ -424,12 +443,12 @@ module.exports = class MusicServer {
           res.on('end', () => this._initSse());
 
           res.on('error', (err) => {
-            console.error('[ERR!] Invalid events endpoint: ' + err.message);
+            console.error(this._lc, 'Invalid events endpoint: ' + err.message);
           });
         },
       )
       .on('error', (err) => {
-        console.error('[ERR!] Invalid events endpoint: ' + err.message);
+        console.error(this._lc, 'Invalid events endpoint: ' + err.message);
       });
   }
 
@@ -441,7 +460,7 @@ module.exports = class MusicServer {
         this._master.getFavoriteList().reset(+position);
         this._pushFavoritesChangedEvent();
 
-        console.log('<-- [EVTS] Reset favorites');
+        console.log(this._lc, '<-- [EVTS] Reset favorites');
 
         break;
       }
@@ -452,7 +471,7 @@ module.exports = class MusicServer {
         this._master.getInputList().reset(+position);
         this._pushInputsChangedEvent();
 
-        console.log('<-- [EVTS] Reset inputs');
+        console.log(this._lc, '<-- [EVTS] Reset inputs');
 
         break;
       }
@@ -462,7 +481,7 @@ module.exports = class MusicServer {
 
         this._master.getLibraryList().reset(+position);
         this._pushLibraryChangedEvent();
-        console.log('<-- [EVTS] Reset library');
+        console.log(this._lc, '<-- [EVTS] Reset library');
 
         break;
       }
@@ -472,7 +491,7 @@ module.exports = class MusicServer {
 
         this._master.getPlaylistList().reset(+position);
         this._pushPlaylistsChangedEvent();
-        console.log('<-- [EVTS] Reset playlists');
+        console.log(this._lc, '<-- [EVTS] Reset playlists');
 
         break;
       }
@@ -484,7 +503,7 @@ module.exports = class MusicServer {
         zone.getFavoritesList().reset(+position);
         this._pushRoomFavChangedEvents([zone]);
 
-        console.log('<-- [EVTS] Reset zone favorites');
+        console.log(this._lc, '<-- [EVTS] Reset zone favorites');
 
         break;
       }
@@ -496,7 +515,7 @@ module.exports = class MusicServer {
         zone.getState();
         // No need to push an event, getState does it automatically.
 
-        console.log('<-- [EVTS] Reset zone favorites');
+        console.log(this._lc, '<-- [EVTS] Reset zone favorites');
 
         break;
       }
@@ -829,8 +848,6 @@ module.exports = class MusicServer {
 
     const {total, items} = await this._master.getFavoriteList().get(undefined, 0, 50);
 
-    console.log("ID: ", decodedId)
-
     var foundIndex = undefined
     for (var i in items) {
         if (items[i].id == decodedId) {
@@ -839,7 +856,7 @@ module.exports = class MusicServer {
         }
     }
     if (!foundIndex) {
-        console.log("Coudln't find the requested favorite");
+        console.warn(this._lc, "Coudln't find the requested favorite");
         return this._emptyCommand(url, []);
     }
 
@@ -1163,7 +1180,7 @@ module.exports = class MusicServer {
         const [decodedId] = this._decodeId(id);
         const playlists = this._master.getPlaylistList();
 
-        console.log("NOT IMPLEMENTED");
+        console.warn(this._lc, "NOT IMPLEMENTED");
         //response = [{"action":"ok", "items": [{ title: 'foo' }]}];
     }
 
@@ -1203,10 +1220,8 @@ module.exports = class MusicServer {
             decodedConfig.password = this._rsaKey.decrypt(decodedConfig.password).toString();
         configerror = await this._master.addNetworkShare(decodedConfig);
     } catch (err) {
-        console.error("[ERR!] Couldn't decrypt password: " + err.message);
+        console.error(this._lc, "Couldn't decrypt password: " + err.message);
     }
-
-    console.log(configerror)
 
     return this._emptyCommand(url, { configerror });
   }
@@ -1696,8 +1711,6 @@ module.exports = class MusicServer {
   async _audioUnSyncMulti(url) {
     const [, , , ...zones] = url.split('/');
 
-    console.log(url.split('/'), zones)
-
     for (var i in zones) {
         const zone = this._zones[+zones[i] - 1];
         zone.unSync();
@@ -1764,7 +1777,7 @@ module.exports = class MusicServer {
   }
 
   _unknownCommand(url) {
-    console.warn('[HTWS] Unknown command: ' + url);
+    console.warn(this._lc, '[HTWS] Unknown command: ' + url);
 
     return this._emptyCommand(url, null);
   }

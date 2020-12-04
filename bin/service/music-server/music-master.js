@@ -2,19 +2,27 @@
 
 const MusicList = require('./music-list');
 
+const Log = require("log");
+const console = new Log;
+
 module.exports = class MusicMaster {
   constructor(musicServer) {
     this._musicServer = musicServer;
+    this._lc = musicServer.loggingCategory().extend("MASTER");
 
-    this._inputs = new MusicList(this, '/inputs');
-    this._favorites = new MusicList(this, '/favorites');
-    this._playlists = new MusicList(this, '/playlists');
-    this._library = new MusicList(this, '/library');
-    this._radios = new MusicList(musicServer, '/radios');
-    this._services = new MusicList(musicServer, '/services');
-    this._serviceFolder = new MusicList(musicServer, '/servicefolder');
+    this._inputs = new MusicList(musicServer, '/inputs', this);
+    this._favorites = new MusicList(musicServer, '/favorites', this);
+    this._playlists = new MusicList(musicServer, '/playlists', this);
+    this._library = new MusicList(musicServer, '/library', this);
+    this._radios = new MusicList(musicServer, '/radios', this);
+    this._services = new MusicList(musicServer, '/services', this);
+    this._serviceFolder = new MusicList(musicServer, '/servicefolder', this);
 
     this._last = Promise.resolve();
+  }
+
+  loggingCategory() {
+    return this._lc;
   }
 
   getInputList() {
@@ -84,7 +92,7 @@ module.exports = class MusicMaster {
     try {
       chunk = await this._call('GET', '/search/' + type + '/' + category + '/' + search + '/' + start + '/' + length);
     } catch (err) {
-      console.error('[ERR!] Could not fetch search result: ' + err.message);
+      console.error(this._lc, 'Could not fetch search result: ' + err.message);
     }
 
     return {
@@ -101,9 +109,9 @@ module.exports = class MusicMaster {
       );
     } catch (err) {
       if (err.type === 'BACKEND_ERROR') {
-        console.error('[ERR!] Invalid reply for "audio/grouped/playuploadedfile": ' + err.message);
+        console.error(this._lc, 'Invalid reply for "audio/grouped/playuploadedfile": ' + err.message);
       } else {
-        console.error('[ERR!] Default behavior for "audio/grouped/playuploadedfile": ' + err.message);
+        console.error(this._lc, 'Default behavior for "audio/grouped/playuploadedfile": ' + err.message);
       }
     }
   }
