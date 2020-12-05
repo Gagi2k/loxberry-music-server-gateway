@@ -160,7 +160,7 @@ module.exports = class LMSClient {
             var index = str.indexOf(colon)
             var key = str.slice(0, index);
             var value = str.slice(index + colon.length);
-//            console.log("STR ", str, index, key, value)
+//            console.log(this._lc, "STR ", str, index, key, value)
 
             if (key == count_key) {
                 count = parseInt(value);
@@ -183,7 +183,7 @@ module.exports = class LMSClient {
         }
         if (Object.keys(current_item).length !== 0)
             items.push(current_item);
-//        console.log("ITEMS ", JSON.stringify(items))
+//        console.log(this._lc, "ITEMS ", JSON.stringify(items))
         return {
             count: count,
             items: items
@@ -310,7 +310,7 @@ module.exports = class LMSClient {
     execute_script(name, args) {
         var script = config.scripts ? config.scripts[name] : undefined
         if (!script) {
-            console.error(`no script configured for: ${name}`);
+            console.error(this._lc, `no script configured for: ${name}`);
             return
         }
 
@@ -321,11 +321,11 @@ module.exports = class LMSClient {
         process.exec(script, (err, stdout, stderr) => {
             if (err) {
                 //some err occurred
-                console.error(`failed to execute ${script}: ${err}`);
+                console.error(this._lc, `failed to execute ${script}: ${err}`);
             } else {
                // the *entire* stdout and stderr (buffered)
-               console.log(`script ${name} stdout: ${stdout}`);
-               console.log(`script ${name} stderr: ${stderr}`);
+               console.log(this._lc, `script ${name} stdout: ${stdout}`);
+               console.log(this._lc, `script ${name} stderr: ${stderr}`);
             }
         })
     }
@@ -360,7 +360,7 @@ module.exports = class LMSClient {
                 if (data.items[key].id == parsed_id.id)
                     return data.items[key].url
             }
-            console.log("ERROR: Couldn't find playlist with id: " + parsed_id.id);
+            console.error(this._lc, "Couldn't find playlist with id: " + parsed_id.id);
         } else if (parsed_id.type == "year" ) {
             return "db:year.id=" + parsed_id.id;
         } else if (parsed_id.type == "artist" ||
@@ -382,14 +382,14 @@ module.exports = class LMSClient {
             let url = data.items[0].url;
             if (url)
                 return url;
-            console.log(data);
+            console.log(this._lc, data);
 
             let name = data.items[0][cur_config.name_key];
             if (cur_config.db_filter)
                 return cur_config.db_filter + "=" + name;
         }
 
-        console.log("ERROR: Can't store " + parsed_id.type + " in favorites");
+        console.log(this._lc, "Can't store " + parsed_id.type + " in favorites");
         return undefined;
     }
 }
