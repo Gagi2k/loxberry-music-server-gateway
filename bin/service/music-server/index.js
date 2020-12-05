@@ -1028,7 +1028,7 @@ module.exports = class MusicServer {
 
     await zone.play(decodedId, favoriteId);
 
-    return this._audioCfgGetPlayersDetails('audio/cfg/getplayersdetails');
+    return this._emptyCommand(url, []);
   }
 
   async _audioCfgGetServiceFolder(url) {
@@ -1255,7 +1255,7 @@ module.exports = class MusicServer {
       await zone.defaultVolume(+volume);
     }
 
-    return this._audioCfgGetPlayersDetails('audio/cfg/getplayersdetails');
+    return this._emptyCommand(url, []);
   }
 
   async _audioCfgMaxVolume(url) {
@@ -1266,7 +1266,7 @@ module.exports = class MusicServer {
       await zone.maxVolume(+volume);
     }
 
-    return this._audioCfgGetPlayersDetails('audio/cfg/getplayersdetails');
+    return this._emptyCommand(url, []);
   }
 
   async _audioCfgEventVolumes(url) {
@@ -1276,7 +1276,7 @@ module.exports = class MusicServer {
     //TODO unclear what to do here, as the values are saved on the miniserver
     //     and we don't know how to get the inital values.
 
-    return this._audioCfgGetPlayersDetails('audio/cfg/getplayersdetails');
+    return this._emptyCommand(url, []);
   }
 
   async _audioCfgAudioDelay(url) {
@@ -1351,7 +1351,7 @@ module.exports = class MusicServer {
 
     await zone.play(decodedId, favoriteId);
 
-    return this._audioCfgGetPlayersDetails('audio/cfg/getplayersdetails');
+    return this._emptyCommand(url, []);
   }
 
   async _audioLineIn(url) {
@@ -1361,7 +1361,7 @@ module.exports = class MusicServer {
 
     await zone.play(decodedId, favoriteId);
 
-    return this._audioCfgGetPlayersDetails('audio/cfg/getplayersdetails');
+    return this._emptyCommand(url, []);
   }
 
   async _audioOff(url) {
@@ -1370,7 +1370,7 @@ module.exports = class MusicServer {
 
     await zone.power('off');
 
-    return this._audioCfgGetPlayersDetails('audio/cfg/getplayersdetails');
+    return this._emptyCommand(url, []);
   }
 
   async _audioOn(url) {
@@ -1379,7 +1379,7 @@ module.exports = class MusicServer {
 
     await zone.power('on');
 
-    return this._audioCfgGetPlayersDetails('audio/cfg/getplayersdetails');
+    return this._emptyCommand(url, []);
   }
 
   async _audioSleep(url) {
@@ -1388,7 +1388,7 @@ module.exports = class MusicServer {
 
     await zone.sleep(+duration);
 
-    return this._audioCfgGetPlayersDetails('audio/cfg/getplayersdetails');
+    return this._emptyCommand(url, []);
   }
 
   async _audioPause(url) {
@@ -1397,7 +1397,7 @@ module.exports = class MusicServer {
 
     await zone.pause();
 
-    return this._audioCfgGetPlayersDetails('audio/cfg/getplayersdetails');
+    return this._emptyCommand(url, []);
   }
 
   async _audioStop(url) {
@@ -1406,7 +1406,7 @@ module.exports = class MusicServer {
 
     await zone.stop();
 
-    return this._audioCfgGetPlayersDetails('audio/cfg/getplayersdetails');
+    return this._emptyCommand(url, []);
   }
 
   async _audioPlay(url) {
@@ -1419,7 +1419,7 @@ module.exports = class MusicServer {
       await zone.resume();
     }
 
-    return this._audioCfgGetPlayersDetails('audio/cfg/getplayersdetails');
+    return this._emptyCommand(url, []);
   }
 
   async _audioPlayUrl(url) {
@@ -1436,7 +1436,7 @@ module.exports = class MusicServer {
     else
         await zone.play("url:" + id);
 
-    return this._audioCfgGetPlayersDetails('audio/cfg/getplayersdetails');
+    return this._emptyCommand(url, []);
   }
 
   async _audioPlaylist(url) {
@@ -1446,7 +1446,7 @@ module.exports = class MusicServer {
 
     await zone.play(decodedId, favoriteId);
 
-    return this._audioCfgGetPlayersDetails('audio/cfg/getplayersdetails');
+    return this._emptyCommand(url, []);
   }
 
   async _audioPosition(url) {
@@ -1455,7 +1455,7 @@ module.exports = class MusicServer {
 
     await zone.time(+time * 1000);
 
-    return this._audioCfgGetPlayersDetails('audio/cfg/getplayersdetails');
+    return this._emptyCommand(url, []);
   }
 
   _audioQueueMinus(url) {
@@ -1468,7 +1468,7 @@ module.exports = class MusicServer {
       zone.time(0);
     }
 
-    return this._audioCfgGetPlayersDetails('audio/cfg/getplayersdetails');
+    return this._emptyCommand(url, []);
   }
 
   _audioQueuePlus(url) {
@@ -1477,7 +1477,7 @@ module.exports = class MusicServer {
 
     zone.next();
 
-    return this._audioCfgGetPlayersDetails('audio/cfg/getplayersdetails');
+    return this._emptyCommand(url, []);
   }
 
   async _audioQueueIndex(url) {
@@ -1486,7 +1486,7 @@ module.exports = class MusicServer {
 
     await zone.setCurrentIndex(index);
 
-    return this._audioCfgGetPlayersDetails('audio/cfg/getplayersdetails');
+    return this._emptyCommand(url, []);
   }
 
   async _audioQueueDelete(url) {
@@ -1497,7 +1497,7 @@ module.exports = class MusicServer {
     if (!zone.getQueueList().canSendEvents)
         this._pushQueueEvents([zone]);
 
-    return this._audioCfgGetPlayersDetails('audio/cfg/getplayersdetails');
+    return this._emptyCommand(url, []);
   }
 
   async _audioQueueClear(url) {
@@ -1508,7 +1508,7 @@ module.exports = class MusicServer {
     if (!zone.getQueueList().canSendEvents)
         this._pushQueueEvents([zone]);
 
-    return this._audioCfgGetPlayersDetails('audio/cfg/getplayersdetails');
+    return this._emptyCommand(url, []);
   }
 
   async _audioQueueMove(url) {
@@ -1519,7 +1519,7 @@ module.exports = class MusicServer {
     if (!zone.getQueueList().canSendEvents)
        this._pushQueueEvents([zone]);
 
-    return this._audioCfgGetPlayersDetails('audio/cfg/getplayersdetails');
+    return this._emptyCommand(url, []);
   }
 
   async _audioQueueAdd(url) {
@@ -1567,7 +1567,7 @@ module.exports = class MusicServer {
 
     zone.repeat(repeatModes[repeatMode]);
 
-    return this._audioCfgGetPlayersDetails('audio/cfg/getplayersdetails');
+    return this._emptyCommand(url, []);
   }
 
   async _audioRoomFavDelete(url) {
@@ -1592,7 +1592,7 @@ module.exports = class MusicServer {
 
     this._pushRoomFavEvents([zone]);
 
-    return this._audioCfgGetPlayersDetails('audio/cfg/getplayersdetails');
+    return this._emptyCommand(url, []);
   }
 
   async _audioRoomFavPlus(url) {
@@ -1665,7 +1665,7 @@ module.exports = class MusicServer {
 
     await zone.play(decodedId, favoriteId);
 
-    return this._audioCfgGetPlayersDetails('audio/cfg/getplayersdetails');
+    return this._emptyCommand(url, []);
   }
 
   async _audioServicePlayInsert(url) {
@@ -1708,7 +1708,7 @@ module.exports = class MusicServer {
 
     zone.shuffle(+shuffle);
 
-    return this._audioCfgGetPlayersDetails('audio/cfg/getplayersdetails');
+    return this._emptyCommand(url, []);
   }
 
   async _audioSync(url) {
@@ -1758,7 +1758,7 @@ module.exports = class MusicServer {
     }
     }
 
-    return this._audioCfgGetPlayersDetails('audio/cfg/getplayersdetails');
+    return this._emptyCommand(url, []);
   }
 
   async _audioTTS(url) {
