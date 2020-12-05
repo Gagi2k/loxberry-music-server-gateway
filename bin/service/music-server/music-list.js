@@ -1,6 +1,6 @@
 'use strict';
 
-const Log = require("log");
+const Log = require("./log");
 const console = new Log;
 
 module.exports = class List {
