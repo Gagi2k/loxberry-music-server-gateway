@@ -52,9 +52,10 @@ module.exports = class MusicServer {
     this._lc = lcApp;
     this._lcWSCK = lcApp.extend("WSCK");
     this._lcHTTP = lcApp.extend("HTTP");
+    this._lcEVNT = lcApp.extend("EVNT");
     // setup the default logging categories
     if (!process.env.DEBUG)
-        debug.enable('MSG:WSCK,MSG:HTTP');
+        debug.enable('MSG:WSCK,MSG:HTTP,MSG:EVNT');
 
     this._imageStore = Object.create(null);
 
@@ -268,6 +269,8 @@ module.exports = class MusicServer {
       audio_event: audioEvents,
     });
 
+    console.log(this._lcEVNT, JSON.stringify(audioEventsMessage));
+
     this._wsConnections.forEach((connection) => {
       connection.send(audioEventsMessage);
     });
@@ -289,6 +292,8 @@ module.exports = class MusicServer {
       audio_sync_event: audioSyncEvent,
     });
 
+    console.log(this._lcEVNT, JSON.stringify(audioSyncEventsMessage));
+
     this._wsConnections.forEach((connection) => {
       connection.send(audioSyncEventsMessage);
     });
@@ -298,6 +303,8 @@ module.exports = class MusicServer {
     const favoritesChangedEventMessage = JSON.stringify({
       favoriteschanged_event: [],
     });
+
+    console.log(this._lcEVNT, JSON.stringify(favoritesChangedEventMessage));
 
     this._wsConnections.forEach((connection) => {
       connection.send(favoritesChangedEventMessage);
@@ -309,6 +316,8 @@ module.exports = class MusicServer {
       lineinchanged_event: [],
     });
 
+    console.log(this._lcEVNT, JSON.stringify(inputsChangedEventMessage));
+
     this._wsConnections.forEach((connection) => {
       connection.send(inputsChangedEventMessage);
     });
@@ -318,6 +327,8 @@ module.exports = class MusicServer {
     const libraryChangedEventMessage = JSON.stringify({
       rescan_event: [{status: 0}],
     });
+
+    console.log(this._lcEVNT, JSON.stringify(libraryChangedEventMessage));
 
     this._wsConnections.forEach((connection) => {
       connection.send(libraryChangedEventMessage);
@@ -332,6 +343,7 @@ module.exports = class MusicServer {
            },
         ],
       });
+      console.log(this._lcEVNT, JSON.stringify(message));
       this._wsConnections.forEach((connection) => {
         connection.send(message);
       });
@@ -345,6 +357,7 @@ module.exports = class MusicServer {
            },
         ],
       });
+      console.log(this._lcEVNT, JSON.stringify(message));
       this._wsConnections.forEach((connection) => {
         connection.send(message);
       });
@@ -363,6 +376,8 @@ module.exports = class MusicServer {
        ],
      });
 
+     console.log(this._lcEVNT, JSON.stringify(playlistsChangedEventMessage));
+
      this._wsConnections.forEach((connection) => {
        connection.send(playlistsChangedEventMessage);
      });
@@ -378,6 +393,8 @@ module.exports = class MusicServer {
           },
         ],
       });
+
+      console.log(this._lcEVNT, JSON.stringify(message));
 
       this._wsConnections.forEach((connection) => {
         connection.send(message);
@@ -395,6 +412,8 @@ module.exports = class MusicServer {
         ],
       });
 
+      console.log(this._lcEVNT, JSON.stringify(message));
+
       this._wsConnections.forEach((connection) => {
         connection.send(message);
       });
@@ -410,6 +429,8 @@ module.exports = class MusicServer {
           },
         ],
       });
+
+      console.log(this._lcEVNT, JSON.stringify(message));
 
       this._wsConnections.forEach((connection) => {
         connection.send(message);
