@@ -97,23 +97,30 @@ module.exports = class MusicMaster {
   }
 
   async fetchSyncGroups() {
-    let response = await this._globalClient.command('syncgroups ?');
-    let data = this._client.parseAdvancedQueryResponse(response, 'sync_members');
+    if (!this._syncGroups) {
+        this._syncGroups = true;
 
-    let groups = []
-    for (var key in data.items) {
-        let macs = unescape(data.items[key].sync_members).split(',');
-        let zoneIds = []
-        for (var i in macs) {
-            var id = Object.keys(config.zone_map).find( key => config.zone_map[key] === macs[i]);
-            if (id)
-                zoneIds.push(+id)
-        }
-        groups.push(zoneIds);
+        setTimeout(async () => {
+           let response = await this._globalClient.command('syncgroups ?');
+           let data = this._client.parseAdvancedQueryResponse(response, 'sync_members');
+
+           let groups = []
+           for (var key in data.items) {
+               let macs = unescape(data.items[key].sync_members).split(',');
+               let zoneIds = []
+               for (var i in macs) {
+                   var id = Object.keys(config.zone_map).find( key => config.zone_map[key] === macs[i]);
+                   if (id)
+                       zoneIds.push(+id)
+               }
+               groups.push(zoneIds);
+           }
+
+           this._syncGroups = groups;
+           this._musicServer._pushAudioSyncEvents();
+           this._syncGroups = false;
+        }, 100);
     }
-
-    this._syncGroups = groups;
-    this._musicServer._pushAudioSyncEvents();
   }
 
   async getSearchableTypes() {
