@@ -78,9 +78,7 @@ module.exports = class MusicZone {
     console.log(this._lc, "LMS NOTIFICATION:", data)
     // Current song changed
     if (data.startsWith("playlist newsong") || data.startsWith("newmetadata")) {
-        await this.getCurrentTrack();
-        await this.getCurrentTime();
-        this._pushAudioEvent();
+        this.getStateAndPush();
 
         // Only the current Index +-1 in the Queue has a cover.
         // Make sure the app fetches a new queue with updated covers when the track changes
@@ -103,8 +101,7 @@ module.exports = class MusicZone {
                data.startsWith("mixer volume") ||
                data.startsWith("client new") ||
                data.startsWith("power ")) {
-        await this.getState();
-        this._pushAudioEvent();
+        await this.getStateAndPush();
     } else if (data.startsWith("prefset server playDelay")) {
         this.fetchAudioDelay();
     }
@@ -184,6 +181,18 @@ module.exports = class MusicZone {
         console.log(this._lc, "UPDATED ZONE STATE", this._player)
 
         await this.getCurrentTrack()
+  }
+
+  async getStateAndPush() {
+    if (!this._getState) {
+        this._getState = true;
+
+        setTimeout(async () => {
+           await this.getState();
+           this._pushAudioEvent();
+           this._getState = false;
+        }, 100);
+    }
   }
 
   getPower() {
