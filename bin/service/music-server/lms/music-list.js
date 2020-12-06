@@ -3,6 +3,7 @@
 const LMSClient = require('./lms-client');
 const fs = require('fs');
 const Mutex = require('async-mutex');
+const config = JSON.parse(fs.readFileSync("config.json"));
 
 const Log = require("../log");
 const console = new Log;
@@ -177,13 +178,23 @@ module.exports = class List {
             let items = data.items.slice(1);
             data.items = []
             for (var key in items) {
+                var image = undefined;
+                var condition = true;
+                // Only load the image of the current Item, all others should stay empty to
+                // improve the performance of the app.
+                if (config.useSlowQueueWorkaround) {
+                    condition = (Number(start + key) == parent.getTrack().qindex)
+                }
+                if (condition)
+                    image = await this._client.extractArtwork(items[key].url, items[key]);
+
                 data.items.push({
                                    id: "url:" + items[key].url,
                                    title: items[key].title ? decodeURI(items[key].title) : undefined,
                                    station: items[key].remote_title ? decodeURI(items[key].remote_title) : undefined,
                                    artist: items[key].artist ? decodeURI(items[key].artist) : undefined,
                                    album: items[key].album ? decodeURI(items[key].album) : undefined,
-                                   image: await this._client.extractArtwork(items[key].url, items[key])
+                                   image: image
                                })
             }
             return data

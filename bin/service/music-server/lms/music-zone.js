@@ -81,6 +81,12 @@ module.exports = class MusicZone {
         await this.getCurrentTrack();
         await this.getCurrentTime();
         this._pushAudioEvent();
+
+        // Only the current Index +-1 in the Queue has a cover.
+        // Make sure the app fetches a new queue with updated covers when the track changes
+        if (config.useSlowQueueWorkaround) {
+            this._musicServer.pushQueueEvent(this);
+        }
     } else if (data.startsWith("time")) {
         await this.getCurrentTime();
         this._pushAudioEvent();

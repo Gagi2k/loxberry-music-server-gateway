@@ -11,6 +11,7 @@
     "uploadPlaybackPath": "/home/music/music_files",
     "cors_port": 7092,
     "macAddress": "",
+    "useSlowQueueWorkaround": true,
     "scripts": {
         "playUploadedFile": "echo {{name}} {{zones}} {{path}}",
         "playAlarmSound": "echo {{name}} {{type}} {{volume}}",

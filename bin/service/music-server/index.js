@@ -153,8 +153,6 @@ module.exports = class MusicServer {
 
       this._pushAudioEvents(this._zones);
       this._pushAudioSyncEvents();
-      this._pushQueueEvents(this._zones);
-      this._pushRoomFavEvents(this._zones);
     });
 
     httpServer.listen(this._config.port);
