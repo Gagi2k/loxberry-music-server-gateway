@@ -79,12 +79,6 @@ module.exports = class MusicZone {
     // Current song changed
     if (data.startsWith("playlist newsong") || data.startsWith("newmetadata")) {
         this.getStateAndPush();
-
-        // Only the current Index +-1 in the Queue has a cover.
-        // Make sure the app fetches a new queue with updated covers when the track changes
-        if (config.useSlowQueueWorkaround) {
-            this._musicServer.pushQueueEvent(this);
-        }
     } else if (data.startsWith("time")) {
         await this.getCurrentTime();
         this._pushAudioEvent();
@@ -188,8 +182,15 @@ module.exports = class MusicZone {
         this._getState = true;
 
         setTimeout(async () => {
+           var oldIndex = this._track.qindex;
            await this.getState();
            this._pushAudioEvent();
+
+           // Only the current Index +-1 in the Queue has a cover.
+           // Make sure the app fetches a new queue with updated covers when the track changes
+           if (oldIndex != this._track.qindex && config.useSlowQueueWorkaround) {
+               this._musicServer.pushQueueEvent(this);
+           }
            this._getState = false;
         }, 100);
     }
