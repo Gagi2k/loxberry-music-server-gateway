@@ -335,16 +335,12 @@ module.exports = class MusicZone {
   async time(time) {
     this._player.time = time;
     await this._client.command('time ' + this._player.time / 1000)
-
-    this._pushAudioEvent();
   }
 
   async volume(volume) {
     this._player.volume = Math.min(Math.max(+volume, 0), 100);
 
     await this._client.command('mixer volume ' + this._player.volume)
-
-    this._pushAudioEvent();
   }
 
   async defaultVolume(volume) {
@@ -381,8 +377,6 @@ module.exports = class MusicZone {
     }
 
     await this._client.command('playlist repeat ' + this._player.repeat)
-
-    this._pushAudioEvent();
   }
 
   async shuffle(shuffle) {
@@ -393,24 +387,19 @@ module.exports = class MusicZone {
     }
 
     await this._client.command('playlist shuffle ' + this._player.shuffle)
-
-    this._pushAudioEvent();
   }
 
   async previous() {
     await this._client.command('playlist index -1')
-    this._pushAudioEvent();
   }
 
   async next() {
     // Just using +1 didn't work very reliable
     await this._client.command('playlist index +01')
-    this._pushAudioEvent();
   }
 
   async setCurrentIndex(index) {
     await this._client.command('playlist index ' + index)
-    this._pushAudioEvent();
   }
 
   async power(power) {
@@ -425,8 +414,6 @@ module.exports = class MusicZone {
         await this.resume();
     else
         await this.pause();
-
-    this._pushAudioEvent();
   }
 
   async sync(zones) {
@@ -464,8 +451,6 @@ module.exports = class MusicZone {
     else if (this._player.mode != mode)
         await this._client.command('mode ' + mode);
     this._player.mode = mode;
-
-    this._pushAudioEvent();
   }
 
   _pushAudioEvent() {
