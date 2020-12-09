@@ -418,24 +418,27 @@ module.exports = class MusicZone {
   }
 
   async sync(zones) {
-    var macs = []
+    var zoneObjs = []
     for (var i in zones) {
         if (!zones[i])
             continue;
-        var mac = config.zone_map[zones[i]];
-        if (mac)
-            macs.push(mac);
+        var zoneObj = this._musicServer._zones[zones[i] - 1];
+        if (zoneObj)
+            zoneObjs.push(zoneObj);
     }
 
-    if (macs.length) {
-        this.unSync();
+    if (zoneObjs.length) {
+        await this.unSync();
 
-        for (var i in macs)
-            await this._client.command('sync ' + macs[i]);
+        for (var i in zoneObjs) {
+            await this._client.command('sync ' + zoneObjs[i]._zone_mac);
+            await zoneObjs[i].power("on");
+        }
     }
   }
 
   async unSync() {
+    await this._setMode("pause");
     await this._client.command('sync -')
   }
 
