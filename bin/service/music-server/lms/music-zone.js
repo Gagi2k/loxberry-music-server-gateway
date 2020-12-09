@@ -429,6 +429,7 @@ module.exports = class MusicZone {
 
     if (zoneObjs.length) {
         await this.unSync();
+        await this.power("on");
 
         for (var i in zoneObjs) {
             await this._client.command('sync ' + zoneObjs[i]._zone_mac);
