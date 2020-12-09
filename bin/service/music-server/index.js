@@ -151,6 +151,9 @@ module.exports = class MusicServer {
 
       connection.send('LWSS V 2.3.9.2 | ~API:1.6~');
 
+      // All those Events are send when a new client connects
+      // E.g. opening the App, but also when switching back to the
+      // app which was just minimized
       this._pushAudioEvents(this._zones);
       this._pushAudioSyncEvents();
     });

@@ -97,8 +97,8 @@ module.exports = class MusicMaster {
   }
 
   async fetchSyncGroups() {
-    if (!this._syncGroups) {
-        this._syncGroups = true;
+    if (!this._syncGroupsFetching) {
+        this._syncGroupsFetching = true;
 
         setTimeout(async () => {
            let response = await this._globalClient.command('syncgroups ?');
@@ -118,7 +118,7 @@ module.exports = class MusicMaster {
 
            this._syncGroups = groups;
            this._musicServer._pushAudioSyncEvents();
-           this._syncGroups = false;
+           this._syncGroupsFetching = false;
         }, 100);
     }
   }
