@@ -248,6 +248,10 @@ module.exports = class LMSClient {
             return this._hostUrl + "/music/" + item['artwork_track_id'] + "/cover"
         }
 
+        if ('coverid' in item && item['coverid']) {
+            return this._hostUrl + "/music/" + item['coverid'] + "/cover"
+        }
+
         if ('image' in item) {
             return this.resolveUrl(unescape(item['image']));
         }

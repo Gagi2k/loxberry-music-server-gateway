@@ -268,7 +268,7 @@ module.exports = class List {
                 let name_key = config.name_key;
                 let split_key = config.split_key;
 
-                let response = await this._client.command(cmd + ' ' + start + ' ' + length + filter + " tags:uKjJt");
+                let response = await this._client.command(cmd + ' ' + start + ' ' + length + filter + " tags:uKjJtc");
                 let data = this._client.parseAdvancedQueryResponse(response, split_key);
                 let items = data.items;
                 data.items = []
