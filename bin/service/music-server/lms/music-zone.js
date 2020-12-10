@@ -480,6 +480,17 @@ module.exports = class MusicZone {
     }
   }
 
+  _pushRoomFavChangedEvent() {
+    if (!this._roomFavChangeEventSent) {
+      this._roomFavChangeEventSent = true;
+
+      setTimeout(() => {
+        this._musicServer._pushRoomFavChangedEvents([this]);
+        this._roomFavChangeEventSent = false;
+      }, 100);
+    }
+  }
+
   async _sendPlayerCommand(method, url, body) {
     const data = await this._musicServer.call(method, this._url() + url, body);
     const track = data.track || this._getEmptyTrack();

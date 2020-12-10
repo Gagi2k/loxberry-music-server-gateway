@@ -94,14 +94,14 @@ module.exports = class List {
             let data = JSON.stringify(fav_items);
             fs.writeFileSync(fileName, data);
             this.reset()
-            musicServer._pushRoomFavChangedEvents([this._zone]);
+            this._zone._pushRoomFavChangedEvent();
         }
         this.delete_call = async (position, length) => {
             fav_items.splice(position, length)
             let data = JSON.stringify(fav_items);
             fs.writeFileSync(fileName, data);
             this.reset()
-            musicServer._pushRoomFavChangedEvents([this._zone]);
+            this._zone._pushRoomFavChangedEvent();
         }
     } else if (url.endsWith("playlists")) {
         this._client = new LMSClient(this._zone_mac, this);
