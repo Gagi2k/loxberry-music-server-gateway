@@ -873,19 +873,19 @@ module.exports = class MusicServer {
 
     const {total, items} = await this._master.getFavoriteList().get(undefined, 0, 50);
 
-    var foundIndex = undefined
+    var favId = undefined
     for (var i in items) {
         if (items[i].id == decodedId) {
-            foundIndex = i;
+            favId = items[i].favId;
             break;
         }
     }
-    if (!foundIndex) {
+    if (!favId) {
         console.warn(this._lc, "Coudln't find the requested favorite");
         return this._emptyCommand(url, []);
     }
 
-    await this._master.getFavoriteList().delete(foundIndex, 1);
+    await this._master.getFavoriteList().delete(favId, 1);
 
     return this._emptyCommand(url, []);
   }
