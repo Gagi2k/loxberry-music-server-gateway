@@ -1874,7 +1874,7 @@ module.exports = class MusicServer {
 
   _convert(type, base, start) {
     return (item, i) => {
-      if (!item) {
+      if (!item || !item.id) {
         return {
           type,
           slot: +start + i + 1,

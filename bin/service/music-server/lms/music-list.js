@@ -72,24 +72,31 @@ module.exports = class List {
             let rawdata = fs.readFileSync(fileName);
             fav_items = JSON.parse(rawdata);
         }
+        fav_items.fill({}, fav_items.length, 8);
 
         this.get_call = async (rootItem, start, length) => {
             for (var key in fav_items) {
-                fav_items[key].image = this._client.resolveUrl(fav_items[key].image)
+                if (fav_items[key].image)
+                    fav_items[key].image = this._client.resolveUrl(fav_items[key].image)
             }
             return { count: fav_items.length, items: fav_items };
         }
         this.insert_call = async (position, ...items) => {
             for (var key in items) {
+                if (!items[key].id)
+                    continue;
+
                 let url = await this._client.resolveAudioUrl(items[key].id)
                 if (!url)
                     return;
                 items[key].id = "url:" + url;
             }
 
-            fav_items.splice(position, 0, ...items)
+            fav_items.splice(position, 1, ...items);
+
             for (var key in fav_items) {
-                fav_items[key].image = this._client.toStorableUrl(fav_items[key].image);
+                if (fav_items[key].image)
+                    fav_items[key].image = this._client.toStorableUrl(fav_items[key].image);
             }
             let data = JSON.stringify(fav_items);
             fs.writeFileSync(fileName, data);
@@ -97,7 +104,8 @@ module.exports = class List {
             this._zone._pushRoomFavChangedEvent();
         }
         this.delete_call = async (position, length) => {
-            fav_items.splice(position, length)
+            for (var i = 0; i<length; i++)
+                fav_items.splice(position + i, 1, {});
             let data = JSON.stringify(fav_items);
             fs.writeFileSync(fileName, data);
             this.reset()
