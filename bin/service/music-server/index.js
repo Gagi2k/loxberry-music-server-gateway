@@ -748,6 +748,9 @@ module.exports = class MusicServer {
       case /(?:^|\/)audio\/\d+\/roomfav\/saveexternalid\/\d+\//.test(url):
         return this._audioRoomFavSaveExternalId(url);
 
+      case /(?:^|\/)audio\/cfg\/roomfavs\/\d+\/copy\/\d+/.test(url):
+        return this._audioRoomFavsCopy(url);
+
       case /(?:^|\/)audio\/\d+\/serviceplay\//.test(url):
         return this._audioServicePlay(url);
 
@@ -1655,6 +1658,21 @@ module.exports = class MusicServer {
     await zone.getFavoritesList().replace(+position - 1, item);
     if (!zone.getFavoritesList().canSendEvents)
         this._pushRoomFavChangedEvents([zone]);
+
+    return this._emptyCommand(url, []);
+  }
+
+  async _audioRoomFavsCopy(url) {
+    const [, , , source, , destination] = url.split('/');
+
+    const srcZone = this._zones[+source - 1];
+    const destZone = this._zones[+destination - 1];
+
+    var data = await srcZone.getFavoritesList().get(undefined, 0, 8);
+
+    for (var i=0; i < 8; i++) {
+        await destZone.getFavoritesList().replace(i, data.items[i]);
+    }
 
     return this._emptyCommand(url, []);
   }
