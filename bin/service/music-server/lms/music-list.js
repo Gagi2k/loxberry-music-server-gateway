@@ -38,7 +38,7 @@ module.exports = class List {
                                        // If we don't have a url, we fallback to use the id instead
                                        // For example in folders
                                        id: items[key].url ? "url:" + items[key].url : "fav:" + items[key].id,
-                                       favId: items[key].id,
+                                       favId: items[key].id.split('.').pop(),
                                        name: decodeURI(items[key]["name"]),
                                        image: await this._client.extractArtwork(items[key].url, items[key])
                                    })
