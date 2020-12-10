@@ -87,6 +87,7 @@ module.exports = class MusicZone {
                data.startsWith("playlist stop")  ||
                data.startsWith("playlist pause")  ||
                data.startsWith("playlist play")  ||
+               data.startsWith("playlist move") || //To fix the cover in the queue
                data.startsWith("mode ")  ||
                data.startsWith("pause ")  ||
                data.startsWith("play ")  ||
