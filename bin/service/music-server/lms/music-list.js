@@ -18,7 +18,7 @@ module.exports = class List {
     this._mutex = new Mutex.Mutex();
 
     if (url.endsWith("/favorites")) {
-        this._client = new LMSClient(this._zone_mac, this, (data) => {
+        this._client = new LMSClient(undefined, this, (data) => {
              if (data.startsWith("favorites")) {
                  this.reset()
                  musicServer._pushFavoritesChangedEvent();
