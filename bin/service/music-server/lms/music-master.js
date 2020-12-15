@@ -173,7 +173,7 @@ module.exports = class MusicMaster {
             let isTrack = category == "tracks" || items[key].type == "track";
             data.items.push({
                                 id: isTrack ? "url:" + items[key].url : config.id_key + ":" + items[key][config.split_key],
-                                title: decodeURI(items[key][config.name_key]),
+                                title: decodeURIComponent(items[key][config.name_key]),
                                 image: await this._client.extractArtwork(items[key].url, items[key]),
                                 type: isTrack ? 2 : 1
                            })
@@ -191,7 +191,7 @@ module.exports = class MusicMaster {
                 continue;
             data.items.push({
                                 id: "service/search:" + items[key].id,
-                                title: decodeURI(items[key].name),
+                                title: decodeURIComponent(items[key].name),
                                 image: await this._client.extractArtwork(items[key].url, items[key]),
                                 type: items[key].type != "link"  ? 2 : 1
                            })
@@ -226,7 +226,7 @@ module.exports = class MusicMaster {
 
             data.items.push({
                                 id: "service/spotty:" + items[key].id,
-                                title: decodeURI(items[key].name),
+                                title: decodeURIComponent(items[key].name),
                                 image: await this._client.extractArtwork(items[key].url, items[key]),
                                 type: items[key].type == "playlist" ? 11 //playlist
                                                                     : items[key].isaudio == "1" ? 2 : 1 //folder
