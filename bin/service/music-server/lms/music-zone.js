@@ -37,7 +37,6 @@ module.exports = class MusicZone {
         lastRoomFav: 0,
     }
 
-    this.readConfig();
 
     this._track = this._getEmptyTrack();
 
@@ -54,6 +53,8 @@ module.exports = class MusicZone {
         return;
     }
 
+    this.readConfig();
+
     this.getState();
     this.fetchAudioDelay();
   }
@@ -66,6 +67,14 @@ module.exports = class MusicZone {
     if (fs.existsSync(this._cfgFileName)) {
         let rawdata = fs.readFileSync(this._cfgFileName);
         this._zone_cfg = Object.assign(this._zone_cfg, JSON.parse(rawdata));
+    } else {
+        // Create the config and trigger the change script to notify about the new values
+        this.saveConfig()
+        this._client.execute_script("changeEqualizer", { zones: this._id });
+        this._client.execute_script("changeDefaultVolume", { zones: this._id,
+                                                             defaultVolume: this._zone_cfg.defaultVolume});
+        this._client.execute_script("changeMaxVolume", { zones: this._id,
+                                                         maxVolume: this._zone_cfg.maxVolume});
     }
   }
 
