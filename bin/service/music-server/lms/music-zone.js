@@ -142,7 +142,7 @@ module.exports = class MusicZone {
         duration = duration * 1000
 
         this._track = {
-            "id": "url:" + path,
+            "id": path ? "url:" + path : "",
             "title": title,
             "album": album,
             "artist": artist,

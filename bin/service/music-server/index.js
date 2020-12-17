@@ -1418,7 +1418,11 @@ module.exports = class MusicServer {
     const zone = this._zones[+zoneId - 1];
 
     if (zone.getMode() === 'stop') {
-      await zone.play(null, 0);
+      //If the playqueue is empty start the first room favorite
+      if (zone.getTrack().id == "")
+        await this._audioRoomFavPlay('audio/' + zoneId + "/roomfav/play/1");
+      else
+        await zone.play(null, 0);
     } else {
       await zone.resume();
     }
@@ -1766,7 +1770,11 @@ module.exports = class MusicServer {
 	//If player state is stop/pause the player will be set to play/resumed without changing the volume.
 	//If player state is play the volume will be changed.
 	if (zone.getMode() === 'stop') {
-      await zone.play(null, 0);
+      //If the playqueue is empty start the first room favorite
+      if (zone.getTrack().id == "")
+        await this._audioRoomFavPlay('audio/' + zoneId + "/roomfav/play/1");
+      else
+        await zone.play(null, 0);
     } else if (zone.getMode() === 'pause') {
 	  await zone.resume();
 	} else {
