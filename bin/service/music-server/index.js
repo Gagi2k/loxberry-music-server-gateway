@@ -1611,7 +1611,7 @@ module.exports = class MusicServer {
         : 0;
 
     for (; position < 16; position++) {
-      if (favorites.items[position % 8]) {
+      if (favorites.items[position % 8].id) {
         position = position % 8;
         break;
       }
