@@ -286,7 +286,7 @@ module.exports = class MusicZone {
   async playRoomFav(id, favoriteId, fav_name) {
     if (config.sayFav) {
         let fav_id = favoriteId % 1000000;
-        await this._client.execute_script("sayFav", { zones: this._id, fav_id, fav_name: escape(fav_name), volume: this._player.volume})
+        await this._client.execute_script("sayFav", { zones: this._id, fav_id, fav_name: escape(fav_name), volume: this._player.volume + config.sayFavVolumeBoost})
     }
 
     await this.play(id, favoriteId);
