@@ -1619,7 +1619,7 @@ module.exports = class MusicServer {
 
     const id = favorites.items[position].id;
 
-    await zone.play(id, BASE_FAVORITE_ZONE + position);
+    await zone.playRoomFav(id, BASE_FAVORITE_ZONE + position, favorites.items[position].title);
 
     this._pushRoomFavEvents([zone]);
 

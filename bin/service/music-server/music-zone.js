@@ -190,6 +190,10 @@ module.exports = class MusicZone {
     }
   }
 
+  async playRoomFav(id, favoriteId, name) {
+    this.play(id, favoriteId);
+  }
+
   async play(id, favoriteId) {
     const transaction = this._transaction();
 

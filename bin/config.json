@@ -12,6 +12,7 @@
     "cors_port": 7092,
     "macAddress": "",
     "useSlowQueueWorkaround": true,
+    "sayFav": true,
     "scripts": {
         "playUploadedFile": "echo {{name}} {{zones}} {{path}}",
         "playAlarmSound": "echo {{name}} {{type}} {{volume}}",
@@ -19,6 +20,7 @@
         "changeEqualizer": "echo {{name}} {{zones}}",
         "changeDefaultVolume": "echo {{name}} {{zones}} {{defaultVolume}}",
         "changeMaxVolume": "echo {{name}} {{zones}} {{maxVolume}}",
-        "addNetworkShare": "echo {{name}} {{server}} {{guest}} {{username}} {{password}} {{configBase64}}"
+        "addNetworkShare": "echo {{name}} {{server}} {{guest}} {{username}} {{password}} {{configBase64}}",
+        "sayFav": "echo {{name}} {{fav_id}} {{fav_name}} {{volume}}"
     }
 }

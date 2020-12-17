@@ -283,6 +283,15 @@ module.exports = class MusicZone {
     this._client.execute_script("changeEqualizer", { zones: this._id })
   }
 
+  async playRoomFav(id, favoriteId, fav_name) {
+    if (config.sayFav) {
+        let fav_id = favoriteId % 1000000;
+        this._client.execute_script("sayFav", { zones: this._id, fav_id, fav_name: escape(fav_name), volume: this._player.volume})
+    }
+
+    await this.play(id, favoriteId);
+  }
+
   async play(id, favoriteId) {
     console.log(this._lc, "PLAY  ", id, favoriteId)
     this._zone_cfg.lastRoomFav = favoriteId;
