@@ -311,7 +311,7 @@ module.exports = class LMSClient {
         return {type, id};
     }
 
-    execute_script(name, args) {
+    async execute_script(name, args) {
         var script = config.scripts ? config.scripts[name] : undefined
         if (!script) {
             console.error(this._lc, `no script configured for: ${name}`);
@@ -322,16 +322,20 @@ module.exports = class LMSClient {
         for (var key in args)
             script = script.replace('{{' + key + '}}', args[key]);
 
-        process.exec(script, (err, stdout, stderr) => {
-            if (err) {
-                //some err occurred
-                console.error(this._lc, `failed to execute ${script}: ${err}`);
-            } else {
-               // the *entire* stdout and stderr (buffered)
-               console.log(this._lc, `script ${name} stdout: ${stdout}`);
-               console.log(this._lc, `script ${name} stderr: ${stderr}`);
-            }
-        })
+        return new Promise((resolve, reject) => {
+            process.exec(script, (err, stdout, stderr) => {
+                if (err) {
+                    //some err occurred
+                    console.error(this._lc, `failed to execute ${script}: ${err}`);
+                    reject();
+                } else {
+                   // the *entire* stdout and stderr (buffered)
+                   console.log(this._lc, `script ${name} stdout: ${stdout}`);
+                   console.log(this._lc, `script ${name} stderr: ${stderr}`);
+                   resolve(stdout);
+                }
+            })
+        });
     }
 
     async resolveAudioUrl(id) {
