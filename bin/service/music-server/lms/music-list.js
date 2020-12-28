@@ -352,10 +352,17 @@ module.exports = class List {
             if (data.items[0].title == "Transfer%20Playback")
                 isAudio = true
 
-            let items = data.items.slice(1);
+            let items = data.items;
             data.items = []
 
             for (var key in items) {
+                if (!items[key].id)
+                    continue;
+                // Don't show the search menu
+                if (items[key].image && items[key].image.includes("search")) {
+                    data.count--;
+                    continue;
+                }
                 data.items.push({
                                    id: "service/" + cmd + ":" + items[key].id,
                                    name: decodeURIComponent(items[key].name),
