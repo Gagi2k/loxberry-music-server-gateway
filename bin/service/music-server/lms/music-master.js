@@ -124,14 +124,27 @@ module.exports = class MusicMaster {
   }
 
   async getSearchableTypes() {
+    // First try to find the Id for the search menu
+    // Depending on the plugin mode, the id is different.
+    let response = await this._client.command('spotty items 0 100');
+    let data = this._client.parseAdvancedQueryResponse(response, 'id');
+    this.search_menu_id;
+    for (var key in data.items) {
+        // We search for the search icon to identify the menu
+        if (!data.items[key].image.includes("search"))
+            continue;
+        this.search_menu_id = data.items[key].id + ".0";
+    }
+
     // Spotify is a bit tricky as the search results are mixed
     // folders and tracks
     // Here we just retrieve the folders to build a list of categories supported
-    let response = await this._client.command('spotty items 0 100 item_id:0.0');
-    let data = this._client.parseAdvancedQueryResponse(response, 'id');
+    response = await this._client.command('spotty items 0 100 item_id:' + this.search_menu_id);
+    data = this._client.parseAdvancedQueryResponse(response, 'id');
 
     // Use the base search folder to get results for tracks as well
-    this.spotify_categories = { '0.0': "Tracks" }
+    this.spotify_categories = {}
+    this.spotify_categories[this.search_menu_id] = "Tracks";
     for (var key in data.items) {
         if (!data.items[key].id)
             continue;
@@ -202,7 +215,7 @@ module.exports = class MusicMaster {
 
         // In this id we get tracks and folders mixed.
         // The first X tracks are folder so we need to fetch more just to get tracks
-        if (category == "0.0" && start == 0)
+        if (category == this.search_menu_id && start == 0)
             length = Number(length) + folderLength;
 
         let response = await this._client.command('spotty items ' + start + ' ' + length + " search:" + search + " item_id:" + category);
@@ -210,7 +223,7 @@ module.exports = class MusicMaster {
 
         // In this id we get tracks and folders mixed.
         // Use the already retrieved folders to calculate the correct count
-        if (category == "0.0")
+        if (category == this.search_menu_id)
             data.count = data.count - folderLength
 
         data.name = this.spotify_categories[category];
@@ -221,7 +234,7 @@ module.exports = class MusicMaster {
             if (!items[key].id)
                 continue;
 
-            if (category == "0.0" && key <= folderLength)
+            if (category == this.search_menu_id && key <= folderLength)
                 continue;
 
             data.items.push({
