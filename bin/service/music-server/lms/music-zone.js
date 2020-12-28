@@ -452,8 +452,8 @@ module.exports = class MusicZone {
         await this.power("on");
 
         for (var i in zoneObjs) {
-            await this._client.command('sync ' + zoneObjs[i]._zone_mac);
             await zoneObjs[i].power("on");
+            await this._client.command('sync ' + zoneObjs[i]._zone_mac);
         }
     }
   }
