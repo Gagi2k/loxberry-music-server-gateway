@@ -295,9 +295,6 @@ module.exports = class MusicZone {
 
   async play(id, favoriteId) {
     console.log(this._lc, "PLAY  ", id, favoriteId)
-    this._zone_cfg.lastRoomFav = favoriteId;
-    this.saveConfig();
-
     var type = Math.floor(favoriteId / 1000000);
     var fav_id = favoriteId % 1000000;
 
@@ -305,6 +302,9 @@ module.exports = class MusicZone {
         this._setMode('play')
         return;
     }
+
+    this._zone_cfg.lastRoomFav = favoriteId;
+    this.saveConfig();
 
     if (id == -1)
         return;
