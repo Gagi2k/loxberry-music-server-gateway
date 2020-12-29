@@ -347,9 +347,14 @@ module.exports = class List {
             let response = await this._client.command(cmd + ' items ' + start + ' ' + length + ' want_url:1 ' + itemId);
             let data = this._client.parseAdvancedQueryResponse(response, 'id');
             let isAudio = false
+
             // Special handling for Transfer Playback
             // We need to play those items to transfer it to the correct zone
-            if (data.items[0].title == "Transfer%20Playback")
+            var transfer_playback_titles = [
+                "Transfer%20Playback",
+                "Wiedergabe%20%C3%BCbernehmen"
+            ]
+            if (transfer_playback_titles.includes(data.items[0].title))
                 isAudio = true
 
             let items = data.items;
