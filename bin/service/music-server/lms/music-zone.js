@@ -415,8 +415,7 @@ module.exports = class MusicZone {
   }
 
   async next() {
-    // Just using +1 didn't work very reliable
-    await this._client.command('playlist index +01')
+    await this._client.command('playlist index +1')
   }
 
   async setCurrentIndex(index) {
