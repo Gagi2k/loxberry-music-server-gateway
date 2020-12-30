@@ -5,6 +5,7 @@ const fs = require('fs');
 const config = JSON.parse(fs.readFileSync("config.json"));
 const os = require('os');
 const process = require('child_process');
+const http = require('http')
 
 const Log = require("../log");
 const console = new Log;
@@ -146,6 +147,34 @@ module.exports = class LMSClient {
                            });
     }
 
+
+    async jsonRPCCommand(cmd) {
+        return new Promise((resolve, reject) => {
+               const postData = JSON.stringify({"method": "slim.request", "params": [this._mac, cmd.split(' ')]});
+               console.log(this._lc, "JSON REQUEST: ", postData)
+               const options = {
+                 hostname: this._host,
+                 port: 9000,
+                 path: '/jsonrpc.js',
+                 method: 'POST',
+                 insecureHTTPParser: true,
+                 headers: {
+                   'Content-Type': 'application/json',
+                   'Content-Length': Buffer.byteLength(postData)
+                 }
+               }
+            const req = http.request(options, res => {
+              res.on('data', d => {
+                console.log(this._lc, "RESPONSE", d.toString())
+                resolve(JSON.parse(d).result);
+              })
+            }).on("error", (err) => {
+                      console.log(this._lc, "Error: ", err.message);
+                  });
+            req.write(postData);
+            req.end();
+        });
+    }
 
     parseAdvancedQueryResponse(data, object_split_key, filteredKeys, count_key = 'count') {
         // Remove leading/trailing white spaces
@@ -351,14 +380,18 @@ module.exports = class LMSClient {
             const [, cmd] = parsed_id.type.split("/");
             let response = await this.command(cmd + ' items 0 1 want_url:1 item_id:' + parsed_id.id);
             let data = this.parseAdvancedQueryResponse(response, 'id');
-//            if (data.count == 0 || !data.items[0].url) { //Try with a modified id (e.g. for spotty this is needed)
-//                let splitted = parsed_id.id.split(".")
-//                let new_id = splitted.slice(-1).join("."); //The id without the last index
-//                let index = splitted[-1]; //only the last index
+            if (data.count == 0 || !data.items[0].url) { //Try with a modified id (e.g. for spotty this is needed)
+                let splitted = parsed_id.id.split(".")
+                let new_id = splitted.slice(0, -1).join("."); //The id without the last index
+                let index = splitted.slice(-1); //only the last index
 
-//                response = await this.command(cmd + ' items ' + index + ' 1 want_url:1 item_id:' + parsed_id.id);
-//                data = this.parseAdvancedQueryResponse(response, 'id');
-//            }
+                //use JSON RPC here to retrieve the URL
+                response = await this.jsonRPCCommand(cmd + ' items ' + index + ' 1 want_url:1 menu:1 item_id:' + new_id);
+                if (response.item_loop.length > 0)
+                    if (response.item_loop[0].presetParams)
+                        return response.item_loop[0].presetParams.favorites_url;
+                console.error(this._lc, "Couldn't add spotify item with id: " + parsed_id.id);
+            }
 
             return data.items[0].url;
         } else if (parsed_id.type == "playlist") {
