@@ -18,6 +18,7 @@ module.exports = class List {
     this._mutex = new Mutex.Mutex();
 
     if (url.endsWith("/favorites")) {
+        this._helper = new LMSClient(this._musicServer._zones[0]._zone_mac, this);
         this._client = new LMSClient(undefined, this, (data) => {
              if (data.startsWith("favorites")) {
                  this.reset()
@@ -50,7 +51,7 @@ module.exports = class List {
         }
         this.insert_call = async (position, ...items) => {
             for (var i in items) {
-                let url = await this._client.resolveAudioUrl(items[i].id)
+                let url = await this._helper.resolveAudioUrl(items[i].id)
                 if (!url)
                     continue;
                 var cmd = 'favorites add item_id:' + position + ' title:' + encodeURI(items[i].title) + ' url:' + url;
