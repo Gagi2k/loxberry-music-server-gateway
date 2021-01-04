@@ -285,7 +285,7 @@ module.exports = class LMSClient {
             return this.resolveUrl(unescape(item['icon']));
         }
 
-        if ('artwork_url' in item) {
+        if ('artwork_url' in item && item['artwork_url'] != 0) {
             let artwork_url = unescape(item['artwork_url']);
 
             // Before accepting this default icon, try to be smart and parse the ID of the station
