@@ -114,6 +114,7 @@ module.exports = class List {
             this._zone._pushRoomFavChangedEvent();
         }
     } else if (url.endsWith("playlists")) {
+        this._helper = new LMSClient(this._musicServer._zones[0]._zone_mac, this);
         this._client = new LMSClient(this._zone_mac, this);
         this.get_call = async (rootItem, start, length) => {
             if (!rootItem) {
@@ -155,12 +156,58 @@ module.exports = class List {
             }
         }
         this.insert_call = async (position, ...items) => {
-            for (var i in items) {
-                //Create a new playlist
-                let response = await this._client.command('playlists new name:' + encodeURI(items[i].title));
-                const [ , id] = response.split("%3A")
-                this.reset();
-                musicServer._pushPlaylistsChangedEvent("playlist:" + id, "create", items[i].title);
+            // position is used for the playlist id
+            if (position) {
+                let playlist_id = this._client.parseId(position).id
+                for (var i in items) {
+                    let id = items[i].id;
+                    let parsed_id = this._client.parseId(id);
+                    let list;
+                    if (parsed_id.type.startsWith('service/')) {
+                        list = parent.getServiceFolderList()
+                        id = parsed_id.type.split('/').pop() + '%%%' + id
+                    } else {
+                        list = parent.getLibraryList()
+                    }
+
+                    // Recursive function to iterate over all entries and it to the list of urls
+                    // Iterate deeper if the item doesn't have a url
+                    var extractUrl = async (id) => {
+                        var itemList = []
+                        // Limit it to 200 items to keep the implementation simple
+                        var response = await list.get(id, 0, 200);
+                        for (var j=0; j<response.total; j++) {
+                            if (response.items[j].type == 2) {
+                                var id = response.items[j].id;
+                                var item = response.items[j];
+                                if (id.startsWith("url:"))
+                                    item.url = this._client.parseId(id).id;
+                                else
+                                    item.url = await this._helper.resolveAudioUrl(id);
+                                itemList.push(item);
+                            } else {
+                                itemList = itemList.concat(await extractUrl(response.items[j].id));
+                            }
+                        }
+
+                        return itemList
+                    }
+
+                    var itemList = await extractUrl(id)
+
+                    for (var k in itemList)
+                        await this._client.command('playlists edit cmd:add playlist_id:' + playlist_id + ' url:' + itemList[k].url + ' title:' + encodeURI(itemList[k].name));
+
+                    return itemList;
+                }
+            } else {
+                for (var i in items) {
+                    //Create a new playlist
+                    let response = await this._client.command('playlists new name:' + encodeURI(items[i].title));
+                    const [ , id] = response.split("%3A")
+                    this.reset();
+                    musicServer._pushPlaylistsChangedEvent("playlist:" + id, "create", items[i].title);
+                }
             }
         }
         this.delete_call = async (position, length) => {
@@ -458,8 +505,10 @@ module.exports = class List {
         return;
     }
 
-    await this.insert_call(position, ...items)
+    // This is only needed for the playlist insertion
+    var result = await this.insert_call(position, ...items)
     console.log(this._lc, "DONE");
+    return result;
   }
 
   async replace(position, ...items) {

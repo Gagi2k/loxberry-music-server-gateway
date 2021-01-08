@@ -1195,18 +1195,20 @@ module.exports = class MusicServer {
   }
 
   async _audioCfgPlaylistUpdate(url) {
-    const [cmd, id] = url.split('/').pop().split(':');
-    const playlist_id = url.split('/').pop();
+    const parts = url.split('/');
+    const [cmd, id] = parts.pop().split(':');
+    const encoded_playlist_id = parts.pop();
+    const [playlist_id] = this._decodeId(encoded_playlist_id);
 
     var response = [];
     if (cmd == 'start' || cmd == 'finish' || cmd == 'finishnochanges') {
-        this._pushPlaylistsChangedEvent(playlist_id, cmd);
+        this._pushPlaylistsChangedEvent(encoded_playlist_id, cmd);
     } else {
         const [decodedId] = this._decodeId(id);
         const playlists = this._master.getPlaylistList();
 
-        console.warn(this._lc, "NOT IMPLEMENTED");
-        //response = [{"action":"ok", "items": [{ title: 'foo' }]}];
+        const items = await playlists.insert(playlist_id, { id: decodedId });
+        response = [{"action":"ok", "items": items.map(this._convert(11, BASE_PLAYLIST, 0))}];
     }
 
     return this._emptyCommand(url, response);
