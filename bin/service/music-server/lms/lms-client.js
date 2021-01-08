@@ -164,9 +164,13 @@ module.exports = class LMSClient {
                  }
                }
             const req = http.request(options, res => {
+              let response = "";
               res.on('data', d => {
-                console.log(this._lc, "RESPONSE", d.toString())
-                resolve(JSON.parse(d).result);
+                response += d.toString()
+              })
+              res.on('end', d => {
+                console.log(this._lc, "RESPONSE", response)
+                resolve(JSON.parse(response).result);
               })
             }).on("error", (err) => {
                       console.log(this._lc, "Error: ", err.message);
