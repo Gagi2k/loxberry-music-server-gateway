@@ -350,7 +350,7 @@ module.exports = class List {
             data.items = []
             for (var key in items) {
                 // Filter the search Folder
-                if ((items[key].cmd == "search") || (items[key].cmd == "presets") || (items[key].cmd == "picks") || (items[key].cmd == "language") || (items[key].cmd == "talk") || (items[key].cmd == "sports")) {
+                if (config.filteredRadioEntries.includes(items[key].cmd)) {
                     data.count--;
                     continue;
                 }

@@ -14,6 +14,14 @@
     "useSlowQueueWorkaround": true,
     "sayFav": true,
     "sayFavVolumeBoost": 0,
+    "filteredRadioEntries": [
+        "search",
+        "presets",
+        "picks",
+        "language",
+        "talk",
+        "sports"
+    ],
     "scripts": {
         "playUploadedFile": "echo {{name}} {{zones}} {{path}}",
         "playAlarmSound": "echo {{name}} {{type}} {{volume}}",
