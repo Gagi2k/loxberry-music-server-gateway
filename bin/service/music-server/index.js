@@ -1206,9 +1206,12 @@ module.exports = class MusicServer {
     } else {
         const [decodedId] = this._decodeId(id);
         const playlists = this._master.getPlaylistList();
+        const current_list = await playlists.get(playlist_id, 0, 500);
 
-        const items = await playlists.insert(playlist_id, { id: decodedId });
-        response = [{"action":"ok", "items": items.map(this._convert(11, BASE_PLAYLIST, 0))}];
+        await playlists.insert(playlist_id, { id: decodedId });
+
+        let resp = await playlists.get(playlist_id, +current_list.total, 500);
+        response = [{"action":"ok", "items": resp.items.map(this._convert(11, BASE_PLAYLIST, +current_list.count))}];
     }
 
     return this._emptyCommand(url, response);

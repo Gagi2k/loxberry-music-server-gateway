@@ -163,7 +163,10 @@ module.exports = class List {
                     let id = items[i].id;
                     let parsed_id = this._client.parseId(id);
                     let list;
-                    if (parsed_id.type.startsWith('service/')) {
+                    var urlList = []
+                    if (parsed_id.type == "url") {
+                        urlList.push(parsed_id.id);
+                    } else if (parsed_id.type.startsWith('service/')) {
                         list = parent.getServiceFolderList()
                         id = parsed_id.type.split('/').pop() + '%%%' + id
                     } else {
@@ -173,7 +176,7 @@ module.exports = class List {
                     // Recursive function to iterate over all entries and it to the list of urls
                     // Iterate deeper if the item doesn't have a url
                     var extractUrl = async (id) => {
-                        var itemList = []
+                        var urlList = []
                         // Limit it to 200 items to keep the implementation simple
                         var response = await list.get(id, 0, 200);
                         for (var j=0; j<response.total; j++) {
@@ -181,24 +184,22 @@ module.exports = class List {
                                 var id = response.items[j].id;
                                 var item = response.items[j];
                                 if (id.startsWith("url:"))
-                                    item.url = this._client.parseId(id).id;
+                                    urlList.push(this._helper.parseId(id).id);
                                 else
-                                    item.url = await this._helper.resolveAudioUrl(id);
-                                itemList.push(item);
+                                    urlList.push(await this._helper.resolveAudioUrl(id));
                             } else {
-                                itemList = itemList.concat(await extractUrl(response.items[j].id));
+                                urlList = urlList.concat(await extractUrl(response.items[j].id));
                             }
                         }
 
-                        return itemList
+                        return urlList
                     }
 
-                    var itemList = await extractUrl(id)
+                    if (urlList.length == 0)
+                        urlList = await extractUrl(id)
 
-                    for (var k in itemList)
-                        await this._client.command('playlists edit cmd:add playlist_id:' + playlist_id + ' url:' + itemList[k].url + ' title:' + encodeURI(itemList[k].name));
-
-                    return itemList;
+                    for (var k in urlList)
+                        await this._client.command('playlists edit cmd:add playlist_id:' + playlist_id + ' url:' + urlList[k]);
                 }
             } else {
                 for (var i in items) {
@@ -396,6 +397,8 @@ module.exports = class List {
             let data = this._client.parseAdvancedQueryResponse(response, 'id');
             let isAudio = false
 
+            let jsonResponse = await this._client.jsonRPCCommand(cmd + ' items ' + start + ' ' + length + ' want_url:1 menu:1 ' + itemId);
+
             // Special handling for Transfer Playback
             // We need to play those items to transfer it to the correct zone
             var transfer_playback_titles = [
@@ -406,6 +409,8 @@ module.exports = class List {
                 isAudio = true
 
             let items = data.items;
+            if (!items[0].id)
+                items = items.splice(1);
             data.items = []
 
             for (var key in items) {
@@ -416,8 +421,13 @@ module.exports = class List {
                     data.count--;
                     continue;
                 }
+                let id = "service/" + cmd + ":" + items[key].id
+                if (items[key].type != "playlist" && items[key].isaudio == "1" &&
+                    jsonResponse.item_loop[key] && jsonResponse.item_loop[key].presetParams)
+                    id = "url:" + jsonResponse.item_loop[key].presetParams.favorites_url;
+
                 data.items.push({
-                                   id: "service/" + cmd + ":" + items[key].id,
+                                   id,
                                    name: decodeURIComponent(items[key].name),
                                    image: await this._client.extractArtwork(items[key].url, items[key]),
                                    type: items[key].type == "playlist" ? 11 //playlist
@@ -505,10 +515,8 @@ module.exports = class List {
         return;
     }
 
-    // This is only needed for the playlist insertion
-    var result = await this.insert_call(position, ...items)
+    await this.insert_call(position, ...items)
     console.log(this._lc, "DONE");
-    return result;
   }
 
   async replace(position, ...items) {
