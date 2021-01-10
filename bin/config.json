@@ -13,7 +13,6 @@
     "macAddress": "",
     "useSlowQueueWorkaround": true,
     "sayFav": true,
-    "sayFavVolumeBoost": 0,
     "filteredRadioEntries": [
         "search",
         "presets",
