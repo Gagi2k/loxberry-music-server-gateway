@@ -108,6 +108,23 @@ module.exports = class MusicServer {
 
       const chunks = [];
 
+      // Handler for local icons
+      if (req.url.startsWith("/icon")) {
+         var reqpath = file = req.url.toString().split('?')[0];
+         var file = '.' + reqpath;
+         var s = fs.createReadStream(file);
+         s.on('open', function () {
+             res.setHeader('Content-Type', "image/svg+xml");
+             s.pipe(res);
+         });
+         s.on('error', function () {
+             res.setHeader('Content-Type', 'text/plain');
+             res.statusCode = 404;
+             res.end('Not found');
+         });
+         return;
+      }
+
       try {
         req.on('data', (chunk) => {
             chunks.push(chunk);

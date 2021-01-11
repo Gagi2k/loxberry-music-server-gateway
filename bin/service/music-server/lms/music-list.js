@@ -3,6 +3,7 @@
 const LMSClient = require('./lms-client');
 const fs = require('fs');
 const Mutex = require('async-mutex');
+const os = require('os');
 const config = JSON.parse(fs.readFileSync("config.json"));
 
 const Log = require("../log");
@@ -426,10 +427,38 @@ module.exports = class List {
                     jsonResponse.item_loop[key] && jsonResponse.item_loop[key].presetParams)
                     id = "url:" + jsonResponse.item_loop[key].presetParams.favorites_url;
 
+                // Replace the spotty images by our own
+                var image = await this._client.extractArtwork(items[key].url, items[key])
+                if (image && image.includes("Spotty")) {
+                    var host = config.ip ? config.ip : os.hostname();
+                    var url = "http://" + host + ":7091/"
+                    if (image.endsWith("home.png"))
+                        image = url + "icons/home.svg";
+                    else if (image.endsWith("news.png"))
+                        image = url + "icons/news.svg";
+                    else if (image.endsWith("toptracks.png"))
+                        image = url + "icons/toptracks.svg";
+                    else if (image.endsWith("podcasts.png"))
+                        image = url + "icons/podcasts.svg";
+                    else if (image.endsWith("genres.png"))
+                        image = url + "icons/genres.svg";
+                    else if (image.endsWith("playlist.png"))
+                        image = url + "icons/playlist.svg";
+                    else if (image.endsWith("album.png"))
+                        image = url + "icons/album.svg";
+                    else if (image.endsWith("artist.png"))
+                        image = url + "icons/artist.svg";
+                    else if (image.endsWith("inbox.png"))
+                        image = url + "icons/inbox.svg";
+
+                    if (transfer_playback_titles.includes(items[key].name))
+                        image = url + "icons/transfer.svg";
+                }
+
                 data.items.push({
                                    id,
                                    name: decodeURIComponent(items[key].name),
-                                   image: await this._client.extractArtwork(items[key].url, items[key]),
+                                   image,
                                    type: items[key].type == "playlist" ? 11 //playlist
                                                                        : isAudio || items[key].isaudio == "1" ? 2 : 1 //folder
                                })
