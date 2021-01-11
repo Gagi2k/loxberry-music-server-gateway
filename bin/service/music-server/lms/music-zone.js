@@ -134,10 +134,13 @@ module.exports = class MusicZone {
 
 
         let response = await this._client.command('songinfo 0 100 url:' + path)
-        let item = this._client.parseAdvancedQueryResponse(response).items[0];
-        let artwork_url = this._client.extractArtwork(path, item);
-        if (item.remote_title)
-            station = item.remote_title
+        let artwork_url;
+        if (response) {
+            let item = this._client.parseAdvancedQueryResponse(response).items[0];
+            artwork_url = this._client.extractArtwork(path, item);
+            if (item.remote_title)
+                station = item.remote_title
+        }
 
         duration = duration * 1000
 

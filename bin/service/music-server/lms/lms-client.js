@@ -106,7 +106,10 @@ module.exports = class LMSClient {
         returnValue = returnValue.replace(/:/g, "%3A")
         returnValue = returnValue.replace(/\//g, "%2F")
 
-        return new Promise((resolve, reject) => {
+        let timer
+        return Promise.race([
+            new Promise((_r, rej) => timer = setTimeout(_r, 5000)),
+            new Promise((resolve, reject) => {
                                let response = "";
                                var responseListener = (data) => {
 //                                   console.log(this._lc, "DATA ", data.toString())
@@ -144,7 +147,8 @@ module.exports = class LMSClient {
                                cmdSocket.on('data', responseListener);
                                console.log(this._lc, "REQUEST: ", this._mac + " " + cmd)
                                cmdSocket.write(this._mac + " " + cmd + ' \r\n');
-                           });
+                           })
+        ]).finally(() => clearTimeout(timer));
     }
 
 
@@ -174,6 +178,7 @@ module.exports = class LMSClient {
               })
             }).on("error", (err) => {
                       console.log(this._lc, "Error: ", err.message);
+                      resolve([]);
                   });
             req.write(postData);
             req.end();
@@ -181,6 +186,11 @@ module.exports = class LMSClient {
     }
 
     parseAdvancedQueryResponse(data, object_split_key, filteredKeys, count_key = 'count') {
+        if (!data)
+            return {
+                count: 0,
+                items: []
+            };
         // Remove leading/trailing white spaces
         let count = 0
         let response = data.trim();
@@ -262,6 +272,8 @@ module.exports = class LMSClient {
         if (!id)
             return undefined;
         let response = await this.command('songinfo 0 100 track_id:' + id)
+        if (!response)
+            return undefined;
         let item = this.parseAdvancedQueryResponse(response).items[0];
 
         return this.extractArtwork("", item);
@@ -271,6 +283,8 @@ module.exports = class LMSClient {
         if (!url)
             return undefined;
         let response = await this.command('songinfo 0 100 url:' + url)
+        if (!response)
+            return undefined;
         let item = this.parseAdvancedQueryResponse(response).items[0];
 
         return this.extractArtwork(url, item);
@@ -376,6 +390,8 @@ module.exports = class LMSClient {
 
         if (parsed_id.type == "fav") {
             let response = await this.command('favorites items 0 1 want_url:1 item_id:' + parsed_id.id);
+            if (!response)
+                return undefined;
             let data = this.parseAdvancedQueryResponse(response, 'id');
             return data.items[0].url;
         } else if (parsed_id.type == "url"){
@@ -391,15 +407,19 @@ module.exports = class LMSClient {
 
                 //use JSON RPC here to retrieve the URL
                 response = await this.jsonRPCCommand(cmd + ' items ' + index + ' 1 want_url:1 menu:1 item_id:' + new_id);
+                if (!response)
+                    return undefined;
                 if (response.item_loop.length > 0)
                     if (response.item_loop[0].presetParams)
                         return response.item_loop[0].presetParams.favorites_url;
-                console.error(this._lc, "Couldn't add spotify item with id: " + parsed_id.id);
+                console.error(this._lc, "Couldn't find spotify item with id: " + parsed_id.id);
             }
 
             return data.items[0].url;
         } else if (parsed_id.type == "playlist") {
             let response = await this.command('playlists 0 100 tags:u:playlist');
+            if (!response)
+                return undefined;
             let data = this.parseAdvancedQueryResponse(response, 'id');
             for (var key in data.items) {
                 if (data.items[key].id == parsed_id.id)
@@ -423,6 +443,8 @@ module.exports = class LMSClient {
             let cmd = cur_config.cmd;
             let filter = " " + cur_config.filter_key + ':' +  parsed_id.id;
             let response = await this.command(cmd + ' 0 100 tags:uKjJt' + filter);
+            if (!response)
+                return undefined;
             let data = this.parseAdvancedQueryResponse(response, config.split_key);
             let url = data.items[0].url;
             if (url)

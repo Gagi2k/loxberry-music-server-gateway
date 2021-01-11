@@ -181,6 +181,8 @@ module.exports = class List {
                         // Limit it to 200 items to keep the implementation simple
                         var response = await list.get(id, 0, 200);
                         for (var j=0; j<response.total; j++) {
+                            if (!response.items[j])
+                                continue;
                             if (response.items[j].type == 2) {
                                 var id = response.items[j].id;
                                 var item = response.items[j];
@@ -397,6 +399,9 @@ module.exports = class List {
             let response = await this._client.command(cmd + ' items ' + start + ' ' + length + ' want_url:1 ' + itemId);
             let data = this._client.parseAdvancedQueryResponse(response, 'id');
             let isAudio = false
+
+            if (!data.count)
+                return data;
 
             let jsonResponse = await this._client.jsonRPCCommand(cmd + ' items ' + start + ' ' + length + ' want_url:1 menu:1 ' + itemId);
 
