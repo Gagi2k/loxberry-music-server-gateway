@@ -439,6 +439,8 @@ module.exports = class List {
                     var url = "http://" + host + ":7091/"
                     if (image.endsWith("home.png"))
                         image = url + "icons/home.svg";
+                    else if (image.endsWith("account.png"))
+                        image = url + "icons/account.svg";
                     else if (image.endsWith("news.png"))
                         image = url + "icons/news.svg";
                     else if (image.endsWith("toptracks.png"))
