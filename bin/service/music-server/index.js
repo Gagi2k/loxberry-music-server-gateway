@@ -1055,11 +1055,14 @@ module.exports = class MusicServer {
   async _audioCfgGetServiceFolder(url) {
     let [, , , service, user, requestId, start, length] = url.split('/');
 
-    let rootItem = service
+    let rootItem = {
+        service,
+        user
+    }
 
     if (requestId != 0 && requestId != 'start') {
         const [decodedId] = this._decodeId(requestId);
-        rootItem = rootItem + '%%%' + decodedId
+        rootItem.id = decodedId
     }
 
     const {total, items} = await this._master.getServiceFolderList().get(rootItem, start, length);

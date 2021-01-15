@@ -376,13 +376,21 @@ module.exports = class List {
             let data = this._client.parseAdvancedQueryResponse(response, 'id');
             if (data.count == 0)
                 return { count: 0, items: [] };
-            return { count: 1, items: [{ id: 0, cmd: "spotify", user: "Standard User" }] };
+
+            // In case the switcher menu is enabled, provide all users in the app as well
+            let switcherMenu = await this._client.command('pref plugin.spotty:accountSwitcherMenu ?');
+            if (switcherMenu) {
+                return this.accountSwitcher();
+            }
+
+            return { count: 1, items: [{ name: "Spotify", cmd: "spotify", user: "Standard User", config: [{id: 0}]}] };
         }
     } else if (url.endsWith("servicefolder")) {
         this._client = new LMSClient(this._zone_mac, this);
         this.get_call = async (rootItem, start, length) => {
 
-            var [cmd, id] = rootItem.split('%%%');
+            var cmd = rootItem.service;
+            var id = rootItem.id;
             if (cmd == "spotify")
                 cmd = "spotty";
 
@@ -392,6 +400,9 @@ module.exports = class List {
                 // This is a hack to make it work.
                 if (parsed_id.type == "service/search")
                     cmd = "search";
+            } else { // start menu
+                // Check whether we need to switch the account
+                this.accountSwitcher(rootItem.user);
             }
 
             var itemId = id ? "item_id:" + this._client.parseId(id).id : ""
@@ -414,6 +425,11 @@ module.exports = class List {
             if (transfer_playback_titles.includes(data.items[0].title))
                 isAudio = true
 
+            var switcher_titles = [
+                "Account",
+                "Konto"
+            ]
+
             let items = data.items;
             if (!items[0].id)
                 items = items.splice(1);
@@ -422,8 +438,10 @@ module.exports = class List {
             for (var key in items) {
                 if (!items[key].id)
                     continue;
-                // Don't show the search menu
-                if (items[key].image && items[key].image.includes("search")) {
+
+                // Don't show the search menu or the switcher menu
+                if ((items[key].image && items[key].image.includes("search")) ||
+                    switcher_titles.includes(items[key].name)) {
                     data.count--;
                     continue;
                 }
@@ -475,6 +493,57 @@ module.exports = class List {
     }
 
     this.reset();
+  }
+
+  async accountSwitcher(requestedAccount) {
+      // Find the switcher menu
+      let response = await this._client.command('spotty items 0 20');
+      let data = this._client.parseAdvancedQueryResponse(response, 'id');
+      for (var key in data.items) {
+          var switcher_titles = [
+              "Account",
+              "Konto"
+          ]
+          if (switcher_titles.includes(data.items[key].name)) {
+              let menu_id = data.items[key].id;
+              //Retrieve the current user
+              response = await this._client.command('spotty items 0 20 item_id:' + menu_id);
+              data = this._client.parseAdvancedQueryResponse(response, 'id');
+              if (!data.items[0].id)
+                  data.items = data.items.splice(1);
+              let current_user = decodeURIComponent(data.items[0].name);
+
+              // If no requestedAccount was provided as argument, return the available users
+              if (!requestedAccount) {
+                  //Get all other users
+                  response = await this._client.command('spotty items 0 20 item_id:' + menu_id + ".1");
+                  data = this._client.parseAdvancedQueryResponse(response, 'id');
+                  let items = data.items;
+                  data.items = []
+                  data.items.push({ name: "Spotify", cmd: "spotify", user: current_user, config: [{id: 0}]})
+                  for (var key in items) {
+                      if (!items[key].id)
+                          continue;
+                      data.items.push({ name: "Spotify", cmd: "spotify", user: decodeURIComponent(items[key].name), config: [{id: key + 1}]})
+                  }
+                  data.count = data.count + 1;
+                  return data;
+              } else {
+                  if (current_user == requestedAccount)
+                      return;
+
+                response = await this._client.command('spotty items 0 20 item_id:' + menu_id + ".1");
+                data = this._client.parseAdvancedQueryResponse(response, 'id');
+                for (var key in data.items) {
+                    // Once we found the requested account, switch it
+                    if (requestedAccount == decodeURIComponent(data.items[key].name)) {
+                        await this._client.command('spotty items 0 20 item_id:' + data.items[key].id);
+                        return;
+                    }
+                }
+              }
+          }
+      }
   }
 
   loggingCategory() {
