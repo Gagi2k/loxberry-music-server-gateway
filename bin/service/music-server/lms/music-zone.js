@@ -283,6 +283,12 @@ module.exports = class MusicZone {
   }
 
   async fetchCurrentSpotifyAccount() {
+    // Only if there is a switcher menu, the spotify account can be retrieved
+    if (this.switcherMenu == undefined)
+        this.switcherMenu = await this._client.command('pref plugin.spotty:accountSwitcherMenu ?');
+    if (this.switcherMenu != "1")
+        return;
+
     var list = await this._client.spotifyAccountSwitcher();
     if (list.count) {
         console.log(this._lc, "ACCOUNT SWITCHED TO ", list.items[0].user);

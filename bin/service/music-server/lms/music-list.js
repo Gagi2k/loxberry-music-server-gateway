@@ -379,7 +379,7 @@ module.exports = class List {
 
             // In case the switcher menu is enabled, provide all users in the app as well
             let switcherMenu = await this._client.command('pref plugin.spotty:accountSwitcherMenu ?');
-            if (switcherMenu) {
+            if (switcherMenu == "1") {
                 return this._client.spotifyAccountSwitcher();
             }
 
@@ -407,7 +407,7 @@ module.exports = class List {
 
             // Find a zone with that user and use it here
             // Create new client with that mac to use it now.
-            if (cmd == "spotty" && rootItem.user) {
+            if (cmd == "spotty" && rootItem.user != "Standard User") {
                 var zones = musicServer._zones;
                 for (key in zones) {
                     console.log(this._lc, "CURRENT", zones[key].getCurrentSpotifyAccount())
