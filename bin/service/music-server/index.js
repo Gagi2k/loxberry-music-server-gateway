@@ -176,6 +176,10 @@ module.exports = class MusicServer {
       // app which was just minimized
       this._pushAudioEvents(this._zones);
       this._pushAudioSyncEvents();
+
+      if (!this._msClient || !this._msClient.isSocketOpen()) {
+        this.connectToMiniserver();
+      }
     });
 
     httpServer.listen(this._config.port);
@@ -186,8 +190,9 @@ module.exports = class MusicServer {
 
     this._httpServer = httpServer;
     this._wsServer = wsServer;
+  }
 
-
+  async connectToMiniserver() {
     this._msClient = new MSClient(this);
     await this._msClient.connect(config.ms_host, config.ms_user, config.ms_password);
 

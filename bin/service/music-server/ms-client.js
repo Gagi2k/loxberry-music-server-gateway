@@ -115,6 +115,10 @@ module.exports = class MSClient {
         });
     }
 
+    isSocketOpen() {
+        return !this._socket._ws.socketClosed
+    }
+
     appConfig() {
         return this._appConfig;
     }
