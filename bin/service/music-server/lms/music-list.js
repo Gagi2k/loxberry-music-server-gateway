@@ -380,7 +380,7 @@ module.exports = class List {
             // In case the switcher menu is enabled, provide all users in the app as well
             let switcherMenu = await this._client.command('pref plugin.spotty:accountSwitcherMenu ?');
             if (switcherMenu) {
-                return this.accountSwitcher();
+                return this._client.spotifyAccountSwitcher();
             }
 
             return { count: 1, items: [{ name: "Spotify", cmd: "spotify", user: "Standard User", config: [{id: 0}]}] };
@@ -400,9 +400,23 @@ module.exports = class List {
                 // This is a hack to make it work.
                 if (parsed_id.type == "service/search")
                     cmd = "search";
-            } else { // start menu
+            }/* else { // start menu
                 // Check whether we need to switch the account
                 this.accountSwitcher(rootItem.user);
+            }*/
+
+            // Find a zone with that user and use it here
+            // Create new client with that mac to use it now.
+            if (cmd == "spotty" && rootItem.user) {
+                var zones = musicServer._zones;
+                for (key in zones) {
+                    console.log(this._lc, "CURRENT", zones[key].getCurrentSpotifyAccount())
+                    console.log(this._lc, "WAHNTED", rootItem.user);
+                    if (zones[key].getCurrentSpotifyAccount() == rootItem.user) {
+                        this._client = zones[key]._client;
+                        break;
+                    }
+                }
             }
 
             var itemId = id ? "item_id:" + this._client.parseId(id).id : ""
@@ -493,57 +507,6 @@ module.exports = class List {
     }
 
     this.reset();
-  }
-
-  async accountSwitcher(requestedAccount) {
-      // Find the switcher menu
-      let response = await this._client.command('spotty items 0 20');
-      let data = this._client.parseAdvancedQueryResponse(response, 'id');
-      for (var key in data.items) {
-          var switcher_titles = [
-              "Account",
-              "Konto"
-          ]
-          if (switcher_titles.includes(data.items[key].name)) {
-              let menu_id = data.items[key].id;
-              //Retrieve the current user
-              response = await this._client.command('spotty items 0 20 item_id:' + menu_id);
-              data = this._client.parseAdvancedQueryResponse(response, 'id');
-              if (!data.items[0].id)
-                  data.items = data.items.splice(1);
-              let current_user = decodeURIComponent(data.items[0].name);
-
-              // If no requestedAccount was provided as argument, return the available users
-              if (!requestedAccount) {
-                  //Get all other users
-                  response = await this._client.command('spotty items 0 20 item_id:' + menu_id + ".1");
-                  data = this._client.parseAdvancedQueryResponse(response, 'id');
-                  let items = data.items;
-                  data.items = []
-                  data.items.push({ name: "Spotify", cmd: "spotify", user: current_user, config: [{id: 0}]})
-                  for (var key in items) {
-                      if (!items[key].id)
-                          continue;
-                      data.items.push({ name: "Spotify", cmd: "spotify", user: decodeURIComponent(items[key].name), config: [{id: key + 1}]})
-                  }
-                  data.count = data.count + 1;
-                  return data;
-              } else {
-                  if (current_user == requestedAccount)
-                      return;
-
-                response = await this._client.command('spotty items 0 20 item_id:' + menu_id + ".1");
-                data = this._client.parseAdvancedQueryResponse(response, 'id');
-                for (var key in data.items) {
-                    // Once we found the requested account, switch it
-                    if (requestedAccount == decodeURIComponent(data.items[key].name)) {
-                        await this._client.command('spotty items 0 20 item_id:' + data.items[key].id);
-                        return;
-                    }
-                }
-              }
-          }
-      }
   }
 
   loggingCategory() {

@@ -19,6 +19,7 @@ module.exports = class MusicZone {
     this._zone_mac = config.zone_map[id];
     this._cfgFileName = "zone_config_" + this._id + ".json";
     this._audioDelay = 0;
+    this._spotifyAccount = ""
 
     this._player = {
       id: '',
@@ -57,6 +58,7 @@ module.exports = class MusicZone {
 
     this.getState();
     this.fetchAudioDelay();
+    this.fetchCurrentSpotifyAccount();
   }
 
   loggingCategory() {
@@ -108,6 +110,8 @@ module.exports = class MusicZone {
         await this.getStateAndPush();
     } else if (data.startsWith("prefset server playDelay")) {
         this.fetchAudioDelay();
+    } else if (data.startsWith("prefset plugin.spotty account")) {
+        this.fetchCurrentSpotifyAccount();
     }
   }
 
@@ -267,8 +271,19 @@ module.exports = class MusicZone {
     return this._audioDelay;
   }
 
+  getCurrentSpotifyAccount() {
+    return this._spotifyAccount;
+  }
+
   async fetchAudioDelay() {
       this._audioDelay = await this._client.command('playerpref playDelay ?')
+  }
+
+  async fetchCurrentSpotifyAccount() {
+    var list = await this._client.spotifyAccountSwitcher();
+    if (list.count) {
+        this._spotifyAccount = list.items[0].user;
+    }
   }
 
   async alarm(type, volume) {
@@ -463,6 +478,11 @@ module.exports = class MusicZone {
   async unSync() {
     await this._setMode("pause");
     await this._client.command('sync -')
+  }
+
+  async switchSpotifyAccount(account) {
+    if (account != this._spotifyAccount)
+        this._client.spotifyAccountSwitcher(account);
   }
 
   async _setMode(mode) {

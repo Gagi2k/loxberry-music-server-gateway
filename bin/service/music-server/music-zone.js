@@ -16,6 +16,7 @@ module.exports = class MusicZone {
 
     this._favoriteId = 0;
     this._audioDelay = 0;
+    this._spotifyAccount = "";
 
     this._player = {
       id: '',
@@ -142,6 +143,10 @@ module.exports = class MusicZone {
 
   getAudioDelay() {
     return this._audioDelay;
+  }
+
+  getCurrentSpotifyAccount() {
+    return this._spotifyAccount;
   }
 
   async alarm(type, volume) {
@@ -558,6 +563,18 @@ module.exports = class MusicZone {
       }
     }
     this._musicServer.pushAudioSyncEvent();
+  }
+
+  async switchSpotifyAccount(account) {
+    try {
+      await this._sendPlayerCommand('POST', '/switchSpotifyAccount/' + account);
+    } catch (err) {
+      if (err.type === 'BACKEND_ERROR') {
+        console.error(this._lc, 'Invalid reply for "switchSpotifyAccount": ' + err.message);
+      } else {
+        console.error(this._lc, 'Default behavior for "switchSpotifyAccount": ' + err.message);
+      }
+    }
   }
 
   _setMode(mode) {

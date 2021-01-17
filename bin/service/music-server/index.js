@@ -18,6 +18,8 @@ const MusicZone = require(config.plugin == "lms" ? './lms/music-zone' : './music
 const Log = require("./log");
 const console = new Log;
 
+const MSClient = require("./ms-client")
+
 const headers = {
   'Content-Type': 'text/plain; charset=utf-8',
     "Access-Control-Allow-Origin": "*",
@@ -45,6 +47,7 @@ const BASE_SERVICE = 6 * BASE_DELTA;
 
 module.exports = class MusicServer {
   constructor(cfg) {
+
     const zones = [];
 
     this._config = cfg;
@@ -92,7 +95,7 @@ module.exports = class MusicServer {
     return this._lc;
   }
 
-  start() {
+  async start() {
     if (this._httpServer || this._wsServer || this._dgramServer) {
       throw new Error('Music server already started');
     }
@@ -183,6 +186,48 @@ module.exports = class MusicServer {
 
     this._httpServer = httpServer;
     this._wsServer = wsServer;
+
+
+    this._msClient = new MSClient();
+    await this._msClient.connect(config.ms_host, config.ms_user, config.ms_password);
+
+    // Search for this mediaServer instance and save its ID
+    var mac = this._mac().replace(/:/g, "").toUpperCase();
+    var serverUUID;
+    for(let [key, value] of Object.entries(this._msClient.appConfig().mediaServer)) {
+        if (value.mac == mac)
+            serverUUID = key;
+    }
+
+    var msZoneConfig = []
+    for (let i = 0; i < config.zones; i++) {
+        msZoneConfig.push({});
+    }
+
+    // Search for all zoneConfigs of this server
+    for(let [key, value] of Object.entries(this._msClient.appConfig().controls)) {
+        if (value.details && value.details.server == serverUUID) {
+            msZoneConfig[value.details.playerid] = value;
+        }
+    }
+
+    // Register a callback handler to get notified when the usersettings changes
+    // This also gets called for the initial value
+    var userSettingUUID = this._msClient.appConfig().globalStates.userSettings;
+    this._msClient.onChanged(userSettingUUID, async (event) => {
+        // get the current settings
+        var response = await this._msClient.command("jdev/sps/getusersettings");
+
+        // Switch all zones to the spotify accounts from the settings
+        for(let [key, value] of Object.entries(response.currentSpotifyAccount)) {
+            let config = msZoneConfig.find( element => { return key == element.uuidAction });
+
+            this._zones[config.details.playerid - 1].switchSpotifyAccount(value);
+        }
+    });
+
+    // Request getting notifications for all value changes
+    await this._msClient.command("jdev/sps/enablebinstatusupdate");
   }
 
   call(method, uri, body = null) {
