@@ -2,6 +2,8 @@
 
 const os = require('os');
 const fs = require('fs');
+const Log = require("./log");
+const console = new Log;
 
 // Lets require and assign LxCommunicator if the global LxCommunicator object doesn't exist yet (Node.js) if (typeof LxCommunicator === 'undefined') { global.LxCommunicator = require('LxCommunicator');
 if (typeof LxCommunicator === 'undefined') {
@@ -15,12 +17,16 @@ function getUUID() {
     });
 }
 
+var lc;
+
 module.exports = class MSClient {
-    constructor() {
+    constructor(parent) {
 
         // Prepare our variables
         // uuid is used to identify a device
         this.uuid = getUUID()
+        this._lc = parent.loggingCategory().extend("MS");
+        lc = this._lc;
 
         this._cacheFile = ".LoxAPP3.json";
         this._appConfig = {};
@@ -59,11 +65,11 @@ module.exports = class MSClient {
                     this._wrongPassword = !this._invalidToken; // if it's not due to an invalid token, it has to be due to a invalid pass!
 
                     if (this._invalidToken) {
-                        console.error(this.name + "401 returned during token based authentication");
+                        console.error(lc, this.name + "401 returned during token based authentication");
                     } else if (this._wrongPassword) {
-                        console.error(this.name + "401 returned during password based authentication");
+                        console.error(lc, this.name + "401 returned during password based authentication");
                     } else {
-                        console.error(this.name + "401 returned during authentication - nothing set.");
+                        console.error(lc, this.name + "401 returned during authentication - nothing set.");
                     }
                 }
 
@@ -103,7 +109,7 @@ module.exports = class MSClient {
         events.forEach(function(event) {
             var callback = socket._callbacks[event.uuid];
             if (callback) {
-                console.log("CALLING CALLBACK FOR EVENT:", event);
+                console.log(lc, "Calling callback for event:", event);
                 callback(event);
             }
         });
@@ -114,15 +120,17 @@ module.exports = class MSClient {
     }
 
     async connect(server, user, pw) {
+        console.log(this._lc, "Connecting to " + server);
+
         await this._socket.open(server, user, pw);
 
-        console.log("CONNECTED");
+        console.log(this._lc, "Connected");
 
         //Check whether we need a new app json
         var lastModified = await this.command("jdev/sps/LoxAPPversion3");
 
         if (this._appConfig.lastModified != lastModified.LL.value) {
-            console.log("DOWNLOADING NEW LoxAPP3.json")
+            console.log(this._lc, "Downloading new LoxAPP3.json")
 
             var response = await this.command("data/LoxAPP3.json");
             fs.writeFileSync(this._cacheFile, response);
@@ -131,6 +139,7 @@ module.exports = class MSClient {
     }
 
     async command(cmd) {
+        console.log(this._lc, "REQUEST: " + cmd);
         return this._socket.send(cmd);
     }
 

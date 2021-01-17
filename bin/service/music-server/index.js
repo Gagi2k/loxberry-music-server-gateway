@@ -188,7 +188,7 @@ module.exports = class MusicServer {
     this._wsServer = wsServer;
 
 
-    this._msClient = new MSClient();
+    this._msClient = new MSClient(this);
     await this._msClient.connect(config.ms_host, config.ms_user, config.ms_password);
 
     // Search for this mediaServer instance and save its ID
