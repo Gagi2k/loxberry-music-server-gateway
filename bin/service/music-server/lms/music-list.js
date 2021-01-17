@@ -169,7 +169,7 @@ module.exports = class List {
                         urlList.push(parsed_id.id);
                     } else if (parsed_id.type.startsWith('service/')) {
                         list = parent.getServiceFolderList()
-                        id = parsed_id.type.split('/').pop() + '%%%' + id
+                        id = parsed_id.type.split('/').pop() + '%%%' + '%%%' + id
                     } else {
                         list = parent.getLibraryList()
                     }
@@ -389,8 +389,7 @@ module.exports = class List {
         this._client = new LMSClient(this._zone_mac, this);
         this.get_call = async (rootItem, start, length) => {
 
-            var cmd = rootItem.service;
-            var id = rootItem.id;
+            var [cmd, user, id] = rootItem.split('%%%');
             if (cmd == "spotify")
                 cmd = "spotty";
 
@@ -402,17 +401,17 @@ module.exports = class List {
                     cmd = "search";
             }/* else { // start menu
                 // Check whether we need to switch the account
-                this.accountSwitcher(rootItem.user);
+                this.accountSwitcher(user);
             }*/
 
             // Find a zone with that user and use it here
             // Create new client with that mac to use it now.
-            if (cmd == "spotty" && rootItem.user != "Standard User") {
+            if (cmd == "spotty" && user && user != "Standard User") {
                 var zones = musicServer._zones;
                 for (key in zones) {
                     console.log(this._lc, "CURRENT", zones[key].getCurrentSpotifyAccount())
-                    console.log(this._lc, "WAHNTED", rootItem.user);
-                    if (zones[key].getCurrentSpotifyAccount() == rootItem.user) {
+                    console.log(this._lc, "WANTED", user);
+                    if (zones[key].getCurrentSpotifyAccount() == user) {
                         this._client = zones[key]._client;
                         break;
                     }
