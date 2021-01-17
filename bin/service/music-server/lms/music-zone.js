@@ -111,6 +111,9 @@ module.exports = class MusicZone {
     } else if (data.startsWith("prefset server playDelay")) {
         this.fetchAudioDelay();
     } else if (data.startsWith("prefset plugin.spotty account")) {
+         await new Promise((resolve) => {
+            setTimeout(resolve, 100);
+         });
         this.fetchCurrentSpotifyAccount();
     }
   }
