@@ -7,7 +7,7 @@ const console = new Log;
 
 // Lets require and assign LxCommunicator if the global LxCommunicator object doesn't exist yet (Node.js) if (typeof LxCommunicator === 'undefined') { global.LxCommunicator = require('LxCommunicator');
 if (typeof LxCommunicator === 'undefined') {
-    global.LxCommunicator = require('LxCommunicator');
+    global.LxCommunicator = require('lxcommunicator');
 }
 
 function getUUID() {
