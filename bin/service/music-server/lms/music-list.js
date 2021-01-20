@@ -458,13 +458,28 @@ module.exports = class List {
                     data.count--;
                     continue;
                 }
+
+
                 let id = "service/" + cmd + ":" + items[key].id
                 if (items[key].type != "playlist" && items[key].isaudio == "1" &&
                     jsonResponse.item_loop[key] && jsonResponse.item_loop[key].presetParams)
                     id = "url:" + jsonResponse.item_loop[key].presetParams.favorites_url;
 
-                // Replace the spotty images by our own
                 var image = await this._client.extractArtwork(items[key].url, items[key])
+
+                var icon_name = /([^\/]*).png$/.exec(image);
+                if (icon_name)
+                    icon_name = icon_name[1];
+
+                console.log(this._lc, icon_name, itemId, config.filteredSpotifyEntries.includes(icon_name));
+
+                // Filter out entries we don't want to show
+                if (!itemId && icon_name && config.filteredSpotifyEntries.includes(icon_name)) {
+                    data.count--;
+                    continue;
+                }
+
+                // Replace the spotty images by our own
                 if (image && image.includes("Spotty")) {
                     var host = config.ip ? config.ip : os.hostname();
                     var url = "http://" + host + ":7091/"

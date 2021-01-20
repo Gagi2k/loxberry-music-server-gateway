@@ -24,6 +24,8 @@
         "talk",
         "sports"
     ],
+    "filteredSpotifyEntries": [
+    ],
     "scripts": {
         "playUploadedFile": "echo {{name}} {{zones}} {{path}}",
         "playAlarmSound": "echo {{name}} {{type}} {{volume}}",
