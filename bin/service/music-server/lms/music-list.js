@@ -471,8 +471,6 @@ module.exports = class List {
                 if (icon_name)
                     icon_name = icon_name[1];
 
-                console.log(this._lc, icon_name, itemId, config.filteredSpotifyEntries.includes(icon_name));
-
                 // Filter out entries we don't want to show
                 if (!itemId && icon_name && config.filteredSpotifyEntries.includes(icon_name)) {
                     data.count--;
