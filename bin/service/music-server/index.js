@@ -203,6 +203,7 @@ module.exports = class MusicServer {
         if (value.mac == mac)
             serverUUID = key;
     }
+    console.log(this._lc, "MUSIC SERVER UUID", serverUUID);
 
     var msZoneConfig = []
     for (let i = 0; i < config.zones; i++) {
@@ -212,6 +213,7 @@ module.exports = class MusicServer {
     // Search for all zoneConfigs of this server
     for(let [key, value] of Object.entries(this._msClient.appConfig().controls)) {
         if (value.details && value.details.server == serverUUID) {
+            console.log(this._lc, "MS ZONE CONFIG", value);
             msZoneConfig[value.details.playerid] = value;
         }
     }
@@ -222,6 +224,8 @@ module.exports = class MusicServer {
     this._msClient.onChanged(userSettingUUID, async (event) => {
         // get the current settings
         var response = await this._msClient.command("jdev/sps/getusersettings");
+
+        console.log(this._lc, "NEW USER SETTINGS", response);
 
         // Switch all zones to the spotify accounts from the settings
         for(let [key, value] of Object.entries(response.currentSpotifyAccount)) {
