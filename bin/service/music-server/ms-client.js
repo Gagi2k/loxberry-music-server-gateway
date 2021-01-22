@@ -116,7 +116,7 @@ module.exports = class MSClient {
     }
 
     isSocketOpen() {
-        return !this._socket._ws.socketClosed
+        return this._socket._ws && !this._socket._ws.socketClosed
     }
 
     appConfig() {

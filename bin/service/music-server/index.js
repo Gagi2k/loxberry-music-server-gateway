@@ -226,6 +226,8 @@ module.exports = class MusicServer {
         // Switch all zones to the spotify accounts from the settings
         for(let [key, value] of Object.entries(response.currentSpotifyAccount)) {
             let config = msZoneConfig.find( element => { return key == element.uuidAction });
+            if (!config)
+                continue;
 
             this._zones[config.details.playerid - 1].switchSpotifyAccount(value);
         }
