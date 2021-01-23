@@ -471,6 +471,9 @@ module.exports = class List {
                 if (icon_name)
                     icon_name = icon_name[1];
 
+                if (transfer_playback_titles.includes(items[key].name))
+                    icon_name = "transfer";
+
                 // Filter out entries we don't want to show
                 if (!itemId && icon_name && config.filteredSpotifyEntries.includes(icon_name)) {
                     data.count--;
@@ -478,32 +481,9 @@ module.exports = class List {
                 }
 
                 // Replace the spotty images by our own
-                if (image && image.includes("Spotty")) {
+                if (image && image.includes("Spotty") && icon_name) {
                     var host = config.ip ? config.ip : os.hostname();
-                    var url = "http://" + host + ":7091/"
-                    if (image.endsWith("home.png"))
-                        image = url + "icons/home.svg";
-                    else if (image.endsWith("account.png"))
-                        image = url + "icons/account.svg";
-                    else if (image.endsWith("news.png"))
-                        image = url + "icons/news.svg";
-                    else if (image.endsWith("toptracks.png"))
-                        image = url + "icons/toptracks.svg";
-                    else if (image.endsWith("podcasts.png"))
-                        image = url + "icons/podcasts.svg";
-                    else if (image.endsWith("genres.png"))
-                        image = url + "icons/genres.svg";
-                    else if (image.endsWith("playlist.png"))
-                        image = url + "icons/playlist.svg";
-                    else if (image.endsWith("album.png"))
-                        image = url + "icons/album.svg";
-                    else if (image.endsWith("artist.png"))
-                        image = url + "icons/artist.svg";
-                    else if (image.endsWith("inbox.png"))
-                        image = url + "icons/inbox.svg";
-
-                    if (transfer_playback_titles.includes(items[key].name))
-                        image = url + "icons/transfer.svg";
+                    image = "http://" + host + ":7091/icons/" + icon_name + ".svg"
                 }
 
                 data.items.push({
