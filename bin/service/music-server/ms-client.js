@@ -123,7 +123,13 @@ module.exports = class MSClient {
         return this._appConfig;
     }
 
+    user() {
+        return this._user;
+    }
+
     async connect(server, user, pw) {
+        this._user = user;
+
         console.log(this._lc, "Connecting to " + server);
 
         await this._socket.open(server, user, pw);

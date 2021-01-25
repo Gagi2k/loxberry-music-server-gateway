@@ -177,7 +177,7 @@ module.exports = class MusicServer {
       this._pushAudioEvents(this._zones);
       this._pushAudioSyncEvents();
 
-      if (!this._msClient || !this._msClient.isSocketOpen()) {
+      if (!this._msClients || !this._msClients[0].isSocketOpen()) {
         this.connectToMiniserver();
       }
     });
@@ -193,13 +193,17 @@ module.exports = class MusicServer {
   }
 
   async connectToMiniserver() {
-    this._msClient = new MSClient(this);
-    await this._msClient.connect(config.ms_host, config.ms_user, config.ms_password);
+    this._msClients = [];
+    for (var key in config.ms.users) {
+        this._msClients.push(new MSClient(this));
+        await this._msClients[key].connect(config.ms.host, config.ms.users[key].user, config.ms.users[key].password);
+    }
+    var client = this._msClients[0];
 
     // Search for this mediaServer instance and save its ID
     var mac = this._mac().replace(/:/g, "").toUpperCase();
     var serverUUID;
-    for(let [key, value] of Object.entries(this._msClient.appConfig().mediaServer)) {
+    for(let [key, value] of Object.entries(client.appConfig().mediaServer)) {
         if (value.mac == mac)
             serverUUID = key;
     }
@@ -211,24 +215,94 @@ module.exports = class MusicServer {
     }
 
     // Search for all zoneConfigs of this server
-    for(let [key, value] of Object.entries(this._msClient.appConfig().controls)) {
+    for(let [key, value] of Object.entries(client.appConfig().controls)) {
         if (value.details && value.details.server == serverUUID) {
-            console.log(this._lc, "MS ZONE CONFIG", value);
+            console.log(this._lc, "MS ZONE CONFIG ", key, value);
             msZoneConfig[value.details.playerid] = value;
         }
     }
 
+    // Find the uuids for all users for which we want to keep the settings in sync
+    var users = JSON.parse((await client.command("jdev/sps/getuserlist2")).LL.value);
+    console.log(this._lc, "AVAILABLE USERS", users);
+
+    var msClientMap = {}
+    for (key in this._msClients) {
+        let usrObj = users.find( element => { return this._msClients[key].user() == element.name });
+
+        msClientMap[usrObj.uuid] = this._msClients[key];
+    }
+    console.log(this._lc, "USER MAP", Object.keys(msClientMap));
+
     // Register a callback handler to get notified when the usersettings changes
     // This also gets called for the initial value
-    var userSettingUUID = this._msClient.appConfig().globalStates.userSettings;
-    this._msClient.onChanged(userSettingUUID, async (event) => {
-        // get the current settings
-        var response = await this._msClient.command("jdev/sps/getusersettings");
+    var userSettingUUID = client.appConfig().globalStates.userSettings;
+    var currentTS = undefined;
+
+    // Only register on one client
+    // The change request contains the information which user settings changed
+    client.onChanged(userSettingUUID, async (event) => {
+        console.log(this._lc, "CURRENT TS", currentTS);
+        // identify which user has changed and get the socket for this user
+        var text = JSON.parse(event.text);
+        var keys = Object.keys(text);
+        var client = undefined;
+        console.log(this._lc, keys);
+        if (keys.length) {
+            for (var i in keys) {
+                var userUUid = keys[i];
+                var ts = text[userUUid];
+
+                console.log(this._lc, userUUid, ts);
+
+                // Ignore events for all users not in our list
+                var newClient = msClientMap[userUUid];
+                if (!newClient)
+                    continue;
+
+                // All changes <= the current timestamp are ignored
+                if (currentTS && ts <= currentTS)
+                    continue;
+
+                client = newClient;
+                break;
+            }
+        } else { // If there no text data is provided we requested the change
+            client = this._msClients[0];
+        }
+
+        if (!client)
+            return;
+
+        // get the new settings
+        var response = await client.command("jdev/sps/getusersettings");
+        var accounts = response.currentSpotifyAccount;
+
+        // Calculate timestamp
+        var now = new Date()
+        var then = new Date(2009,0,1,1,0,0) // 1.1.2019 00:00
+        currentTS = Math.floor((now.getTime() - then.getTime()) / 1000);
+        console.log(this._lc, "TS", currentTS);
+
+        // save new account for all other users
+        for (var key in this._msClients) {
+            if (this._msClients[key] == client)
+                continue;
+
+            var cur_client = this._msClients[key]
+            // get settings
+            var response = await cur_client.command("jdev/sps/getusersettings");
+            // modify account
+            response.currentSpotifyAccount = accounts;
+            response.ts = currentTS;
+            // write settings
+            await cur_client.command("jdev/sps/setusersettings/" + currentTS + "/" + JSON.stringify(response));
+        }
 
         console.log(this._lc, "NEW USER SETTINGS", response);
 
         // Switch all zones to the spotify accounts from the settings
-        for(let [key, value] of Object.entries(response.currentSpotifyAccount)) {
+        for(let [key, value] of Object.entries(accounts)) {
             let config = msZoneConfig.find( element => { return key == element.uuidAction });
             if (!config)
                 continue;
@@ -238,7 +312,7 @@ module.exports = class MusicServer {
     });
 
     // Request getting notifications for all value changes
-    await this._msClient.command("jdev/sps/enablebinstatusupdate");
+    await client.command("jdev/sps/enablebinstatusupdate");
   }
 
   call(method, uri, body = null) {

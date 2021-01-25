@@ -7,10 +7,13 @@
     "lms_host": "localhost",
     "lms_port": 9000,
     "lms_cli_port": 9090,
-    "ms_host": "<ip>",
-    "ms_user": "<user>",
-    "ms_password": "<pw>",
-    "uploadPath": "/Volumes/Music_Files",
+    "ms": {
+        "host": "<host>",
+        "users": [
+            { "user": "<user1>", "password": "<pw1>" }
+        ]
+    },
+    "uploadPath": ".",
     "uploadPlaybackPath": "/home/music/music_files",
     "cors_port": 7092,
     "macAddress": "",
