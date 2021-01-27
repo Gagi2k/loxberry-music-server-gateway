@@ -289,7 +289,9 @@ module.exports = class MusicServer {
         var accounts = response.currentSpotifyAccount;
 
         // Calculate timestamp
-        var now = new Date()
+        var currentDate= await client.command("jdev/sys/date");
+        var currentTime = await client.command("jdev/sys/time");
+        var now = new Date(currentDate.LL.value + "T" + currentTime.LL.value);
         var then = new Date(2009,0,1,1,0,0) // 1.1.2019 00:00
         currentTS = Math.floor((now.getTime() - then.getTime()) / 1000);
         console.log(this._lc, "TS", currentTS);
