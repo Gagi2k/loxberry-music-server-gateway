@@ -196,7 +196,17 @@ module.exports = class MusicServer {
     this._msClients = [];
     for (var key in config.ms.users) {
         this._msClients.push(new MSClient(this));
-        await this._msClients[key].connect(config.ms.host, config.ms.users[key].user, config.ms.users[key].password);
+        try {
+            await this._msClients[key].connect(config.ms.host, config.ms.users[key].user, config.ms.users[key].password);
+        } catch (err) {
+            debug.enable("MSG");
+            console.error(this._lc, "Error while communicating to the Miniserver");
+            if (err.errorCode == 401)
+                console.error(this._lc, "401 returned during password based authentication");
+            else
+                console.error(this._lc, "Unknown error. Consider increasing the log level");
+            return;
+        }
     }
     var client = this._msClients[0];
 

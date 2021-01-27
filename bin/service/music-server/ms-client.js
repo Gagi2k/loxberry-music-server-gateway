@@ -89,21 +89,21 @@ module.exports = class MSClient {
         this._socket._callbacks = {};
     }
 
-//    socketOnDataProgress(socket, progress) {
-//        console.log(progress);
-//    }
-//    socketOnTokenConfirmed(socket, response) {
-//        console.log(response);
-//    }
-//    socketOnTokenReceived(socket, result) {
-//        console.log(result);
-//    }
-//    socketOnTokenRefresh(socket, newTkObj) {
-//        console.log(newTkObj);
-//    }
-//    socketOnConnectionClosed(socket, code) {
-//        console.log(code);
-//    }
+    socketOnDataProgress(socket, progress) {
+        console.log(lc, progress);
+    }
+    socketOnTokenConfirmed(socket, response) {
+        console.log(lc, response);
+    }
+    socketOnTokenReceived(socket, result) {
+        console.log(lc, result);
+    }
+    socketOnTokenRefresh(socket, newTkObj) {
+        console.log(lc, newTkObj);
+    }
+    socketOnConnectionClosed(socket, code) {
+        console.log(lc, code);
+    }
 
     socketOnEventReceived(socket, events, type) {
         events.forEach(function(event) {
