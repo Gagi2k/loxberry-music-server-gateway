@@ -167,10 +167,17 @@ module.exports = class MusicZone {
 
   async getState() {
         console.log(this._lc, "REQUESTING ZONE STATE FROM LMS")
+        let power = await this._client.command('power ?')
+
+        if (power != "0" && power != "1" ) {
+            console.log(this._lc, "UNKNOWN ZONE OR ZONE OFFLINE")
+            this._player.power = 0
+            return;
+        }
+
         let volume = await this._client.command('mixer volume ?')
         let repeat = await this._client.command('playlist repeat ?')
         let shuffle = await this._client.command('playlist shuffle ?')
-        let power = await this._client.command('power ?')
         let mode = await this._client.command('mode ?')
 
         volume = parseInt(volume);
