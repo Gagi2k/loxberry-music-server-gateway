@@ -360,12 +360,24 @@ module.exports = class List {
                     continue;
                 }
 
+                var image = await this._client.extractArtwork(items[key].url, items[key])
+
+                var icon_name = /([^\/]*).png$/.exec(image);
+                if (icon_name)
+                    icon_name = icon_name[1];
+
+                // Replace some images by our own
+                if (image && icon_name) {
+                    var host = config.ip ? config.ip : os.hostname();
+                    image = "http://" + host + ":7091/icons/" + icon_name + ".svg"
+                }
+
                 data.items.push({
                                    // Always 0, as this is indicates no item_id for the servicefolder command
                                    id: 0,
                                    cmd: items[key].cmd,
                                    name: decodeURIComponent(items[key].name),
-                                   icon: await this._client.extractArtwork(items[key].url, items[key])
+                                   image: image
                                })
             }
             return data

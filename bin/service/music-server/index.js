@@ -1151,7 +1151,11 @@ module.exports = class MusicServer {
   async _audioCfgGetRadios(url) {
     const {total, items} = await this._master.getRadioList().get(undefined, 0, 50);
 
-    return this._response(url, 'getradios', items);
+    return this._response(url, 'getradios', items.map((item, i) =>{
+        if (item && item.image)
+            item.coverurl = this._imageUrl(item.image)
+        return item
+    }));
   }
 
   async _audioCfgGetRoomFavs(url) {
