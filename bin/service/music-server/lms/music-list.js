@@ -79,6 +79,7 @@ module.exports = class List {
 
         this.get_call = async (rootItem, start, length) => {
             for (var key in fav_items) {
+                fav_items[key].name = fav_items[key].title;
                 if (fav_items[key].image)
                     fav_items[key].image = this._client.resolveUrl(fav_items[key].image)
             }
