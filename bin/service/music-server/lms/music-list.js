@@ -170,6 +170,7 @@ module.exports = class List {
                         urlList.push(parsed_id.id);
                     } else if (parsed_id.type.startsWith('service/')) {
                         list = parent.getServiceFolderList()
+                        // All arguments we don't need are skipped
                         id = parsed_id.type.split('/').pop() + '%%%' + '%%%' + id
                     } else {
                         list = parent.getLibraryList()
@@ -336,8 +337,10 @@ module.exports = class List {
                 data.items = []
                 for (var key in items) {
                     let isTrack = cmd == "tracks" || items[key].type == "track";
+                    let id = isTrack ? "url:" + items[key].url : config.id_key + ":" + items[key][config.split_key];
                     data.items.push({
-                                       id: isTrack ? "url:" + items[key].url : config.id_key + ":" + items[key][config.split_key],
+                                       id,
+                                       lastSelectedItem: { id },
                                        title: decodeURIComponent(items[key][name_key]),
                                        image: await this._client.extractArtwork(items[key].url, items[key]),
                                        type: isTrack  ? 2 : 1
@@ -502,6 +505,9 @@ module.exports = class List {
                 data.items.push({
                                    id,
                                    name: decodeURIComponent(items[key].name),
+                                   username: user,
+                                   identifier: cmd,
+                                   lastSelectedItem: { id },
                                    image,
                                    type: items[key].type == "playlist" ? 11 //playlist
                                                                        : isAudio || items[key].isaudio == "1" ? 2 : 1 //folder

@@ -184,8 +184,11 @@ module.exports = class MusicMaster {
         data.items = []
         for (var key in items) {
             let isTrack = category == "tracks" || items[key].type == "track";
+            let id = isTrack ? "url:" + items[key].url : config.id_key + ":" + items[key][config.split_key];
             data.items.push({
-                                id: isTrack ? "url:" + items[key].url : config.id_key + ":" + items[key][config.split_key],
+                                id,
+                                identifier: category,
+                                lastSelectedItem: { id },
                                 title: decodeURIComponent(items[key][config.name_key]),
                                 image: await this._client.extractArtwork(items[key].url, items[key]),
                                 type: isTrack ? 2 : 1
@@ -202,8 +205,11 @@ module.exports = class MusicMaster {
         for (var key in items) {
             if (!items[key].id)
                 continue;
+            let id = "service/search:" + items[key].id;
             data.items.push({
-                                id: "service/search:" + items[key].id,
+                                id,
+                                identifier: "search",
+                                lastSelectedItem: { id },
                                 title: decodeURIComponent(items[key].name),
                                 image: await this._client.extractArtwork(items[key].url, items[key]),
                                 type: items[key].type != "link"  ? 2 : 1
@@ -237,8 +243,11 @@ module.exports = class MusicMaster {
             if (category == this.search_menu_id && key <= folderLength)
                 continue;
 
+            let id = "service/spotty:" + items[key].id;
             data.items.push({
-                                id: "service/spotty:" + items[key].id,
+                                id,
+                                identifier: "spotty",
+                                lastSelectedItem: { id },
                                 title: decodeURIComponent(items[key].name),
                                 image: await this._client.extractArtwork(items[key].url, items[key]),
                                 type: items[key].type == "playlist" ? 11 //playlist
