@@ -1262,6 +1262,7 @@ module.exports = class MusicServer {
 
         this._wsConnections.forEach((connection) => {
           connection.send(JSON.stringify(search_response, null, 2));
+          console.log(this._lcHTTP, 'RESP:', JSON.stringify(search_response));
         });
     }
 
@@ -2062,10 +2063,15 @@ module.exports = class MusicServer {
       }
 
       this._imageStore[item.id] = item.image;
-      type = item.type ? item.type : type
+      type = item.type ? item.type : type;
       let newBase = base
       if (start != undefined)
             newBase += i;
+      var lastSelectedItem = undefined;
+      if (item.lastSelectedItem && item.lastSelectedItem.id) {
+          lastSelectedItem = item.lastSelectedItem;
+          lastSelectedItem.id = this._encodeId(item.lastSelectedItem.id, newBase);
+      }
 
       return {
         type,
@@ -2078,6 +2084,9 @@ module.exports = class MusicServer {
         artist: item.artist ? item.artist : "",
         album: item.album ? item.album : "",
         station: item.station ? item.station : "",
+        username: item.username ? item.username : undefined,
+        identifier: item.identifier ? item.identifier : undefined,
+        lastSelectedItem: lastSelectedItem,
       };
     };
   }
