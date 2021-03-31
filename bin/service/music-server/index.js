@@ -257,12 +257,13 @@ module.exports = class MusicServer {
         var text = JSON.parse(event.text);
         var keys = Object.keys(text);
         var client = undefined;
-        console.log(this._lc, keys);
+        console.log(this._lc, "Updated settings keys:", keys);
         if (keys.length) {
             for (var i in keys) {
                 var userUUid = keys[i];
                 var ts = text[userUUid];
 
+                console.log(this._lc, "Timestamp of settings object:");
                 console.log(this._lc, userUUid, ts);
 
                 // Ignore events for all users not in our list
@@ -294,7 +295,7 @@ module.exports = class MusicServer {
         var now = new Date(currentDate.LL.value + "T" + currentTime.LL.value);
         var then = new Date(2009,0,1,1,0,0) // 1.1.2019 00:00
         currentTS = Math.floor((now.getTime() - then.getTime()) / 1000);
-        console.log(this._lc, "TS", currentTS);
+        console.log(this._lc, "new TS for settings update", currentTS);
 
         // save new account for all other users
         for (var key in this._msClients) {
@@ -302,6 +303,7 @@ module.exports = class MusicServer {
                 continue;
 
             var cur_client = this._msClients[key]
+            console.log(this._lc, "Updating settings for user:", cur_client.user())
             // get settings
             var response = await cur_client.command("jdev/sps/getusersettings");
             // modify account

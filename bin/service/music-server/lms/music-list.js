@@ -424,9 +424,9 @@ module.exports = class List {
             // Create new client with that mac to use it now.
             if (cmd == "spotty" && user && user != "Standard User") {
                 var zones = musicServer._zones;
+                console.log(this._lc, "Searching for zone with matching user:", user);
                 for (key in zones) {
-                    console.log(this._lc, "CURRENT", zones[key].getCurrentSpotifyAccount())
-                    console.log(this._lc, "WANTED", user);
+                    console.log(this._lc, "Zone:", key , "User:", zones[key].getCurrentSpotifyAccount())
                     if (zones[key].getCurrentSpotifyAccount() == user) {
                         this._client = zones[key]._client;
                         break;
