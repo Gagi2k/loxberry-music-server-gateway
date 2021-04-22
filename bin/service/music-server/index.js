@@ -1245,7 +1245,8 @@ module.exports = class MusicServer {
         for (var j in cats) {
             const [category, length] = cats[j].split('#');
             let response = await this._master.search(type, category, search, 0, length);
-            response.items = response.items.map(this._convert(2, BASE_SERVICE)),
+            const base = type == 'local' ? BASE_LIBRARY : BASE_SERVICE;
+            response.items = response.items.map(this._convert(2, base)),
             response.caption = response.name;
             if (response.count > length) {
                 response.link = ['audio/cfg/search', type, category, search, 0, 50].join('/');
@@ -2070,12 +2071,28 @@ module.exports = class MusicServer {
       if (start != undefined)
             newBase += i;
       var lastSelectedItem = undefined;
-      if (item.lastSelectedItem && item.lastSelectedItem.id) {
-          lastSelectedItem = item.lastSelectedItem;
-          lastSelectedItem.id = this._encodeId(item.lastSelectedItem.id, newBase);
+
+      var contentType = "";
+      var mediaType = "";
+      if (base == BASE_SERVICE) {
+         contentType = "Service";
+         mediaType = "service";
+      } else if (base == BASE_PLAYLIST) {
+         contentType = "Playlists";
+         mediaType = "playlist";
+      } else if (base == BASE_LIBRARY) {
+         contentType = "Library";
+         mediaType = "library";
+      } else if (base == BASE_INPUT) {
+         contentType = "LineIn";
+         mediaType = "input";
+      } else if (base == BASE_FAVORITE_ZONE ||
+                 base == BASE_FAVORITE_GLOBAL) {
+         contentType = "ZoneFavorites";
+         mediaType = "favorites";
       }
 
-      return {
+      var result = {
         type,
         slot: start + i + 1,
         audiopath: this._encodeId(item.id, newBase),
@@ -2089,7 +2106,16 @@ module.exports = class MusicServer {
         username: item.username ? item.username : undefined,
         identifier: item.identifier ? item.identifier : undefined,
         lastSelectedItem: lastSelectedItem,
+        contentType,
+        mediaType
       };
+
+      // This is needed to be able to show the correct view when saving it as a shortuct
+      if (item.lastSelectedItem) {
+          result.lastSelectedItem = JSON.parse(JSON.stringify(result));;
+      }
+
+      return result;
     };
   }
 
