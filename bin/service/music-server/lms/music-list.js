@@ -129,8 +129,12 @@ module.exports = class List {
                     // This won't work if this function is called multiple times as the data.count
                     // would be wrong. Instead we should fetch all favs in one call (currently 50)
                     if (!items[key].playlist.startsWith("temp_")) {
+                        let id = "playlist:" + items[key].id;
                         data.items.push({
-                                           id: "playlist:" + items[key].id,
+                                           id,
+                                           lastSelectedItem: { id },
+                                           username: 'noUser',
+                                           identifier: 'lms',
                                            title: decodeURIComponent(items[key]["playlist"]),
                                            // playlists don't have a artwork
                                            image: undefined,
