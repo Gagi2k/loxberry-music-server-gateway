@@ -1604,9 +1604,11 @@ module.exports = class MusicServer {
 
   async _audioPlayUrl(url) {
     const [, zoneId, , ...lastArg] = url.split('/');
-    const id = lastArg.join('/');
+    let id = lastArg.join('/');
     const zone = this._zones[+zoneId - 1];
     var decodedId, favoriteId;
+    if (id.includes("/parentpath/"))
+        id = lastArg[0];
     try {
        [decodedId, favoriteId] = this._decodeId(id);
     } catch {}
