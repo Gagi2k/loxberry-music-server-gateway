@@ -1780,6 +1780,16 @@ module.exports = class MusicServer {
   async _audioRoomFavPlus(url) {
     const [, zoneId] = url.split('/');
     const zone = this._zones[+zoneId - 1];
+
+    if (zone.getMode() === 'stop') {
+        //If the playqueue is empty start the first room favorite
+        if (zone.getTrack().id == "")
+            await this._audioRoomFavPlay('audio/' + zoneId + "/roomfav/play/1");
+        else
+            await zone.play(null, 0);
+        return this._emptyCommand(url, []);
+    }
+
     const favoriteId = zone.getFavoriteId();
     const favorites = await zone.getFavoritesList().get(undefined, 0, 8);
 
