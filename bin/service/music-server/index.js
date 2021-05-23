@@ -251,8 +251,8 @@ module.exports = class MusicServer {
 
     // Only register on one client
     // The change request contains the information which user settings changed
-    client.onChanged(userSettingUUID, async (event) => {
-        console.log(this._lc, "CURRENT TS", currentTS);
+    client.onChanged(userSettingUUID, async (event) => {          
+        console.log(this._lc, "Incoming settings update: current Timestamp:", currentTS);
         // identify which user has changed and get the socket for this user
         var text = JSON.parse(event.text);
         var keys = Object.keys(text);
@@ -268,26 +268,34 @@ module.exports = class MusicServer {
 
                 // Ignore events for all users not in our list
                 var newClient = msClientMap[userUUid];
-                if (!newClient)
+                if (!newClient) {
+                    console.log(this._lc, "ignoring update: unknown user");
                     continue;
+                }
 
                 // All changes <= the current timestamp are ignored
-                if (currentTS && ts <= currentTS)
+                if (currentTS && ts <= currentTS) {
+                    console.log(this._lc, "ignoring update: same timestamp (no change)");
                     continue;
+                }
 
                 client = newClient;
                 break;
             }
         } else { // If there no text data is provided we requested the change
             client = this._msClients[0];
+            console.log(this._lc, "no settings object in settings update: Using first user");
         }
 
         if (!client)
             return;
 
+        console.log(this._lc, "Update from user: ", client.user());
+
         // get the new settings
         var response = await client.command("jdev/sps/getusersettings");
         var accounts = response.currentSpotifyAccount;
+        console.log(this._lc, "new Account Settings", accounts);
 
         // Calculate timestamp
         var currentDate= await client.command("jdev/sys/date");
@@ -313,13 +321,13 @@ module.exports = class MusicServer {
             await cur_client.command("jdev/sps/setusersettings/" + currentTS + "/" + JSON.stringify(response));
         }
 
-        console.log(this._lc, "NEW USER SETTINGS", response);
-
         // Switch all zones to the spotify accounts from the settings
         for(let [key, value] of Object.entries(accounts)) {
             let config = msZoneConfig.find( element => { return key == element.uuidAction });
-            if (!config)
+            if (!config) {
+                console.log(this._lc, "Couldn't find zone:", key);
                 continue;
+            }
 
             this._zones[config.details.playerid - 1].switchSpotifyAccount(value);
         }
