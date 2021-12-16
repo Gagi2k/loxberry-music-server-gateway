@@ -163,7 +163,8 @@ module.exports = class MusicMaster {
   }
 
   async search(type, category, search, start, length) {
-    if (type == 'local') {
+    console.log(this._lc, "SEARCH:", type, category, search, start, length)
+    if (type == 'local' || type == "library") {
         // This is a copy from the music-list
         // TODO get rid of the copy and share it somehow
         const itemMap = [{ name: 'Artists', cmd: 'artists', next_cmd: 'albums', filter_key: "artist_id", name_key: 'artist', split_key: 'id', id_key: 'artist' },
@@ -175,19 +176,19 @@ module.exports = class MusicMaster {
                          { name: 'Playlists', cmd: 'playlists', next_cmd: '', filter_key: "playlist_id", name_key: 'playlist', split_key: 'id', id_key: 'playlist' }
                         ];
 
-        let config = itemMap.find( element => { return category == element.cmd });
-        let response = await this._client.command(category + ' ' + start + ' ' + length + " search:" + search + " tags:uKjJt");
+        let config = itemMap.find( element => { return element.cmd.startsWith(category) });
+        let response = await this._client.command(config.cmd + ' ' + start + ' ' + length + " search:" + search + " tags:uKjJt");
         let data = this._client.parseAdvancedQueryResponse(response, config.split_key);
 
         let items = data.items;
         data.name = config.name;
         data.items = []
         for (var key in items) {
-            let isTrack = category == "tracks" || items[key].type == "track";
+            let isTrack = config.cmd == "tracks" || items[key].type == "track";
             let id = isTrack ? "url:" + items[key].url : config.id_key + ":" + items[key][config.split_key];
             data.items.push({
                                 id,
-                                identifier: category,
+                                identifier: config.cmd,
                                 lastSelectedItem: { id },
                                 title: decodeURIComponent(items[key][config.name_key]),
                                 image: await this._client.extractArtwork(items[key].url, items[key]),
@@ -195,7 +196,7 @@ module.exports = class MusicMaster {
                            })
         }
         return data;
-    } else if (type == 'tunein') {
+    } else if (type == 'tunein' || type == 'radio') {
         let response = await this._client.command('search items ' + start + ' ' + length + " search:" + search);
         let data = this._client.parseAdvancedQueryResponse(response, 'id');
 
@@ -218,6 +219,15 @@ module.exports = class MusicMaster {
         return data;
     } else if (type == 'spotify') {
         const folderLength = Object.keys(this.spotify_categories).length - 1;
+
+        const categoryMap = {
+            "track" : "1.0",
+            "artist" : "1.0.0",
+            "album" : "1.0.1",
+            "playlist" : "1.0.2"
+        }
+        if (category in categoryMap)
+            category = categoryMap[category];
 
         // In this id we get tracks and folders mixed.
         // The first X tracks are folder so we need to fetch more just to get tracks

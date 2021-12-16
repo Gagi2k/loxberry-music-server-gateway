@@ -1281,19 +1281,26 @@ module.exports = class MusicServer {
   }
 
   async _audioCfgSearch(url) {
-    const [, , , type, category, search, start, length] = url.split('/');
+    const [, , , type, user, category, search, start, length] = url.split('/');
 
-    const data = await this._master.search(type, category, search, start, length);
+    // Otherwise the spotify search doesn't work correctly
+    await this._master.getSearchableTypes()
+
+    let data = await this._master.search(type, category, search, start, length);
+    const base = type == 'library' ? BASE_LIBRARY : BASE_SERVICE;
+    data.items = data.items.map(this._convert(2, base));
 
     return this._response(url, 'search/', [
       {
         results: [
             {
-                totalitems: data.count,
+                // Limit the results to max 50
+                totalitems: Math.min(data.count, 50),
                 start: +start,
-                items: data.items.map(this._convert(2, BASE_SERVICE, +start)),
+                items: data.items
             }
         ],
+        where: type
       }
     ]);
   }
