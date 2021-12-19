@@ -868,6 +868,12 @@ module.exports = class MusicServer {
       case /(?:^|\/)audio\/\d+\/playurl\//.test(url):
         return this._audioPlayUrl(url);
 
+      case /(?:^|\/)audio\/\d+\/addurl\//.test(url):
+        return this._audioAddUrl(url);
+
+      case /(?:^|\/)audio\/\d+\/inserturl\//.test(url):
+        return this._audioInsertUrl(url);
+
       case /(?:^|\/)audio\/\d+\/playlist\//.test(url):
         return this._audioPlaylist(url);
 
@@ -1632,6 +1638,40 @@ module.exports = class MusicServer {
         await zone.play(decodedId, favoriteId);
     else
         await zone.play("url:" + id);
+
+    return this._emptyCommand(url, []);
+  }
+
+  async _audioAddUrl(url) {
+    const [,zoneId, ,id] = url.split('/');
+    const zone = this._zones[+zoneId - 1];
+    const [decodedId] = this._decodeId(id);
+
+    const {total} = await zone.getQueueList().get(undefined, 0, 0);
+
+    await zone.getQueueList().insert(total, {
+      id: decodedId,
+      title: null,
+      image: null,
+    });
+
+    return this._emptyCommand(url, []);
+  }
+
+  async _audioInsertUrl(url) {
+    const [,zoneId, ,id] = url.split('/');
+    const zone = this._zones[+zoneId - 1];
+    const [decodedId] = this._decodeId(id);
+
+    const qindex = zone.getTrack().qindex;
+    if (!qindex)
+        qindex = 0
+
+    await zone.getQueueList().insert(qindex + 1, {
+      id: decodedId,
+      title: null,
+      image: null,
+    });
 
     return this._emptyCommand(url, []);
   }
