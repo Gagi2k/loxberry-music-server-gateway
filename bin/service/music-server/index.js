@@ -169,7 +169,7 @@ module.exports = class MusicServer {
         this._wsConnections.delete(connection);
       });
 
-      connection.send('LWSS V 2.3.9.2 | ~API:1.6~');
+      connection.send(config.msApi); //1.4.10.06 | ~API:1.6~ 2.3.9.1 | ~API:1.6~
 
       // All those Events are send when a new client connects
       // E.g. opening the App, but also when switching back to the
