@@ -996,7 +996,7 @@ module.exports = class MusicServer {
   async _audioCfgEqualizer(url) {
     const [, , , zoneId, config] = url.split('/');
     const zone = this._zones[+zoneId - 1];
-    const bands = config && config.split(',').map(Number);
+    const bands = config && config.replace("!", "").split(',').map(Number);
     let value;
 
     if (+zoneId <= 0) {
