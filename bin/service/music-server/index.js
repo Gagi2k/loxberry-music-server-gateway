@@ -2087,7 +2087,7 @@ module.exports = class MusicServer {
       album: track.album,
       artist: track.artist,
       audiopath: this._encodeId(track.id, 0),
-      audiotype: 2,
+      audiotype: track.duration == 0 ? 1 : 2,
       coverurl: this._imageUrl(track.image || ''),
       duration: mode === 'buffer' ? 0 : Math.ceil(track.duration / 1000),
       mode: mode === 'buffer' ? 'play' : mode,
