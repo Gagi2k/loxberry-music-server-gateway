@@ -312,7 +312,7 @@ module.exports = class LMSClient {
                 var regex = /id%3Ds(\d+)%26/
                 var match = regex.exec(url);
                 if (match && match[1]) {
-                    return 'http://cdn-radiotime-logos.tunein.com/s' + match[1] + 'q.png/image.png'
+                    return 'http://cdn-radiotime-logos.tunein.com/s' + match[1] + 'q.png'
                 }
             }
 
