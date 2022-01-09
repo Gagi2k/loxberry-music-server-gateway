@@ -459,7 +459,7 @@ module.exports = class MusicServer {
     }
 
     const audioSyncEventsMessage = JSON.stringify({
-      audio_sync_event: audioSyncEvent,
+      audio_sync_event: audioSyncEvent
     });
 
     console.log(this._lcEVNT, JSON.stringify(audioSyncEventsMessage));
