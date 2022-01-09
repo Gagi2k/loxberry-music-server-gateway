@@ -485,11 +485,11 @@ module.exports = class LMSClient {
                     data = this.parseAdvancedQueryResponse(response, 'id');
                     let items = data.items;
                     data.items = []
-                    data.items.push({ name: "Spotify", cmd: "spotify", user: current_user, config: [{id: current_user}]})
+                    data.items.push({ name: "Spotify", cmd: "spotify", user: current_user, id: current_user, config: [{id: current_user}]})
                     for (var key in items) {
                         if (!items[key].id)
                             continue;
-                        data.items.push({ name: "Spotify", cmd: "spotify", user: decodeURIComponent(items[key].name), config: [{id: decodeURIComponent(items[key].name)}]})
+                        data.items.push({ name: "Spotify", cmd: "spotify", user: decodeURIComponent(items[key].name), id: decodeURIComponent(items[key].name), config: [{id: decodeURIComponent(items[key].name)}]})
                     }
                     data.count = data.count + 1;
                     return data;
