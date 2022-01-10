@@ -935,7 +935,7 @@ module.exports = class MusicServer {
       case /(?:^|\/)audio\/\d+\/serviceplayadd\//.test(url):
         return this._audioServicePlayAdd(url);
 
-      case /(?:^|\/)audio\/\d+\/shuffle\/\d+(?:\/|$)/.test(url):
+      case /(?:^|\/)audio\/\d+\/shuffle/.test(url):
         return this._audioShuffle(url);
 
       case /(?:^|\/)audio\/\d+\/sync\/\d+(?:\/|$)/.test(url):
@@ -1966,8 +1966,14 @@ module.exports = class MusicServer {
   }
 
   _audioShuffle(url) {
-    const [, zoneId, , shuffle] = url.split('/');
+    let [, zoneId, , shuffle] = url.split('/');
     const zone = this._zones[+zoneId - 1];
+
+    if (!shuffle) {
+        shuffle = +(zone.getShuffle()) + 1;
+        if (shuffle > 2)
+            shuffle = 0;
+    }
 
     zone.shuffle(+shuffle);
 
