@@ -410,11 +410,7 @@ module.exports = class MusicZone {
   async repeat(repeat) {
     const transaction = this._transaction();
 
-    if (repeat === 0 || repeat === 1 || repeat === 2) {
-      this._player.repeat = repeat;
-    } else {
-      this._player.repeat = (this._repeat + 1) % 3;
-    }
+    this._player.repeat = repeat;
 
     transaction.end();
 
@@ -435,11 +431,7 @@ module.exports = class MusicZone {
   async shuffle(shuffle) {
     const transaction = this._transaction();
 
-    if (shuffle === 0 || shuffle === 1) {
-      this._player.shuffle = shuffle;
-    } else {
-      this._player.shuffle = (this._shuffle + 1) % 2;
-    }
+    this._player.shuffle = shuffle;
 
     transaction.end();
 

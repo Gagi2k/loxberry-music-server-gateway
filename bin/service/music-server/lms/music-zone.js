@@ -426,21 +426,13 @@ module.exports = class MusicZone {
   }
 
   async repeat(repeat) {
-    if (repeat === 0 || repeat === 1 || repeat === 2) {
-      this._player.repeat = repeat;
-    } else {
-      this._player.repeat = (this._repeat + 1) % 3;
-    }
+    this._player.repeat = repeat;
 
     await this._client.command('playlist repeat ' + this._player.repeat)
   }
 
   async shuffle(shuffle) {
-    if (shuffle === 0 || shuffle === 1) {
-      this._player.shuffle = shuffle;
-    } else {
-      this._player.shuffle = (this._shuffle + 1) % 2;
-    }
+    this._player.shuffle = shuffle;
 
     await this._client.command('playlist shuffle ' + this._player.shuffle)
   }
