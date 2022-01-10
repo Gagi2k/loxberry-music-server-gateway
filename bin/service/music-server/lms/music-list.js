@@ -80,6 +80,28 @@ module.exports = class List {
         this.get_call = async (rootItem, start, length) => {
             for (var key in fav_items) {
                 fav_items[key].name = fav_items[key].title;
+                const id = decodeURIComponent(fav_items[key].id)
+
+                if (!fav_items[key].type)
+                    fav_items[key].type = "local"
+                if (id && id != -1) {
+                    if (id.includes("radiotime.com")) {
+                        fav_items[key].type = "tunein"
+                    } else if (id.includes("url:spotify")) {
+                        if (id.includes("spotify:track"))
+                            fav_items[key].type = "spotify_track"
+                        else if (id.includes("spotify:playlist"))
+                            fav_items[key].type = "spotify_playlist"
+                        else if (id.includes("spotify:artist"))
+                            fav_items[key].type = "spotify_artist"
+                        else if (id.includes("spotify:album"))
+                            fav_items[key].type = "spotify_album"
+                        else if (id.includes("spotify:user")) {
+                            fav_items[key].type = "playlist"
+                            fav_items[key].owner = "playlist"
+                        }
+                    }
+                }
                 if (fav_items[key].image)
                     fav_items[key].image = this._client.resolveUrl(fav_items[key].image)
             }
