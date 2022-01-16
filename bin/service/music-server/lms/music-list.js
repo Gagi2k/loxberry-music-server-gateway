@@ -283,7 +283,8 @@ module.exports = class List {
                                    station: items[key].remote_title ? decodeURIComponent(items[key].remote_title) : undefined,
                                    artist: items[key].artist ? decodeURIComponent(items[key].artist) : undefined,
                                    album: items[key].album ? decodeURIComponent(items[key].album) : undefined,
-                                   image: image
+                                   image: image,
+                                   qindex: Number(start + key)
                                })
             }
             return data

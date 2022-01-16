@@ -895,14 +895,24 @@ module.exports = class MusicServer {
       case /(?:^|\/)audio\/\d+\/queue\/\d+(\/|$)/.test(url):
         return this._audioQueueIndex(url);
 
+     case /(?:^|\/)audio\/\d+\/queue\/play\/\d+(\/|$)/.test(url):
+       return this._audioQueuePlay(url);
+
       case /(?:^|\/)audio\/\d+\/queueremove\/\d+(\/|$)/.test(url):
         return this._audioQueueDelete(url);
+
+      case /(?:^|\/)audio\/\d+\/queue\/remove\/\d+(\/|$)/.test(url):
+        return this._audioQueueRemove(url);
 
       case /(?:^|\/)audio\/\d+\/queue\/clear(\/|$)/.test(url):
         return this._audioQueueClear(url);
 
       case /(?:^|\/)audio\/\d+\/queuemove\/\d+\/\d+(\/|$)/.test(url):
         return this._audioQueueMove(url);
+
+      case /(?:^|\/)audio\/\d+\/queue\/move\/\d+\/before\/\d+(\/|$)/.test(url):
+      case /(?:^|\/)audio\/\d+\/queue\/move\/\d+\/end/.test(url):
+        return this._audioQueueMoveBefore(url);
 
       case /(?:^|\/)audio\/\d+\/queueadd(\/|$)/.test(url):
         return this._audioQueueAdd(url);
@@ -1789,8 +1799,28 @@ module.exports = class MusicServer {
     return this._emptyCommand(url, []);
   }
 
+  async _audioQueuePlay(url) {
+    const [, zoneId, , , index] = url.split('/');
+    const zone = this._zones[+zoneId - 1];
+
+    await zone.setCurrentIndex(index);
+
+    return this._emptyCommand(url, []);
+  }
+
   async _audioQueueDelete(url) {
     const [, zoneId, , position] = url.split('/');
+    const zone = this._zones[+zoneId - 1];
+
+    await zone.getQueueList().delete(+position, 1);
+    if (!zone.getQueueList().canSendEvents)
+        this._pushQueueEvents([zone]);
+
+    return this._emptyCommand(url, []);
+  }
+
+  async _audioQueueRemove(url) {
+    const [, zoneId, , , position] = url.split('/');
     const zone = this._zones[+zoneId - 1];
 
     await zone.getQueueList().delete(+position, 1);
@@ -1814,6 +1844,22 @@ module.exports = class MusicServer {
   async _audioQueueMove(url) {
     const [, zoneId, , position, destination] = url.split('/');
     const zone = this._zones[+zoneId - 1];
+
+    await zone.getQueueList().move(+position, +destination);
+    if (!zone.getQueueList().canSendEvents)
+       this._pushQueueEvents([zone]);
+
+    return this._emptyCommand(url, []);
+  }
+
+  async _audioQueueMoveBefore(url) {
+    let [, zoneId, , , position, , destination] = url.split('/');
+    const zone = this._zones[+zoneId - 1];
+
+    if (destination == undefined) {
+        const {total} = await zone.getQueueList().get(undefined, 0, 0);
+        destination = total - 1;
+    }
 
     await zone.getQueueList().move(+position, +destination);
     if (!zone.getQueueList().canSendEvents)
@@ -2247,6 +2293,9 @@ module.exports = class MusicServer {
       volume: zone.getVolume(),
       default_volume: zone.getDefaultVolume(),
       max_volume: zone.getMaxVolume(),
+      // Needs to be one of the unique_ids in the queue
+      qid: track.qindex ? track.qindex.toString() : "0",
+      parent: null,
     };
   }
 
@@ -2318,6 +2367,8 @@ module.exports = class MusicServer {
         username: item.username ? item.username : undefined,
         identifier: item.identifier ? item.identifier : undefined,
         lastSelectedItem: lastSelectedItem,
+        // Used as identifier for queue management (checked against qid in current track)
+        unique_id: (item.qindex != undefined) ? item.qindex.toString() : undefined,
         contentType,
         mediaType
       };
