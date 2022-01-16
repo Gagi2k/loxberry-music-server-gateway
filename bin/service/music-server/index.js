@@ -919,6 +919,9 @@ module.exports = class MusicServer {
       case /(?:^|\/)audio\/\d+\/roomfav\/play\/\d+(?:\/|$)/.test(url):
         return this._audioRoomFavPlay(url);
 
+     case /(?:^|\/)audio\/\d+\/roomfav\/play/.test(url):
+        return this._audioRoomFavPlayId(url);
+
       case /(?:^|\/)audio\/\d+\/roomfav\/plus(?:\/|$)/.test(url):
         return this._audioRoomFavPlus(url);
 
@@ -931,6 +934,15 @@ module.exports = class MusicServer {
 
       case /(?:^|\/)audio\/cfg\/roomfavs\/\d+\/copy\/\d+/.test(url):
         return this._audioRoomFavsCopy(url);
+
+      case /(?:^|\/)audio\/cfg\/roomfavs\/\d+\/reorder/.test(url):
+        return this._audioRoomFavsReorder(url);
+
+      case /(?:^|\/)audio\/cfg\/roomfavs\/\d+\/delete/.test(url):
+        return this._audioRoomFavsDelete(url);
+
+      case /(?:^|\/)audio\/cfg\/roomfavs\/\d+\//.test(url):
+        return this._audioRoomFavsAdd(url);
 
       case /(?:^|\/)audio\/\d+\/serviceplay\//.test(url):
         return this._audioServicePlay(url);
@@ -1883,6 +1895,16 @@ module.exports = class MusicServer {
     return this._emptyCommand(url, []);
   }
 
+  async _audioRoomFavPlayId(url) {
+    const [, zoneId, , , id] = url.split('/');
+    const zone = this._zones[+zoneId - 1];
+    const [decodedId, favoriteId] = this._decodeId(id);
+
+    await zone.play(decodedId, favoriteId);
+
+    return this._emptyCommand(url, []);
+  }
+
   async _audioRoomFavPlus(url) {
     const [, zoneId] = url.split('/');
     const zone = this._zones[+zoneId - 1];
@@ -1939,6 +1961,72 @@ module.exports = class MusicServer {
     return this._emptyCommand(url, []);
   }
 
+  async _audioRoomFavsAdd(url) {
+    const [, , , zoneId, , title, id] = url.split('/');
+    const zone = this._zones[+zoneId - 1];
+    const [decodedId] = this._decodeId(id);
+
+    const item = {
+      id: decodedId,
+      title,
+      image: this._imageStore[decodedId],
+    };
+
+    const {total} = await zone.getFavoritesList().get(undefined, 0, 0);
+
+    await zone.getFavoritesList().insert(total, item);
+    if (!zone.getFavoritesList().canSendEvents)
+        this._pushRoomFavChangedEvents([zone]);
+
+    return this._emptyCommand(url, []);
+  }
+
+  async _audioRoomFavsReorder(url) {
+    const [, , , zoneId, , config] = url.split('/');
+    const zone = this._zones[+zoneId - 1];
+    const ids = config.split(',');
+
+    var favs = await zone.getFavoritesList().get(undefined, 0, 100);
+    // create a deep copy
+    favs = JSON.parse(JSON.stringify(favs));
+    var emptyFavs = 0;
+
+    for (var i=0; i < ids.length; i++) {
+        const [decodedId, favoriteId] = this._decodeId(ids[i]);
+        const index = favoriteId % 1000000;
+
+        console.log(this._lc, "NEW ORDER: " + decodedId + " " + index)
+
+        const item = favs.items[index];
+
+        // Check whether the original position was empty and search for the next occupied spot
+        while (favs.items[i + emptyFavs].id == undefined)
+            emptyFavs++;
+
+        await zone.getFavoritesList().replace(i + emptyFavs, item)
+    }
+
+    if (!zone.getFavoritesList().canSendEvents)
+        this._pushRoomFavChangedEvents([zone]);
+
+    return this._emptyCommand(url, []);
+  }
+
+  async _audioRoomFavsDelete(url) {
+    const [, , , zoneId, , id] = url.split('/');
+    const zone = this._zones[+zoneId - 1];
+    const [decodedId, favoriteId] = this._decodeId(id);
+
+    const index = favoriteId % 1000000;
+
+    await zone.getFavoritesList().delete(index, 1);
+
+    if (!zone.getFavoritesList().canSendEvents)
+        this._pushRoomFavChangedEvents([zone]);
+
+    return this._emptyCommand(url, []);
+  }
+
   async _audioRoomFavSaveExternalId(url) {
     const [, zoneId, , , position, ,id, title] = url.split('/');
     const zone = this._zones[+zoneId - 1];
@@ -1963,9 +2051,9 @@ module.exports = class MusicServer {
     const srcZone = this._zones[+source - 1];
     const destZone = this._zones[+destination - 1];
 
-    var data = await srcZone.getFavoritesList().get(undefined, 0, 8);
+    var data = await srcZone.getFavoritesList().get(undefined, 0, 100);
 
-    for (var i=0; i < 8; i++) {
+    for (var i=0; i < data.total; i++) {
         await destZone.getFavoritesList().replace(i, data.items[i]);
     }
 
