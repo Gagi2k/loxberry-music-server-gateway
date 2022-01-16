@@ -727,6 +727,12 @@ module.exports = class MusicServer {
       case /(?:^|\/)audio\/cfg\/equalizer\//.test(url):
         return this._audioCfgEqualizer(url);
 
+      case /(?:^|\/)audio\/cfg\/geteq\//.test(url):
+        return this._audioCfgGetEq(url);
+
+      case /(?:^|\/)audio\/cfg\/seteq/.test(url):
+        return this._audioCfgSetEq(url);
+
       case /(?:^|\/)audio\/cfg\/favorites\/addpath\//.test(url):
         return this._audioCfgFavoritesAddPath(url);
 
@@ -1024,6 +1030,51 @@ module.exports = class MusicServer {
         "command": "${url}"
       }
     `;
+  }
+
+  async _audioCfgGetEq(url) {
+    const [, , , zoneId] = url.split('/');
+    const zone = this._zones[+zoneId - 1];
+    let values;
+
+    if (+zoneId <= 0) {
+      values = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    } else {
+      values = await zone.getEqualizer();
+    }
+
+   return this._response(url, 'geteq', values.map(function(cur, index, array) {
+        const bands = ["31 Hz", "63 Hz", "125 Hz", "250 Hz", "500 Hz",
+                       "1 kHz", "2 kHz", "4 kHz", "8 kHz", "16 kHz"];
+        return {
+                    id: index,
+                    high: 10,
+                    low: -10,
+                    step: 0.5,
+                    value: cur,
+                    name: bands[index]
+               }
+   }));
+  }
+
+  async _audioCfgSetEq(url) {
+    const [, , , zoneId, bandId, value] = url.split('/');
+    const zone = this._zones[+zoneId - 1];
+    let values;
+
+    if (value != undefined) {
+        if (+zoneId <= 0) {
+          values = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+        } else {
+          values = await zone.getEqualizer();
+        }
+        values[bandId] = +value;
+    } else {
+        values = bandId.replace("!", "").split(',').map(Number);
+    }
+
+    await zone.equalizer(values);
+    return this._emptyCommand(url, []);
   }
 
   async _audioCfgFavoritesAddPath(url) {
