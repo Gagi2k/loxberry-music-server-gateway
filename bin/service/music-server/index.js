@@ -2290,7 +2290,9 @@ module.exports = class MusicServer {
       players: [{playerid: playerId}],
       plrepeat: repeatModes[zone.getRepeat()],
       plshuffle: zone.getShuffle(),
-      power: zone.getPower(),
+      // This seems to be ignored by the Miniserver. Qa is only 1 when currently playing
+      // The new AudioServer UI doesn't like any other value here.
+      power: "on", //zone.getPower(),
       station: track.station,
       time: zone.getTime() / 1000,
       qindex: track.qindex ? track.qindex : 0,
