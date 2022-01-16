@@ -78,6 +78,8 @@ module.exports = class MusicServer {
 
         this._rsaKey.importKey(fs.readFileSync(config.privateKey), "private");
         this._rsaKey.importKey(fs.readFileSync(config.publicKey), "public");
+
+        console.log(this._lc, "Custom Keys loaded!")
     } else {
         this._rsaKey = new NodeRSA({b: 1024});
     }
@@ -152,6 +154,8 @@ module.exports = class MusicServer {
 
     wsServer.on('connect', (connection) => {
       this._wsConnections.add(connection);
+
+      console.log(this._lcWSCK, 'New Connection from:', connection.remoteAddress);
 
       connection.on('message', async (message) => {
         console.log(this._lcWSCK, 'RECV:' + message.utf8Data);
@@ -240,7 +244,8 @@ module.exports = class MusicServer {
     for (key in this._msClients) {
         let usrObj = users.find( element => { return this._msClients[key].user() == element.name });
 
-        msClientMap[usrObj.uuid] = this._msClients[key];
+        if (usrObj.hasOwnProperty('uuid'))
+            msClientMap[usrObj.uuid] = this._msClients[key];
     }
     console.log(this._lc, "USER MAP", Object.keys(msClientMap));
 
