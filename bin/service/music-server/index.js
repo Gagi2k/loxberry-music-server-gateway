@@ -726,6 +726,9 @@ module.exports = class MusicServer {
     const query = querystring.parse(method.substr(url.length + 1));
 
     switch (true) {
+      case /(?:^|\/)poweroff(?:\/|$)/.test(url):
+        return this._powerOff(url);
+
       case /(?:^|\/)audio\/cfg\/all(?:\/|$)/.test(url):
         return this._audioCfgAll(url);
 
@@ -989,6 +992,11 @@ module.exports = class MusicServer {
       default:
         return this._unknownCommand(url);
     }
+  }
+
+  async _powerOff(url) {
+    await this._master.powerOff();
+    return this._emptyCommand(url, []);
   }
 
   _audioCfgAll(url) {

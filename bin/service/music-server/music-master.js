@@ -57,6 +57,9 @@ module.exports = class MusicMaster {
     return [];
   }
 
+  async powerOff() {
+  }
+
   async scanStatus() {
     return false;
   }

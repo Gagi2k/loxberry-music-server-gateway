@@ -75,6 +75,11 @@ module.exports = class MusicMaster {
     return this._syncGroups;
   }
 
+  async powerOff() {
+    this._client.execute_script("powerOff")
+    return;
+  }
+
   async scanStatus() {
     return await this._globalClient.command('rescan ?');
   }

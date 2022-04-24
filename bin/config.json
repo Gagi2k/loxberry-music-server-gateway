@@ -31,6 +31,7 @@
     "filteredSpotifyEntries": [
     ],
     "scripts": {
+        "powerOff": "echo {{name}}",
         "playUploadedFile": "echo {{name}} {{zones}} {{path}}",
         "playAlarmSound": "echo {{name}} {{type}} {{volume}}",
         "playTTS": "echo {{name}} {{language}} {{text}} {{volume}}",
