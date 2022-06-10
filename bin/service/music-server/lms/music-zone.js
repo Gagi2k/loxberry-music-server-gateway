@@ -300,6 +300,8 @@ module.exports = class MusicZone {
     if (list.count) {
         console.log(this._lc, "ACCOUNT SWITCHED TO ", list.items[0].user);
         this._spotifyAccount = list.items[0].user;
+    } else {
+        console.error(this._lc, "SWITCHING ACCOUNT FAILED!!!!!!");
     }
   }
 
@@ -492,7 +494,7 @@ module.exports = class MusicZone {
   async switchSpotifyAccount(account) {
     console.log(this._lc, "SWITCHING SPOTIFY ACCOUNT: CURRENT " + this._spotifyAccount + " NEW " + account)
     if (account != this._spotifyAccount)
-        this._client.spotifyAccountSwitcher(account);
+        await this._client.spotifyAccountSwitcher(account);
   }
 
   async _setMode(mode) {

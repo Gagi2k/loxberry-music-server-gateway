@@ -2120,9 +2120,11 @@ module.exports = class MusicServer {
   }
 
   async _audioServicePlay(url) {
-    const [, zoneId, , , , id] = url.split('/');
+    const [, zoneId, , , account, id] = url.split('/');
     const zone = this._zones[+zoneId - 1];
     const [decodedId, favoriteId] = this._decodeId(id);
+
+    await zone.switchSpotifyAccount(account);
 
     await zone.play(decodedId, favoriteId);
 
@@ -2130,9 +2132,11 @@ module.exports = class MusicServer {
   }
 
   async _audioServicePlayInsert(url) {
-    const [, zoneId, , , , id] = url.split('/');
+    const [, zoneId, , , account, id] = url.split('/');
     const zone = this._zones[+zoneId - 1];
     const [decodedId] = this._decodeId(id);
+
+    await zone.switchSpotifyAccount(account);
 
     const qindex = zone.getTrack().qindex;
     if (!qindex)
@@ -2148,9 +2152,11 @@ module.exports = class MusicServer {
   }
 
   async _audioServicePlayAdd(url) {
-    const [, zoneId, , , , id] = url.split('/');
+    const [, zoneId, , , account, id] = url.split('/');
     const zone = this._zones[+zoneId - 1];
     const [decodedId] = this._decodeId(id);
+
+    await zone.switchSpotifyAccount(account);
 
     const {total} = await zone.getQueueList().get(undefined, 0, 0);
 
