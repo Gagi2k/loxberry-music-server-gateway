@@ -479,34 +479,34 @@ module.exports = class LMSClient {
                 let current_user = decodeURIComponent(data.items[0].name);
 
                 // If no requestedAccount was provided as argument, return the available users
-                if (!requestedAccount) {
-                    //Get all other users
-                    response = await this.command('spotty items 0 20 item_id:' + menu_id + ".1");
-                    data = this.parseAdvancedQueryResponse(response, 'id');
-                    let items = data.items;
-                    data.items = []
-                    data.items.push({ name: "Spotify", cmd: "spotify", user: current_user, id: current_user, config: [{id: current_user}]})
-                    for (var key in items) {
-                        if (!items[key].id)
-                            continue;
-                        data.items.push({ name: "Spotify", cmd: "spotify", user: decodeURIComponent(items[key].name), id: decodeURIComponent(items[key].name), config: [{id: decodeURIComponent(items[key].name)}]})
-                    }
-                    data.count = data.count + 1;
-                    return data;
-                } else {
+                if (requestedAccount) {
                     if (current_user == requestedAccount)
                         return;
 
-                  response = await this.command('spotty items 0 20 item_id:' + menu_id + ".1");
-                  data = this.parseAdvancedQueryResponse(response, 'id');
-                  for (var key in data.items) {
-                      // Once we found the requested account, switch it
-                      if (requestedAccount == decodeURIComponent(data.items[key].name)) {
-                          await this.command('spotty items 0 20 item_id:' + data.items[key].id);
-                          return;
-                      }
-                  }
+                    response = await this.command('spotty items 0 20 item_id:' + menu_id + ".1");
+                    data = this.parseAdvancedQueryResponse(response, 'id');
+                    for (var key in data.items) {
+                        // Once we found the requested account, switch it
+                        if (requestedAccount == decodeURIComponent(data.items[key].name)) {
+                            await this.command('spotty items 0 20 item_id:' + data.items[key].id);
+                            return;
+                        }
+                    }
                 }
+
+                //Get all other users and return them
+                response = await this.command('spotty items 0 20 item_id:' + menu_id + ".1");
+                data = this.parseAdvancedQueryResponse(response, 'id');
+                let items = data.items;
+                data.items = []
+                data.items.push({ name: "Spotify", cmd: "spotify", user: current_user, id: current_user, config: [{id: current_user}]})
+                for (var key in items) {
+                    if (!items[key].id)
+                        continue;
+                    data.items.push({ name: "Spotify", cmd: "spotify", user: decodeURIComponent(items[key].name), id: decodeURIComponent(items[key].name), config: [{id: decodeURIComponent(items[key].name)}]})
+                }
+                data.count = data.count + 1;
+                return data;
             }
         }
     }
