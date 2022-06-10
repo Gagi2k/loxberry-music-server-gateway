@@ -459,6 +459,13 @@ module.exports = class List {
                         break;
                     }
                 }
+
+                if (zones[key].getCurrentSpotifyAccount() != user) {
+                    console.log(this._lc, "Couldn't find zone with matching user:", user);
+                    console.log(this._lc, "Switching master zone");
+
+                    this._zone.switchSpotifyAccount(user);
+                }
             }
 
             var itemId = id ? "item_id:" + this._client.parseId(id).id : ""
