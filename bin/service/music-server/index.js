@@ -334,7 +334,7 @@ module.exports = class MusicServer {
                 continue;
             }
 
-            this._zones[config.details.playerid - 1].switchSpotifyAccount(value);
+            await this._zones[config.details.playerid - 1].switchSpotifyAccount(value);
         }
     });
 

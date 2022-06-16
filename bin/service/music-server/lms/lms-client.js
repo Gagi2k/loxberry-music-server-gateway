@@ -461,6 +461,7 @@ module.exports = class LMSClient {
     }
 
     async spotifyAccountSwitcher(requestedAccount) {
+        console.log(this._lc, "Start spotify account switcher");
         // Find the switcher menu
         let response = await this.command('spotty items 0 20');
         let data = this.parseAdvancedQueryResponse(response, 'id');
@@ -480,20 +481,23 @@ module.exports = class LMSClient {
 
                 // If no requestedAccount was provided as argument, return the available users
                 if (requestedAccount) {
-                    if (current_user == requestedAccount)
-                        return;
-
-                    response = await this.command('spotty items 0 20 item_id:' + menu_id + ".1");
-                    data = this.parseAdvancedQueryResponse(response, 'id');
-                    for (var key in data.items) {
-                        // Once we found the requested account, switch it
-                        if (requestedAccount == decodeURIComponent(data.items[key].name)) {
-                            await this.command('spotty items 0 20 item_id:' + data.items[key].id);
-                            return;
+                    if (current_user != requestedAccount) {
+                        console.log(this._lc, "Switching Accounts");
+                        response = await this.command('spotty items 0 20 item_id:' + menu_id + ".1");
+                        data = this.parseAdvancedQueryResponse(response, 'id');
+                        for (var key in data.items) {
+                            // Once we found the requested account, switch it
+                            if (requestedAccount == decodeURIComponent(data.items[key].name)) {
+                                await this.command('spotty items 0 20 item_id:' + data.items[key].id);
+                                console.log(this._lc, "switch done!");
+                                current_user = requestedAccount;
+                                break;
+                            }
                         }
                     }
                 }
 
+                console.log(this._lc, "Returning available Accounts");
                 //Get all other users and return them
                 response = await this.command('spotty items 0 20 item_id:' + menu_id + ".1");
                 data = this.parseAdvancedQueryResponse(response, 'id');
@@ -506,6 +510,8 @@ module.exports = class LMSClient {
                     data.items.push({ name: "Spotify", cmd: "spotify", user: decodeURIComponent(items[key].name), id: decodeURIComponent(items[key].name), config: [{id: decodeURIComponent(items[key].name)}]})
                 }
                 data.count = data.count + 1;
+                console.log(this._lc, data);
+                console.log(this._lc, "spotify account switcher done");
                 return data;
             }
         }

@@ -423,7 +423,7 @@ module.exports = class List {
             // In case the switcher menu is enabled, provide all users in the app as well
             let switcherMenu = await this._client.command('pref plugin.spotty:accountSwitcherMenu ?');
             if (switcherMenu == "1") {
-                return this._client.spotifyAccountSwitcher();
+                return await this._client.spotifyAccountSwitcher();
             }
 
             return { count: 1, items: [{ name: "Spotify", cmd: "spotify", user: "Standard User", config: [{id: 0}]}] };
@@ -464,7 +464,7 @@ module.exports = class List {
                     console.log(this._lc, "Couldn't find zone with matching user:", user);
                     console.log(this._lc, "Switching master zone");
 
-                    this._zone.switchSpotifyAccount(user);
+                    await this._zone.switchSpotifyAccount(user);
                 }
             }
 

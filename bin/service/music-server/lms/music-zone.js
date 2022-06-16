@@ -114,7 +114,8 @@ module.exports = class MusicZone {
          await new Promise((resolve) => {
             setTimeout(resolve, 100);
          });
-        this.fetchCurrentSpotifyAccount();
+         console.log(this._lc, "Update spotify accounts from notification");
+         this.fetchCurrentSpotifyAccount();
     }
   }
 
@@ -297,7 +298,7 @@ module.exports = class MusicZone {
         return;
 
     var list = await this._client.spotifyAccountSwitcher();
-    if (list.count) {
+    if (list && list.count) {
         console.log(this._lc, "ACCOUNT SWITCHED TO ", list.items[0].user);
         this._spotifyAccount = list.items[0].user;
     } else {
@@ -493,8 +494,15 @@ module.exports = class MusicZone {
 
   async switchSpotifyAccount(account) {
     console.log(this._lc, "SWITCHING SPOTIFY ACCOUNT: CURRENT " + this._spotifyAccount + " NEW " + account)
-    if (account != this._spotifyAccount)
-        await this._client.spotifyAccountSwitcher(account);
+    if (account != this._spotifyAccount) {
+        var list = await this._client.spotifyAccountSwitcher(account);
+        if (list && list.count) {
+            console.log(this._lc, "ACCOUNT SWITCHED TO ", list.items[0].user);
+            this._spotifyAccount = list.items[0].user;
+        } else {
+            console.error(this._lc, "SWITCHING ACCOUNT FAILED!!!!!!");
+        }
+    }
   }
 
   async _setMode(mode) {
