@@ -1,5 +1,6 @@
 'use strict';
 
+
 const http = require('http');
 const cors_proxy = require('cors-anywhere');
 const querystring = require('querystring');
@@ -8,6 +9,8 @@ const fs = require('fs');
 const os = require('os');
 const NodeRSA = require('node-rsa');
 const debug = require('debug');
+const axios = require('axios');
+const crc32 = require("crc/crc32");
 const lcApp = debug('MSG');
 
 const config = JSON.parse(fs.readFileSync("config.json"));
@@ -19,6 +22,8 @@ const Log = require("./log");
 const console = new Log;
 
 const MSClient = require("./ms-client")
+
+const path = require('path');
 
 const headers = {
   'Content-Type': 'text/plain; charset=utf-8',
@@ -54,11 +59,12 @@ module.exports = class MusicServer {
     this._zones = zones;
     this._lc = lcApp;
     this._lcWSCK = lcApp.extend("WSCK");
+    this._lcMSWSCK = lcApp.extend("MSWSCK");
     this._lcHTTP = lcApp.extend("HTTP");
     this._lcEVNT = lcApp.extend("EVNT");
     // setup the default logging categories
     if (!process.env.DEBUG)
-        debug.enable('MSG:WSCK,MSG:HTTP,MSG:EVNT');
+        debug.enable('MSG,MSG:WSCK,MSG:MSWSCK,MSG:HTTP,MSG:EVNT');
 
     this._imageStore = Object.create(null);
 
@@ -85,6 +91,8 @@ module.exports = class MusicServer {
     }
     this._rsaKey.setOptions({encryptionScheme: 'pkcs1'});
 
+    // Parse API version from string to make the settings backward compatible
+    this._apiVersion = config.msApi.match(/V ((\d+\.)?(\d+\.)?(\d+\.)?(\d+)?)/)[1];
 
     for (let i = 0; i < config.zones; i++) {
       zones[i] = new MusicZone(this, i + 1, this);
@@ -173,7 +181,10 @@ module.exports = class MusicServer {
         this._wsConnections.delete(connection);
       });
 
-      connection.send(config.msApi); //1.4.10.06 | ~API:1.6~ 2.3.9.1 | ~API:1.6~
+      // Example version strings
+      // 1.4.10.06 | ~API:1.6~
+      // 2.3.9.1 | ~API:1.6~
+      connection.send("LWSS V " + this._apiVersion + " | ~API:1.6~ | Session-Token: 8WahwAfULwEQce9Yu0qIE9L7QMkXFHbi0M9ch9vKcgYArPPojXHpSiNcq0fT3lqL");
 
       // All those Events are send when a new client connects
       // E.g. opening the App, but also when switching back to the
@@ -186,9 +197,53 @@ module.exports = class MusicServer {
       }
     });
 
+    //this.connectToMiniserver();
+
     httpServer.listen(this._config.port);
     if (config.cors_port)
         cors_proxy.createServer().listen(config.cors_port)
+
+
+    const msHttpServer = http.createServer(async (req, res) => {
+      console.log(this._lcHTTP, 'RECV:' + req.url);
+    });
+
+    const msWsServer = new websocket.server({
+      httpServer: msHttpServer,
+      autoAcceptConnections: true,
+    });
+
+    msWsServer.on('connect', (connection) => {
+      this._wsConnections.add(connection);
+
+      console.log(this._lcMSWSCK, 'New Connection from:', connection.remoteAddress);
+
+      connection.on('message', async (message) => {
+        console.log(this._lcMSWSCK, 'RECV:' + message.utf8Data);
+
+        if (message.type !== 'utf8') {
+          throw new Error('Unknown message type: ' + message.type);
+        }
+
+        const response = await this._handler(message.utf8Data);
+        console.log(this._lcMSWSCK, 'RESP:', JSON.stringify(JSON.parse(response)));
+        connection.sendUTF(response);
+      });
+
+      connection.on('close', () => {
+        this._wsConnections.delete(connection);
+      });
+
+      var mac = this._mac().replace(/:/g, "").toUpperCase();
+      connection.send("MINISERVER V " + this._apiVersion + " " + mac + " | ~API:1.6~ | Session-Token: 8WahwAfULwEQce9Yu0qIE9L7QMkXFHbi0M9ch9vKcgYArPPojXHpSiNcq0fT3lqL");
+
+
+      if (!this._msClients || !this._msClients[0].isSocketOpen()) {
+        this.connectToMiniserver();
+      }
+    });
+
+    msHttpServer.listen(7095);
 
     this._initSse();
 
@@ -213,6 +268,8 @@ module.exports = class MusicServer {
         }
     }
     var client = this._msClients[0];
+
+    this.prepareAudioserverConfig();
 
     // Search for this mediaServer instance and save its ID
     var mac = this._mac().replace(/:/g, "").toUpperCase();
@@ -300,6 +357,11 @@ module.exports = class MusicServer {
         // get the new settings
         var response = await client.command("jdev/sps/getusersettings");
         var accounts = response.currentSpotifyAccount;
+        if (!accounts) {
+            console.log(this._lc, "NO Account Settings!!!!!!!!");
+            return;
+        }
+
         console.log(this._lc, "new Account Settings", accounts);
 
         // Calculate timestamp
@@ -340,6 +402,50 @@ module.exports = class MusicServer {
 
     // Request getting notifications for all value changes
     await client.command("jdev/sps/enablebinstatusupdate");
+  }
+
+  async prepareAudioserverConfig() {
+    // Retrieve the MAC Adresse of the Miniserver
+    const macResponse = await axios({
+        url: config.ms.host + '/jdev/cfg/mac',
+        method: 'get',
+        data: {} // Request Body if you have
+    });
+    this.msMAC = macResponse.data.LL.value.replace(/:/g, "").toUpperCase();
+
+    const username = config.ms.users[0].user;
+    const password = config.ms.users[0].password;
+    const encodedBase64Token = Buffer.from(`${username}:${password}`).toString('base64');
+    const authorization = `Basic ${encodedBase64Token}`;
+    // Retrieve Music.json to calculate crc for getconfig cmd
+    const response = await axios({
+        url: config.ms.host + '/dev/fsget/prog/Music.json',
+        method: 'post',
+        headers: {
+            Authorization: authorization,
+        },
+        data: {} // Request Body if you have
+    });
+    this.musicJSON = response.data
+    this.musicCRC = crc32(JSON.stringify(this.musicJSON)).toString(16);
+
+    const thisMac = this._mac().replace(/:/g, "").toUpperCase()
+
+    for(let [key, value] of Object.entries(this.musicJSON)) {
+        if (!(thisMac in value))
+            continue;
+
+        // Inform the Miniserver that the Audioserver is starting up and the Miniserver can now
+        // connect to it.
+        await axios({
+            url: config.ms.host + '/dev/sps/devicestartup/' + value[thisMac].uuid,
+            method: 'get',
+            headers: {
+                Authorization: authorization,
+            },
+            data: {} // Request Body if you have
+        });
+    }
   }
 
   call(method, uri, body = null) {
@@ -992,6 +1098,47 @@ module.exports = class MusicServer {
       case /(?:^|\/)audio\/\d+\/tts\/[^\/]+\/\d+(?:\/|$)/.test(url):
         return this._audioTTS(url);
 
+
+      // Audioserver support
+      case /(?:^|\/)audio\/cfg\/ready/.test(url):
+         return this._audioCfgReady(url);
+
+      case /(?:^|\/)audio\/\d+\/status/.test(url):
+        return this._audioGetStatus(url);
+
+      case /(?:^|\/)audio\/cfg\/getconfig/.test(url):
+        return this._audioCfgGetConfig(url);
+
+      case /(?:^|\/)audio\/cfg\/setconfig/.test(url):
+         return this._audioCfgSetConfig(url);
+
+      case /(?:^|\/)audio\/cfg\/miniservertime/.test(url):
+         return this._audioCfgMiniservertime(url);
+
+      case /(?:^|\/)audio\/cfg\/speakertype/.test(url):
+        return this._audioCfgSpeakerType(url);
+
+      case /(?:^|\/)audio\/cfg\/volumes/.test(url):
+        return this._audioCfgVolumes(url);
+
+      case /(?:^|\/)audio\/cfg\/playername/.test(url):
+        return this._audioCfgPlayername(url);
+
+      case /(?:^|\/)secure\/hello/.test(url):
+        return this._secureHello(url);
+
+      case /(?:^|\/)secure\/init/.test(url):
+        return this._secureInit(url);
+
+      case /(?:^|\/)secure\/pair/.test(url):
+        return this._securePair(url);
+
+      case /(?:^|\/)secure\/info\/pairing/.test(url):
+        return this._secureInfoPairing(url);
+
+      case /(?:^|\/)secure\/authenticate/.test(url):
+        return this._secureAuthenticate(url);
+
       default:
         return this._unknownCommand(url);
     }
@@ -1308,9 +1455,28 @@ module.exports = class MusicServer {
 
     let rootItem = service + '%%%' + user;
 
-    if (requestId != 0 && requestId != 'start') {
-        const [decodedId] = this._decodeId(requestId);
-        rootItem = rootItem + '%%%' + decodedId;
+    if (requestId != 'start') {
+        // The old MusicServer calls getServices beforehand and only uses the IDs delivered from
+        // that call.
+        // The Audioserver has hardcoded IDs.
+        // If we can't decode the ID it is very likely a hardcoded Audioserver call
+        // Use our hardcoded map to return the correct content.
+        try {
+            const [decodedId] = this._decodeId(requestId);
+            rootItem = rootItem + '%%%' + decodedId;
+        } catch (err) {
+            // UPDATE MAPPING WHEN SPOTTY CHANGES ITS FOLDER STRUCTURE
+            const itemMap = {
+                '0' : 0, // Start
+                '1' : 2, // News
+                '2' : 4, // Genres
+                '3' : 9, // Playlists
+                '4' : 6, // Songs
+                '5' : 7, // Albums
+                '6' : 8 // Artists
+            };
+            rootItem = rootItem + '%%%' + itemMap[requestId];
+        }
     }
 
     const {total, items} = await this._master.getServiceFolderList().get(rootItem, start, length);
@@ -1320,6 +1486,7 @@ module.exports = class MusicServer {
         id: requestId,
         totalitems: total,
         start: +start,
+//        name: items[0].title,
         items: items.map(this._convert(2, BASE_SERVICE, +start)),
       },
     ]);
@@ -1578,6 +1745,37 @@ module.exports = class MusicServer {
     return this._emptyCommand(url, [{ "audio_delay": newDelay }]);
   }
 
+  async _audioCfgReady(url) {
+    return this._emptyCommand(url, {"session":547541322864});
+    return '{"ready_result": {"session":547541322864}, "command": "audio/cfg/ready"}'
+  }
+
+  async _audioCfgGetConfig(url) {
+    return this._emptyCommand(url, {"crc32":this.musicCRC,"extensions":[]});
+    return `{"getconfig_result": {"crc32":"${this.musicCRC}","extensions":[]}, "command": "audio/cfg/getconfig"}`
+  }
+
+  async _audioCfgSetConfig(url) {
+    return this._emptyCommand(ur, []);
+    //        return this._emptyCommand(url, {"crc32":"6c153667","extensions":[]});
+  }
+
+  async _audioCfgMiniservertime(url) {
+    return this._emptyCommand(url, true);
+  }
+
+  async _audioCfgSpeakerType(url) {
+    return this._emptyCommand(url, []);
+  }
+
+  async _audioCfgVolumes(url) {
+    return this._emptyCommand(url, []);
+  }
+
+  async _audioCfgPlayername(url) {
+    return this._emptyCommand(url, []);
+  }
+
   async _playGroupedAlarm(url) {
     const [, , type, volumes, zones] = url.split('/');
 
@@ -1602,7 +1800,7 @@ module.exports = class MusicServer {
 
     return this._emptyCommand(url, []);
   }
-
+  
   async _audioAlarm(url) {
     const [, zoneId, type, volume] = url.split('/');
     const zone = this._zones[+zoneId - 1];
@@ -1620,6 +1818,12 @@ module.exports = class MusicServer {
     );
 
     return this._audioCfgGetPlayersDetails('audio/cfg/getplayersdetails');
+  }
+
+  async _audioGetStatus(url) {
+    const [, zoneId] = url.split('/');
+    const zone = this._zones[+zoneId - 1];
+    return this._emptyCommand(url, [this._getAudioState(zone)]);
   }
 
   async _audioGetQueue(url) {
@@ -2290,6 +2494,34 @@ module.exports = class MusicServer {
     this._master.playUploadedFile(config.uploadPlaybackPath + '/' + filename, zones);
 
     return this._emptyCommand(url, []);
+  }
+
+  async _secureHello(url) {
+    const [, , id, pub_key] = url.split('/');
+    return '{"command":"secure/hello","error":0,"public_key":"' + pub_key + '"}'
+    //return '{"command":"secure/hello","error":0,"public_key":"LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUZyakNDQTVhZ0F3SUJBZ0lKQU5ORStBQ2hGMS9aTUEwR0NTcUdTSWIzRFFFQkN3VUFNR014Q3pBSkJnTlYKQkFZVEFrRlVNUkF3RGdZRFZRUUlEQWRCZFhOMGNtbGhNU0F3SGdZRFZRUUtEQmRNYjNodmJtVWdSV3hsWTNSeQpiMjVwWTNNZ1IyMWlTREVnTUI0R0ExVUVBd3dYY205dmRDMWpZUzVzYjNodmJtVmpiRzkxWkM1amIyMHdJQmNOCk1UZ3dOekEyTURZeE5qQTRXaGdQTWpFeE9EQTJNVEl3TmpFMk1EaGFNR014Q3pBSkJnTlZCQVlUQWtGVU1SQXcKRGdZRFZRUUlEQWRCZFhOMGNtbGhNU0F3SGdZRFZRUUtEQmRNYjNodmJtVWdSV3hsWTNSeWIyNXBZM01nUjIxaQpTREVnTUI0R0ExVUVBd3dYY205dmRDMWpZUzVzYjNodmJtVmpiRzkxWkM1amIyMHdnZ0lpTUEwR0NTcUdTSWIzCkRRRUJBUVVBQTRJQ0R3QXdnZ0lLQW9JQ0FRQ29RTThlSlRibmpTaWZOWGtzcjNtRzNwNjRuS0hjWjFyb1l6Tk4KRTlDaUVMOWJ0MlpGNTlUbDBYN2xwNFNyNmQ2YVBmK1R0TlRmNzhKanl6UnNWdWdBNGJ5REJWM0c1YVNSVWtJbQp6U1o2cEFhZVNjN2J2TkJDZThBdzdXNVhBYkdHRGwzenYrSnhjbDZwTnNKL2hBZkNaSzNTaGQyWlZwdG0wT2ZiCkRQSzJ3Q0k0cjRCWjJ3UXdMZXBQU0Y3RVB4UTZsL3drZmVkeGdOc0JCZktPaTVFRVA2L2N0RTcxWUhrQklRQk4KMjFnVndNTzFEU1NkSzYxcTNMMndaZnQwZEpFZW1PMFMxQlNlbUpScmZ6QXo3cWYvUUVPdkNTOTBndTVWOWwyRApzcnBDZ252NmYzdHFUVEdDS0w5ajdMNWdrNDJDR2poR1JHVWI2ZFI0cHo3R3A2OWVGcldvNjlaNGtLa0l3ZURQCmsrREI0NFRRMFpCU1JPOEZtWGswY0pmM05JYS9sdlRaWUptUXJYUEdzQjFhSUFxSkZ1V2FnbHVJUThHdHd0QjgKRWR2VDlzSG5aOVArVzk5U2VGNGNDSVU0MlA0R09FNUVvVlI4d014bWJmMjdiZG9KSlNkelQ3N1NKRTNtYWhpUAoxemNGaUtYcUMzMmJZZDF5aFpJaVVWYm9Oa0xrTmJaMmtQZ1p4SE9iQkJqZ0tCOUxmQmtteWJXQ1o5Q0pJOEExCkpkM29WMnU5L3hObVk4MzhzckU0NHZQM1Nqd3BmalBuMGFXOGkzbG9OTVljcHN5R2owZ2JJQXhzRnhXQTh3bmsKa2hJeHZXdFhjVWpTYkpwd2hmOXB2NHZjcURIMThGMlV6cjNQbVlMYTIvMThsMmQxOGwvRDVBeXpKck5BRnVVWgo0cytXaHdJREFRQUJvMk13WVRBZEJnTlZIUTRFRmdRVWtESWhCVlh1Zm5yblc2SmJyaTl0bWdERlhYMHdId1lEClZSMGpCQmd3Rm9BVWtESWhCVlh1Zm5yblc2SmJyaTl0bWdERlhYMHdEd1lEVlIwVEFRSC9CQVV3QXdFQi96QU8KQmdOVkhROEJBZjhFQkFNQ0FZWXdEUVlKS29aSWh2Y05BUUVMQlFBRGdnSUJBR21UYUJLOE5LWFNYTUM3cUk2YgpqSGZBeEhTRWtwSFhER0kxMWk0UnFBdldvVERBWHprV05KL0RVSWx6dWRwNFFhVTIwNEIranlpWlZ3VlAvUGhJCmFjTzRBbGFYVTBwOWFleW53OFY0ZlVNSE9yYjRNWDM0ZVBpTDUxZnVubFZCUzBxaGl5aEJRRlRvT295THNMYkkKZUpYYU9jbVlhbTdrU3hybzZXY3hway9sSFhMVnlWVWs1RGZ6Rk80RERpM2Q5RDJYSng0SHUwZWIzQmN2bzl6UQpQN255Q21yNWJaMG10anMxMVhKMUFFWk9ydmRMZFRnL1NTQnNYVHdUSGJ4UTlEUU5nWkhGUUxRaE10VG9KeXB4CllEUVdZbzJUbGcvMTRXdzd3VFlvSStjZzdCRXUzcnZKRjhBbU1tTHIwcmk5NlZma0hsWDdnZ1NIZ3BIQkh5TUQKSkd0ZjRiSld5TzZVcmNqY013aVY0YytmeGllbTdBUkUwUllFeE5GS3UrbEdMZ2tQbXlpdzM5WkRRQ0hidlYycgo0dm5KSzRwWDNBejFCekIyY04rUTZTYnQ4alY1a1E1dlRZM0tCQ0crK2lGR3YrRHdreW5GR1ZwTldTK3dXTzNLCmtlZldtSUNBbkVHWENjaFVNVlJ3bllBR2IyTG9aVUR2SHQ2OHpESm5pS2FBaDFaaEIwM1VRRU9HaWlSNjhyMm0KWkhoVXlLKzlsbldrMVZRMlJsSk82eTRpRlVPL1Vtd2luc0FETUlSSU0zMCtZMXA4ZXRKWkJZYW12S2lZVjRuawpJMjRBYXFKZDlqdUtoNVR2TEc1RWhLbDdPR1FJUkVVeDgzalJwQzBIdjRNUStEQWFUTGMrOGJ4QnpBeGp5bE84CmtvMHpYUm9ZN08vK1pLVlFTNEJrWTA4SAotLS0tLUVORCBDRVJUSUZJQ0FURS0tLS0tCi0tLS0tQkVHSU4gQ0VSVElGSUNBVEUtLS0tLQpNSUlGeURDQ0E3Q2dBd0lCQWdJQ0VBUXdEUVlKS29aSWh2Y05BUUVMQlFBd1l6RUxNQWtHQTFVRUJoTUNRVlF4CkVEQU9CZ05WQkFnTUIwRjFjM1J5YVdFeElEQWVCZ05WQkFvTUYweHZlRzl1WlNCRmJHVmpkSEp2Ym1samN5QkgKYldKSU1TQXdIZ1lEVlFRRERCZHliMjkwTFdOaExteHZlRzl1WldOc2IzVmtMbU52YlRBZ0Z3MHhPREE0TVRjdwpOekkxTXpaYUdBOHlNVEU0TURjeU5EQTNNalV6Tmxvd2dZQXhDekFKQmdOVkJBWVRBa0ZVTVJBd0RnWURWUVFJCkRBZEJkWE4wY21saE1TQXdIZ1lEVlFRS0RCZE1iM2h2Ym1VZ1JXeGxZM1J5YjI1cFkzTWdSMjFpU0RFVU1CSUcKQTFVRUN3d0xiWFZ6YVdOelpYSjJaWEl4SnpBbEJnTlZCQU1NSG0xMWMybGpjMlZ5ZG1WeUxXTmhMbXh2ZUc5dQpaV05zYjNWa0xtTnZiVENDQWlJd0RRWUpLb1pJaHZjTkFRRUJCUUFEZ2dJUEFEQ0NBZ29DZ2dJQkFOeXZpaXg3Ci9KQ21ibm81ZW5VL2FCSFA4RjFGcExZQ2JoRnlydHVVYnlJeFUxakEwQkgrdmozVkNBZ0NkZHNFRjdJS2prQ1cKUmlmbTVlWWplWHQybnNidktUQkh4SmJ3WmI0VmNOSEJUejRNYnVOZ0FBTUpyTW1UWm15aGo1RVdSZWFQcU5KbgpGWEhiUnJ0aHVMT1F6cC9LRFgxMjJxQnllUUVPZENqR0ZQa2VFZlhhWGQ5WVJ3MEl5YUJ6UTZFWllzbjlhSFRvCldwVzE1b1RGN1ZwZHZlQm93eHJqdkw0UEw1YVcvcXNDVjVLanQ5Vzd1bFVWMVA2RXVEVmI3Mml1UWdVNGxORVAKVzBhZ2VGR2xDbWlvNXNJbldlTTVRM1N4WDN3TUhVV25XbnVoeFVpQmY5UHUyekRzZUp3cTNjNGdIcmdvSko5bwp0ZFVVSldRRUw5aVpuZWhiWjZEc1JjbmdsT0Y2SVpQTGZrVkhKNkFTODBqay94bnk2L0pqRlRocDRTdVV6Zmt0CjRic1hMNEYzL1ArQnRQaVZaVEp2ZmM4djNwYnRELzlFSmtiQzRKejc4Wk5iRnlEellDMi93ZVVrUldka0k5cEEKTjFiZ3VNZ1k0cFh3Y09iQnl0aDVuTXRodzc3ZFBrRlAwemdtVkZnbVFNZlVEN0QzbVV6UWd0VGdlcGFZYXZ6NwpoOEJmU2pTbXpsQmordHREN2dFcFRJL2J2b0xrVHF5d1ZiM1F1a1NyUDFKK0N4dE5tbXJmVTNCcTRYRkxDam1UCmNtemlpcjduR1Z4UTVTQmVkdDlQZlB1aHNxL2ZBa2lkU2dWRlNrSkExUVA5TUVaMmMybXc4NXcvVU5hUkM4NnQKOG5CMkdqU3dHZVR5OW80UUJkL0R4SmUzT082VFpNVWJWK1pYQWdNQkFBR2paakJrTUIwR0ExVWREZ1FXQkJTWgoyaHZrcHhqTWNoWk9ZK3gyS0RsMkpjYWM2ekFmQmdOVkhTTUVHREFXZ0JTUU1pRUZWZTUrZXVkYm9sdXVMMjJhCkFNVmRmVEFTQmdOVkhSTUJBZjhFQ0RBR0FRSC9BZ0VBTUE0R0ExVWREd0VCL3dRRUF3SUJoakFOQmdrcWhraUcKOXcwQkFRc0ZBQU9DQWdFQU81dWdLaDBiczlSQW1RK21hZkZKa0JYNXkwS0VLanpCK3VCKzV6MjJQbTBVT2VHMwo5TDVHWjJsMGRwODBDV2hTOXM2MU9kaEhMdHNUU2RCNU04ZEErbnU2eGZlMXJ0Z0l1Z0pyTFVlYWk4QXF1bUdmCnQzSVFvQldMWjVzaFIvMHhHalVYV2JUSlQzNjhtVmZCc3Mva1ZuS2M1K01EUmFVdUxYOUdqaGRBbFNRaVI5QXIKT1ZpZWMwQTJQS3NzQlZzN2JaaG5IUmlKdU4xSjgxZk95Q0Jud045V1l5dTRVRkgrTWJZWGNBQUVmWnVPSEpRQQpwQkZXTlJIUGdSNWdzNTFnc3Z3ckpTYzdmbERsS2tPbkhxNm1vRmgvWGFlU2wzU1psQjAvd0xaeFZoVFFETEprCnpvQ1MrcVROSFlFMUgrbTJ0V0h3M3BXWmFLUk0yTURsank5MjdMcmhYdU00U3hBUERrZTROOGNPSHZlODhVMm4KamlMc3BkcTJLbnMyTkFmM1dmWWxiSDNqV1hWVUdUTGFlZGh0ckxjMnI3L1VuSWFzODc4cjhxVGxLQUUvcjBHWQozajRnZUZlNE1WRjdKNndIL3VqeXdsZHZOSUtWd0hLU0pPTGRaZ1h0Tk1mRmV0dWZUTkZROGxyeDFpMy82c2lWCkdVZ1Z2WS9jY002eGN6dlA3RnA3SFF2L3BmTElFMmdjMGQzVlpSR3F0dllPSXdhVmJyVGlybS9KQUR5N3hnMVQKd1NlTzc5dUpIOVNNMXlBVm0wdk1PSkc3RjRpVnVjVk5kZmpkbVFNdDVUdEFNNjA2RmNSeHVKU2lmS1JGNDVpNgo3aXRob0dQbXFMQmM4M3ZZVldGUmNwbnpuUkFtQ3c0elV0TzRVSDU3WnZoT25waUdxbytSQUhnRXVqVT0KLS0tLS1FTkQgQ0VSVElGSUNBVEUtLS0tLQotLS0tLUJFR0lOIENFUlRJRklDQVRFLS0tLS0NCk1JSUdtRENDQklDZ0F3SUJBZ0lDSUFVd0RRWUpLb1pJaHZjTkFRRUxCUUF3Z1lBeEN6QUpCZ05WQkFZVEFrRlUNCk1SQXdEZ1lEVlFRSURBZEJkWE4wY21saE1TQXdIZ1lEVlFRS0RCZE1iM2h2Ym1VZ1JXeGxZM1J5YjI1cFkzTWcNClIyMWlTREVVTUJJR0ExVUVDd3dMYlhWemFXTnpaWEoyWlhJeEp6QWxCZ05WQkFNTUhtMTFjMmxqYzJWeWRtVnkNCkxXTmhMbXh2ZUc5dVpXTnNiM1ZrTG1OdmJUQWlHQTh5TURJd01Ea3lPREF3TURBd01Gb1lEekl4TWpBd09UQTANCk1EUTBNekF5V2pCZk1Rc3dDUVlEVlFRR0V3SkJWREVnTUI0R0ExVUVDZ3dYVEc5NGIyNWxJRVZzWldOMGNtOXUNCmFXTnpJRWR0WWtneEZ6QVZCZ05WQkFzTURtMTFjMmxqYzJWeWRtVnlYM1l5TVJVd0V3WURWUVFEREF3MU1EUkcNCk9UUkdNREV5UWpVd2dnSWlNQTBHQ1NxR1NJYjNEUUVCQVFVQUE0SUNEd0F3Z2dJS0FvSUNBUUNCWHl5S1dFcm4NCjY0SU5iMTg1ZnZtVTE3d1hvazVMYWNNZVZGRDdxQXoxcldKemIrODJ3elo1N1kwWW54MGJEK2ZXd2xsN2tqcTUNCnZPaXdzY2dWZ0hzZmVEQUZXY0UzVkZzVW1ENlc4bG41LzRQdkZFNDhSUE1heThSbzdhdHNLendPQ2RtNnk2MTMNCnRzS1k2eXBkQkwzaGdwRXhLRTBKWmg0My90M04zYXhvUEJVNHpyQ0lvYzVpWTlEZzhRaER6b0M1ak1qdzgwTjkNCkI2WEp5TmRRVU11VFRsdllBZ1dkbmQ5Q0hOTlp4NW45VDB3L1k0Qkw4U1VGcXVHUExXd1NRZW9URC8vTUpGejMNCmlnVXUzR2dGQW1Ld0NyY0NnUWN2d0dNR2ZjRHd1VjM0bGUrQXNxMitLbjBFU3VybmJyYXhxRVdOcDdFNGQ4RTgNCnR0ZGR4eWQ5Q3V5NzJzQ0JtOCtVQ2xocUJjNmNVWStmZGVaSDJCcEdQMDJSZFZscXhoSWsrc0Fwa2NtUzdGdFENCjhCU2VYbFlxRkYyZkVhc2xLd1VrRkdaWmV5Ukk0Q3VXSlA2VTU0L0NnRTlsaVNIVUxkZG5HSklJbGRkYWs5UDkNCnM4QW1JRGFyQzB2MWg3QWFINlZ4Vm9MOVJyQ1lYWWl3MElwZE1UMTJXNTFzdkNHa01oM01NWE1iQlJVSXNIb1UNCkNiYkwzQWNwWDd1UVpncTAwSGdZUElPZ2pMN21PMk9Id1k0dmJuTVkvSkRKcHFHaUU0dFVFZ2Uxb2NhcjhqMUYNCjdQTDFCcVZhOHFvZEIwai9tWW1ydGtMdEp2aUN0OVUxS01GT1E2dVpZSGN0RzlZcklBMkpuOU1ucEhlRlFySUMNCklZSjNiVEVzc3BJdTNlWFg2Vk5TdTFpNE9tQXdkZFNGbVFJREFRQUJvNElCTmpDQ0FUSXdDUVlEVlIwVEJBSXcNCkFEQVJCZ2xnaGtnQmh2aENBUUVFQkFNQ0JzQXdNd1lKWUlaSUFZYjRRZ0VOQkNZV0pFOXdaVzVUVTB3Z1IyVnUNClpYSmhkR1ZrSUZObGNuWmxjaUJEWlhKMGFXWnBZMkYwWlRBZEJnTlZIUTRFRmdRVVc5ZXMwY0M0QWpzdHRlcDgNCnFmaDhEc3BoSkJrd2dZNEdBMVVkSXdTQmhqQ0JnNEFVbWRvYjVLY1l6SElXVG1Qc2RpZzVkaVhHbk91aFo2UmwNCk1HTXhDekFKQmdOVkJBWVRBa0ZVTVJBd0RnWURWUVFJREFkQmRYTjBjbWxoTVNBd0hnWURWUVFLREJkTWIzaHYNCmJtVWdSV3hsWTNSeWIyNXBZM01nUjIxaVNERWdNQjRHQTFVRUF3d1hjbTl2ZEMxallTNXNiM2h2Ym1WamJHOTENClpDNWpiMjJDQWhBRU1BNEdBMVVkRHdFQi93UUVBd0lGb0RBZEJnTlZIU1VFRmpBVUJnZ3JCZ0VGQlFjREFRWUkNCkt3WUJCUVVIQXdJd0RRWUpLb1pJaHZjTkFRRUxCUUFEZ2dJQkFKc2luRGdzRUFoc1A2RWtrNGMzWnM3UnZEa2cNCklTY3pLV1R5ZUpYQ0t5bHJxVVNUbDkzc0VWOElTbk5aTU8yTlowenhadWVodWFOK3FDa2kzVS9SQkxhYmJHNUwNClVYSit5NUZOM01EbjhPVjVlMmJRU205MXl1QU9JdC8zOXdzK2VVRTkrTGcvWmZqVVdJKzRmd0VOS2g2RkMzaFINCm5OcmFDRkJVbDQrVEIyelJ4OHVpNnUwc3h2Slk5RGl0ajlUS0VjeVFLa3YxQ1hKSVZqM2dhOFVQb3pJcFZiR2oNCm9WTUpBMUtQU0FQckNZZEd4TDQ4S0JVWFk2aXV4d0RheGx3SGozSmM5V3ZxMjhyOEcveEthSlZRTVZXdkpTSHENCkpUZGVxMWhQR1BxNE1EZXcxUkoxckdWNFVBUmlJQVRsdmZxbFIyQlBYeWQrdzM3Q3lsT3REZTh5VmVqczUzQWwNCm40QVd6NnFmc3BJMWN1eHJpQnR4eUxkOWZWTyt3TlZkME43NnhPYW1NUlJVdU1zV3hOVXZ5dE14MEpvSFpIYWoNCndaWHFoUG9WUUFZWW5teGg2TStqSmgyc2cxTmxlV2ZuRWhxazVJd2JqaUV6eXZqMk5jOUdndHg5dzRudW56blgNCllMeDhrRS9DTlZhMTRNWlJUNWkzd2tiOXZUTkhJamRVbUpVUGtJTnlVa2VJNnRNK1VFMFk3UkRFQTJiYWhnWncNClEyUUZORmFyMENwWVJiZUxBanU1Zkgweld1SjZCKzI0SlZqRXMydVF0Ly9YTVF3eXFkTVFMZTg1WDZ5c21WS28NCkZ0TXpVTkQ1bS9iWk1ZSGkxODdFS05VNnpETzlVMTQyN3p1NW92MHZiTUtlV1ZQTHYzWndHd3hDbFkxMVZlWWINCnVZTFJmY3drTEd4RGhtWDANCi0tLS0tRU5EIENFUlRJRklDQVRFLS0tLS0NCg=="}'
+    //return '{"command":"secure/hello","error":0,"public_key":"LS0tLS1CRUdJTiBQVUJMSUMgS0VZLS0tLS0KTUlHZk1BMEdDU3FHU0liM0RRRUJBUVVBQTRHTkFEQ0JpUUtCZ1FEYUtQL0FPcWFwa2N0Nzh2c2t4VFpnMzNYawpVaVFwbDYyVzNicnIzQlI2Mnk2aU10RGE1NFozaUszV2x6Z1FFbE9FUldKbU12RjlzWFJaY2IzTGU2eElROTYwCm1UblVwcmRGUnQyYStzeGMzZ2pvR1FwMGVHZEF1QjRjNC9GVVlEdWRiVy9Yak9KUVhQeHpIWGgzQjhFbjR0UFQKWDFxS3FVMm5KR3AyZXhiTjlRSURBUUFCCi0tLS0tRU5EIFBVQkxJQyBLRVktLS0tLQ=="}'
+  }
+
+  async _secureInit(url) {
+    const [, , jwt] = url.split('/');
+    //console.log(this._lc, this._rsaKey.decrypt(jwt).toString());
+    return '{"command":"secure/init","error":0,"jwt":"eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.ewogICJleHAiOiAxNjQwNjEwMTQ0LAogICJpYXQiOiAxNjQwNjEwMDg0LAogICJzZXNzaW9uX3Rva2VuIjogIjhXYWh3QWZVTHdFUWNlOVl1MHFJRTlMN1FNa1hGSGJpME05Y2g5dktjZ1lBclBQb2pYSHBTaU5jcTBmVDNscUwiLAogICJzdWIiOiAic2VjdXJlLXNlc3Npb24taW5pdC1zdWNjZXNzIgp9.Zd5M55YPirdugqlGr7u6iB-kM_oFqnvMnpxL8gj58vF2L4ocpSY6S8OB_4f8LeIB2AIYikN5U6R0UALJ3Oahxa0gq9qKDoNrjC7-Q8wAe1rEhDbvdWtaRzmgiHnivrz0cNsyeYGBX8c5Ix6pLI8URGjR1Ox2lbxBt_pVZ-MyEvhVNSJ0-DttclqIAgr_24tVmwe6lleT5eKyBoQVAcGJP-3LSdORKckHTCRw6aaf6sOQ7AtK37SXgnHB6J4g2wErvyw29mMAmDTbR8vZUCmTxgnmhbrks02AZITLaDeGAYTlSASWDSl84L9wkWOWk0pufZIGG0zcXgL8EoWD8cw_fIhbh-LXODEY5251u0DlVtaI_6J6o2j8jy_WvsSqKh-sqqy-ygScwPkLgFua7GNlppaHUGsFaEg0rVdLvVAiIV3mbOGnis1RuWcTWY9iuPVxFTODxkOZNRgZttBb_NFa8lQPJKwwhA33YC1hJ6DE3xEC2rvc4LGE400nLKnELNKpFNsom07JFSQQq8NV3Z1lzTksa8ANdXrV080J8x0c1Bt4dcUyx3lzFE8XG3DsLXCnL2YsJ9ik2jdSBZL8grnoQjqvJWaX3j47P0VM-jaMICVb6QcVP-nNB7k5n1qQGASsbkhcB1nffzE_wLooUe4iLxJQ2dkCM1n7ngXDF6HK0_A"}'
+    //return '{"command":"secure/init","error":0,"jwt":"eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE2NDA2MTAxNDQsImlhdCI6MTY0MDYxMDA4NCwic2Vzc2lvbl90b2tlbiI6IjhXYWh3QWZVTHdFUWNlOVl1MHFJRTlMN1FNa1hGSGJpME05Y2g5dktjZ1lBclBQb2pYSHBTaU5jcTBmVDNscU0iLCJzdWIiOiJzZWN1cmUtc2Vzc2lvbi1pbml0LXN1Y2Nlc3MifQ.Zd5M55YPirdugqlGr7u6iB-kM_oFqnvMnpxL8gj58vF2L4ocpSY6S8OB_4f8LeIB2AIYikN5U6R0UALJ3Oahxa0gq9qKDoNrjC7-Q8wAe1rEhDbvdWtaRzmgiHnivrz0cNsyeYGBX8c5Ix6pLI8URGjR1Ox2lbxBt_pVZ-MyEvhVNSJ0-DttclqIAgr_24tVmwe6lleT5eKyBoQVAcGJP-3LSdORKckHTCRw6aaf6sOQ7AtK37SXgnHB6J4g2wErvyw29mMAmDTbR8vZUCmTxgnmhbrks02AZITLaDeGAYTlSASWDSl84L9wkWOWk0pufZIGG0zcXgL8EoWD8cw_fIhbh-LXODEY5251u0DlVtaI_6J6o2j8jy_WvsSqKh-sqqy-ygScwPkLgFua7GNlppaHUGsFaEg0rVdLvVAiIV3mbOGnis1RuWcTWY9iuPVxFTODxkOZNRgZttBb_NFa8lQPJKwwhA33YC1hJ6DE3xEC2rvc4LGE400nLKnELNKpFNsom07JFSQQq8NV3Z1lzTksa8ANdXrV080J8x0c1Bt4dcUyx3lzFE8XG3DsLXCnL2YsJ9ik2jdSBZL8grnoQjqvJWaX3j47P0VM-jaMICVb6QcVP-nNB7k5n1qQGASsbkhcB1nffzE_wLooUe4iLxJQ2dkCM1n7ngXDF6HK0_B"}'
+    //return '{"command":"secure/init","error":0,"jwt":"' + jwt + '"}'
+    //return '{"ready_result": {"session":547541322864}, "command": "audio/cfg/ready"}'
+  }
+
+  async _securePair(url) {
+    return this._emptyCommand(url, []);
+  }
+
+  async _secureInfoPairing(url) {
+    return '{"command":"secure/info/pairing","error":-84,"master":"' + this.msMAC + '","peers":[]}'
+  }
+
+  async _secureAuthenticate(url) {
+    return this._emptyCommand(url, "authentication successful");
   }
 
   _emptyCommand(url, response) {
