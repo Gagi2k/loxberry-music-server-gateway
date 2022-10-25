@@ -1756,7 +1756,7 @@ module.exports = class MusicServer {
   }
 
   async _audioCfgSetConfig(url) {
-    return this._emptyCommand(ur, []);
+    return this._emptyCommand(url, []);
     //        return this._emptyCommand(url, {"crc32":"6c153667","extensions":[]});
   }
 
