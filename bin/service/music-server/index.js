@@ -110,6 +110,10 @@ module.exports = class MusicServer {
       throw new Error('Music server already started');
     }
 
+    // Connect to the Miniserver as early as possible
+    // Afterwards we have all the information to also do secure communication
+    this.connectToMiniserver();
+
     const httpServer = http.createServer(async (req, res) => {
       console.log(this._lcHTTP, 'RECV:' + req.url);
 
@@ -197,8 +201,6 @@ module.exports = class MusicServer {
       }
     });
 
-    //this.connectToMiniserver();
-
     httpServer.listen(this._config.port);
     if (config.cors_port)
         cors_proxy.createServer().listen(config.cors_port)
@@ -269,7 +271,7 @@ module.exports = class MusicServer {
     }
     var client = this._msClients[0];
 
-    this.prepareAudioserverConfig();
+    await this.prepareAudioserverConfig();
 
     // Search for this mediaServer instance and save its ID
     var mac = this._mac().replace(/:/g, "").toUpperCase();
@@ -402,6 +404,8 @@ module.exports = class MusicServer {
 
     // Request getting notifications for all value changes
     await client.command("jdev/sps/enablebinstatusupdate");
+
+    console.log(this._lc, "connectToMiniserver DONE");
   }
 
   async prepareAudioserverConfig() {
