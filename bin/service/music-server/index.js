@@ -1068,6 +1068,9 @@ module.exports = class MusicServer {
       case /(?:^|\/)audio\/cfg\/roomfavs\/\d+\/delete/.test(url):
         return this._audioRoomFavsDelete(url);
 
+      case /(?:^|\/)audio\/cfg\/roomfavs\/\d+\/setplus/.test(url):
+        return this._audioRoomFavsSetPlus(url);
+
       case /(?:^|\/)audio\/cfg\/roomfavs\/\d+\//.test(url):
         return this._audioRoomFavsAdd(url);
 
@@ -2318,6 +2321,27 @@ module.exports = class MusicServer {
     return this._emptyCommand(url, []);
   }
 
+  async _audioRoomFavsSetPlus(url) {
+    const [, , , zoneId, , id, setplus] = url.split('/');
+    const zone = this._zones[+zoneId - 1];
+    const [decodedId, favoriteId] = this._decodeId(id);
+
+    const index = favoriteId % 1000000;
+
+    var favs = await zone.getFavoritesList().get(undefined, 0, 100);
+    // create a deep copy
+    favs = JSON.parse(JSON.stringify(favs));
+
+    let item = favs.items[index];
+    item.plus = setplus;
+    await zone.getFavoritesList().replace(index, item);
+
+    if (!zone.getFavoritesList().canSendEvents)
+        this._pushRoomFavChangedEvents([zone]);
+
+    return this._emptyCommand(url, []);
+  }
+
   async _audioRoomFavSaveExternalId(url) {
     const [, zoneId, , , position, ,id, title] = url.split('/');
     const zone = this._zones[+zoneId - 1];
@@ -2616,6 +2640,7 @@ module.exports = class MusicServer {
 
       var contentType = "";
       var mediaType = "";
+      var plus = ""
       if (base == BASE_SERVICE) {
          contentType = "Service";
          mediaType = "service";
@@ -2632,6 +2657,7 @@ module.exports = class MusicServer {
                  base == BASE_FAVORITE_GLOBAL) {
          contentType = "ZoneFavorites";
          mediaType = "favorites";
+         plus = item.plus ? item.plus : ""
       }
 
       var result = {
@@ -2651,7 +2677,8 @@ module.exports = class MusicServer {
         // Used as identifier for queue management (checked against qid in current track)
         unique_id: (item.qindex != undefined) ? item.qindex.toString() : undefined,
         contentType,
-        mediaType
+        mediaType,
+        plus
       };
 
       // This is needed to be able to show the correct view when saving it as a shortuct
