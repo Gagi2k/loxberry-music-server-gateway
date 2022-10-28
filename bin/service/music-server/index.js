@@ -246,7 +246,9 @@ module.exports = class MusicServer {
       }
     });
 
-    msHttpServer.listen(7095);
+    if (config.type == "audioserver") {
+        msHttpServer.listen(7095);
+    }
 
     this._initSse();
 
@@ -1158,6 +1160,8 @@ module.exports = class MusicServer {
   }
 
   _audioCfgAll(url) {
+    if (config.type != "musicserver")
+        return this._emptyCommand(url, []);
     return this._response(url, 'configall', [
       {
         airplay: false,

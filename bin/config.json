@@ -5,6 +5,7 @@
         "1": "<mac>"
     },
     "lms_host": "localhost",
+    "type": "musicserver",
     "lms_port": 9000,
     "lms_cli_port": 9090,
     "msApi": "LWSS V 1.4.10.06 | ~API:1.6~",
