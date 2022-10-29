@@ -14,15 +14,15 @@ module.exports = class MusicMaster {
     this._lc = musicServer.loggingCategory().extend("MASTER");
 
     this._inputs = new MusicList(musicServer, '/inputs', this);
-    this._favorites = new MusicList(musicServer, '/favorites', this, musicServer._zones[0]);
+    this._favorites = new MusicList(musicServer, '/favorites', this, musicServer._masterZone);
     this._playlists = new MusicList(musicServer, '/playlists', this);
     this._library = new MusicList(musicServer, '/library', this);
     this._radios = new MusicList(musicServer, '/radios', this);
     // This is not zone specific but we still need to use a zone for the call to work correctly
-    this._services = new MusicList(musicServer, '/services', this, musicServer._zones[0]);
-    this._serviceFolder = new MusicList(musicServer, '/servicefolder', this, musicServer._zones[0]);
+    this._services = new MusicList(musicServer, '/services', this, musicServer._masterZone);
+    this._serviceFolder = new MusicList(musicServer, '/servicefolder', this, musicServer._masterZone);
 
-    this._client = new LMSClient(this._musicServer._zones[0]._zone_mac, this);
+    this._client = new LMSClient(this._musicServer._masterZone._zone_mac, this);
 
     this._globalClient = new LMSClient(undefined, this, (data) => {
         console.log(this._lc, "LMS NOTIFICATION:", data)

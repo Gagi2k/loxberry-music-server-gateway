@@ -51,10 +51,14 @@ const BASE_LIBRARY = 4 * BASE_DELTA;
 const BASE_INPUT = 5 * BASE_DELTA;
 const BASE_SERVICE = 6 * BASE_DELTA;
 
+function getKeyByValue(object, value) {
+  return Object.keys(object).find(key => object[key] === value);
+}
+
 module.exports = class MusicServer {
   constructor(cfg) {
 
-    const zones = [];
+    const zones = {};
 
     this._config = cfg;
     this._zones = zones;
@@ -94,12 +98,21 @@ module.exports = class MusicServer {
 
     // Parse API version from string to make the settings backward compatible
     this._apiVersion = config.msApi.match(/V ((\d+\.)?(\d+\.)?(\d+\.)?(\d+)?)/)[1];
+    this.masterZoneName = Object.keys(config.zone_map)[0];
 
-    for (let i = 0; i < config.zones; i++) {
-      zones[i] = new MusicZone(this, i + 1, this);
+    if (config.type == "musicserver") {
+      for (let i = 0; i < config.zones; i++) {
+        if (config.zone_map[i +1]) {
+          console.log(this._lc, "Adding Zone:", i+1, "with mac:", config.zone_map[i +1]);
+          zones[i+1] = new MusicZone(this, i + 1, this);
+          if (i == this.masterZoneName) {
+            console.log(this._lc, "Adding Zone:", i+1, "as master zone");
+            this._masterZone = zones[i]
+          }
+        }
+      }
+      this._master = new MusicMaster(this);
     }
-
-    this._master = new MusicMaster(this);
   }
 
   loggingCategory() {
@@ -274,7 +287,9 @@ module.exports = class MusicServer {
     }
     var client = this._msClients[0];
 
-    await this.prepareAudioserverConfig();
+    if (config.type == "audioserver") {
+        await this.prepareAudioserverConfig();
+    }
 
     // Search for this mediaServer instance and save its ID
     var mac = this._mac().replace(/:/g, "").toUpperCase();
@@ -435,12 +450,31 @@ module.exports = class MusicServer {
     });
     this.musicJSON = response.data
     this.musicCRC = crc32(JSON.stringify(this.musicJSON)).toString(16);
-
     const thisMac = this._mac().replace(/:/g, "").toUpperCase()
 
     for(let [key, value] of Object.entries(this.musicJSON)) {
         if (!(thisMac in value))
             continue;
+
+        // Search for all Players which are part of the music.json
+        // Identify them by name
+        const players = value[thisMac].players;
+        for(var i in players) {
+            const playerUuid = players[i].uuid;
+            const playerId = players[i].playerid;
+            const playerName = this._msClients[0].appConfig().controls[playerUuid].name
+            console.log(this._lc, "Found Player:", playerName, playerId);
+            console.log(this._lc, this._config)
+            if (config.zone_map[playerName]) {
+                console.log(this._lc, "Adding Zone:", playerName, "with mac:", config.zone_map[playerName]);
+                this._zones[playerId] = new MusicZone(this, playerName , this);
+                if (playerName == this.masterZoneName) {
+                    console.log(this._lc, "Adding Zone:", playerName, "as master zone");
+                    this._masterZone = this._zones[playerId];
+                }
+            }
+        }
+        this._master = new MusicMaster(this);
 
         // Inform the Miniserver that the Audioserver is starting up and the Miniserver can now
         // connect to it.
@@ -512,13 +546,13 @@ module.exports = class MusicServer {
   async pushAudioEvent(zone) {
     this._pushAudioEvents([zone]);
 
-    const zoneId = this._zones.indexOf(zone) + 1;
+    const zoneId = getKeyByValue(this._zones, zone);
     const syncInfo = this._getSyncedGroupInfo(zoneId);
     if (syncInfo) {
         var zones = []
         for (var i in syncInfo.members) {
             if (zoneId != syncInfo.members[i]) {
-                const zoneObj = this._zones[syncInfo.members[i] - 1];
+                const zoneObj = this._zones[syncInfo.members[i]];
                 await zoneObj.getState();
                 this._pushAudioEvents([zoneObj]);
             }
@@ -533,13 +567,13 @@ module.exports = class MusicServer {
   async pushQueueEvent(zone) {
     this._pushQueueEvents([zone]);
 
-    const zoneId = this._zones.indexOf(zone) + 1;
+    const zoneId = getKeyByValue(this._zones, zone);
     const syncInfo = this._getSyncedGroupInfo(zoneId);
     if (syncInfo) {
         var zones = []
         for (var i in syncInfo.members) {
             if (zoneId != syncInfo.members[i]) {
-                const zoneObj = this._zones[syncInfo.members[i] - 1];
+                const zoneObj = this._zones[syncInfo.members[i]];
                 await zoneObj.getState();
                 this._pushQueueEvents([zoneObj]);
             }
@@ -549,7 +583,7 @@ module.exports = class MusicServer {
 
   _pushAudioEvents(zones) {
 
-    const audioEvents = zones.map((zone) => {
+    const audioEvents = Object.values(zones).map((zone) => {
       return this._getAudioState(zone);
     });
 
@@ -565,7 +599,7 @@ module.exports = class MusicServer {
   }
 
   _pushAudioSyncEvents() {
-    const syncGroups = this._master.getSyncGroups();
+    const syncGroups = this._master ? this._master.getSyncGroups() : [];
 
     var audioSyncEvent = []
     for (var i in syncGroups) {
@@ -573,7 +607,7 @@ module.exports = class MusicServer {
         for (var j in syncGroups[i]) {
             players.push({ playerid: +syncGroups[i][j] })
         }
-        audioSyncEvent.push({ group: +i + 1, players, masterVolume: 50});
+        audioSyncEvent.push({ group: +i, players, masterVolume: 50});
     }
 
     const audioSyncEventsMessage = JSON.stringify({
@@ -676,7 +710,7 @@ module.exports = class MusicServer {
       const message = JSON.stringify({
         roomfav_event: [
           {
-            'playerid': this._zones.indexOf(zone) + 1,
+            'playerid': getKeyByValue(this._zones, zone),
             'playing slot': zone.getFavoriteId(),
           },
         ],
@@ -695,7 +729,7 @@ module.exports = class MusicServer {
       const message = JSON.stringify({
         roomfavchanged_event: [
           {
-            playerid: this._zones.indexOf(zone) + 1,
+            playerid: getKeyByValue(this._zones, zone),
           },
         ],
       });
@@ -713,7 +747,7 @@ module.exports = class MusicServer {
       const message = JSON.stringify({
         audio_queue_event: [
           {
-            playerid: this._zones.indexOf(zone) + 1,
+            playerid: getKeyByValue(this._zones, zone),
           },
         ],
       });
@@ -807,7 +841,9 @@ module.exports = class MusicServer {
 
       case /^(data:)?\s*\/zone\/\d+\/favorites\/\d+\s*$/.test(url): {
         const [, , zoneId, , position] = url.split('/');
-        const zone = this._zones[+zoneId - 1];
+        const zone = this._zones[zoneId];
+        if (!zone)
+          break;
 
         zone.getFavoritesList().reset(+position);
         this._pushRoomFavChangedEvents([zone]);
@@ -819,7 +855,9 @@ module.exports = class MusicServer {
 
       case /^(data:)?\s*\/zone\/\d+\/state\s*$/.test(url): {
         const [, , zoneId] = url.split('/');
-        const zone = this._zones[+zoneId - 1];
+        const zone = this._zones[zoneId];
+        if (!zone)
+          break;
 
         zone.getState();
         // No need to push an event, getState does it automatically.
@@ -1160,8 +1198,8 @@ module.exports = class MusicServer {
   }
 
   _audioCfgAll(url) {
-    if (config.type != "musicserver")
-        return this._emptyCommand(url, []);
+//    if (config.type != "musicserver")
+//        return this._emptyCommand(url, []);
     return this._response(url, 'configall', [
       {
         airplay: false,
@@ -1179,28 +1217,34 @@ module.exports = class MusicServer {
         ntp: '0.europe.pool.ntp.org',
         upnplicences: 0,
         usetrigger: false,
-        players: this._zones.map((zone, i) => ({
-          playerid: i + 1,
-          players: [{playerid: i + 1}],
+        players: Object.values(this._zones).map((zone) => {
+        var zoneId = getKeyByValue(this._zones, zone);
+        return {
+          playerid: zoneId,
+          players: [{playerid: zoneId}],
           clienttype: 0,
           default_volume: zone.getDefaultVolume(),
           enabled: true,
-          internalname: 'zone-' + (i + 1),
+          internalname: 'zone-' + zoneId,
           max_volume: zone.getMaxVolume(),
           volume: zone.getVolume(),
-          name: 'Zone ' + (i + 1),
+          name: 'Zone ' + zoneId,
           upnpmode: 0,
           upnppredelay: 0,
-        })),
+        }}),
       },
     ]);
   }
 
   async _audioCfgEqualizer(url) {
     const [, , , zoneId, config] = url.split('/');
-    const zone = this._zones[+zoneId - 1];
+    const zone = this._zones[zoneId];
     const bands = config && config.replace("!", "").split(',').map(Number);
     let value;
+
+    if (!zone) {
+      return this._emptyCommand(url, []);
+    }
 
     if (+zoneId <= 0) {
       value = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
@@ -1231,8 +1275,11 @@ module.exports = class MusicServer {
 
   async _audioCfgGetEq(url) {
     const [, , , zoneId] = url.split('/');
-    const zone = this._zones[+zoneId - 1];
+    const zone = this._zones[zoneId];
     let values;
+    if (!zone) {
+      return this._emptyCommand(url, []);
+    }
 
     if (+zoneId <= 0) {
       values = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
@@ -1256,8 +1303,11 @@ module.exports = class MusicServer {
 
   async _audioCfgSetEq(url) {
     const [, , , zoneId, bandId, value] = url.split('/');
-    const zone = this._zones[+zoneId - 1];
+    const zone = this._zones[zoneId];
     let values;
+    if (!zone) {
+      return this._emptyCommand(url, []);
+    }
 
     if (value != undefined) {
         if (+zoneId <= 0) {
@@ -1385,7 +1435,7 @@ module.exports = class MusicServer {
   }
 
   _audioCfgGetPlayersDetails(url) {
-    const audioStates = this._zones.map((zone, i) => {
+    const audioStates = Object.values(this._zones).map((zone) => {
       return this._getAudioState(zone);
     });
 
@@ -1426,7 +1476,10 @@ module.exports = class MusicServer {
     const [, , , zoneId, start, length] = url.split('/');
 
     if (+zoneId > 0) {
-      const zone = this._zones[+zoneId - 1];
+      const zone = this._zones[zoneId];
+      if (!zone) {
+        return this._emptyCommand(url, []);
+      }
       const {total, items} = await zone.getFavoritesList().get(undefined, +start, +length);
 
       const mappedItems = items
@@ -1454,8 +1507,11 @@ module.exports = class MusicServer {
 
   async _audioFavoritePlay(url) {
     const [, zoneId, , id] = url.split('/');
-    const zone = this._zones[+zoneId - 1];
+    const zone = this._zones[zoneId];
     const [decodedId, favoriteId] = this._decodeId(id);
+    if (!zone) {
+      return this._emptyCommand(url, []);
+    }
 
     await zone.play(decodedId, favoriteId);
 
@@ -1498,7 +1554,7 @@ module.exports = class MusicServer {
         id: requestId,
         totalitems: total,
         start: +start,
-//        name: items[0].title,
+        name: items.length ? items[0].title : "",
         items: items.map(this._convert(2, BASE_SERVICE, +start)),
       },
     ]);
@@ -1714,7 +1770,10 @@ module.exports = class MusicServer {
 
   async _audioCfgDefaultVolume(url) {
     const [, , , zoneId, volume] = url.split('/');
-    const zone = this._zones[+zoneId - 1];
+    const zone = this._zones[zoneId];
+    if (!zone) {
+      return this._emptyCommand(url, []);
+    }
 
     if (volume) {
       await zone.defaultVolume(+volume);
@@ -1725,7 +1784,10 @@ module.exports = class MusicServer {
 
   async _audioCfgMaxVolume(url) {
     const [, , , zoneId, volume] = url.split('/');
-    const zone = this._zones[+zoneId - 1];
+    const zone = this._zones[zoneId];
+    if (!zone) {
+      return this._emptyCommand(url, []);
+    }
 
     if (volume) {
       await zone.maxVolume(+volume);
@@ -1736,7 +1798,10 @@ module.exports = class MusicServer {
 
   async _audioCfgEventVolumes(url) {
     const [, , , zoneId, volumeString] = url.split('/');
-    const zone = this._zones[+zoneId - 1];
+    const zone = this._zones[zoneId];
+    if (!zone) {
+      return this._emptyCommand(url, []);
+    }
 
     //TODO unclear what to do here, as the values are saved on the miniserver
     //     and we don't know how to get the inital values.
@@ -1746,7 +1811,10 @@ module.exports = class MusicServer {
 
   async _audioCfgAudioDelay(url) {
     const [, , , zoneId, delay] = url.split('/');
-    const zone = this._zones[+zoneId - 1];
+    const zone = this._zones[zoneId];
+    if (!zone) {
+      return this._emptyCommand(url, []);
+    }
 
     var newDelay = 0
     if (!delay)
@@ -1815,7 +1883,7 @@ module.exports = class MusicServer {
   
   async _audioAlarm(url) {
     const [, zoneId, type, volume] = url.split('/');
-    const zone = this._zones[+zoneId - 1];
+    const zone = this._zones[zoneId];
 
     const alarms = {
       alarm: 'general',
@@ -1834,16 +1902,21 @@ module.exports = class MusicServer {
 
   async _audioGetStatus(url) {
     const [, zoneId] = url.split('/');
-    const zone = this._zones[+zoneId - 1];
+    const zone = this._zones[zoneId];
+    if (!zone) {
+      return this._emptyCommand(url, [{playerid: +zoneId, title: "ZONE NOT CONFIGURED IN MSG"}]);
+    }
     return this._emptyCommand(url, [this._getAudioState(zone)]);
   }
 
   async _audioGetQueue(url) {
     const [, zoneId, , start, length] = url.split('/');
-    const zone = this._zones[+zoneId - 1];
+    const zone = this._zones[zoneId];
+    if (!zone) {
+      return this._emptyCommand(url, []);
+    }
 
     if (+zoneId > 0) {
-      const zone = this._zones[+zoneId - 1];
       let {total, items} = await zone.getQueueList().get(undefined, +start, +length);
 
       if (total === 0) {
@@ -1866,15 +1939,21 @@ module.exports = class MusicServer {
 
   async _audioIdentifySource(url) {
     const [, zoneId] = url.split('/');
-    const zone = this._zones[+zoneId - 1];
+    const zone = this._zones[zoneId];
+    if (!zone) {
+      return this._emptyCommand(url, []);
+    }
 
     return this._response(url, 'identifysource', [this._getAudioState(zone)]);
   }
 
   async _audioLibraryPlay(url) {
     const [, zoneId, , , id] = url.split('/');
-    const zone = this._zones[+zoneId - 1];
+    const zone = this._zones[zoneId];
     const [decodedId, favoriteId] = this._decodeId(id);
+    if (!zone) {
+      return this._emptyCommand(url, []);
+    }
 
     await zone.play(decodedId, favoriteId);
 
@@ -1883,8 +1962,11 @@ module.exports = class MusicServer {
 
   async _audioLineIn(url) {
     const [, zoneId, id] = url.split('/');
-    const zone = this._zones[+zoneId - 1];
+    const zone = this._zones[zoneId];
     const [decodedId, favoriteId] = this._decodeId(id.replace(/^linein/, ''));
+    if (!zone) {
+      return this._emptyCommand(url, []);
+    }
 
     await zone.play(decodedId, favoriteId);
 
@@ -1893,7 +1975,10 @@ module.exports = class MusicServer {
 
   async _audioOff(url) {
     const [, zoneId] = url.split('/');
-    const zone = this._zones[+zoneId - 1];
+    const zone = this._zones[zoneId];
+    if (!zone) {
+      return this._emptyCommand(url, []);
+    }
 
     await zone.power('off');
 
@@ -1902,7 +1987,10 @@ module.exports = class MusicServer {
 
   async _audioOn(url) {
     const [, zoneId] = url.split('/');
-    const zone = this._zones[+zoneId - 1];
+    const zone = this._zones[zoneId];
+    if (!zone) {
+      return this._emptyCommand(url, []);
+    }
 
     await zone.power('on');
 
@@ -1911,7 +1999,10 @@ module.exports = class MusicServer {
 
   async _audioSleep(url) {
     const [, zoneId, ,duration] = url.split('/');
-    const zone = this._zones[+zoneId - 1];
+    const zone = this._zones[zoneId];
+    if (!zone) {
+      return this._emptyCommand(url, []);
+    }
 
     await zone.sleep(+duration);
 
@@ -1920,7 +2011,10 @@ module.exports = class MusicServer {
 
   async _audioPause(url) {
     const [, zoneId, , volume] = url.split('/');
-    const zone = this._zones[+zoneId - 1];
+    const zone = this._zones[zoneId];
+    if (!zone) {
+      return this._emptyCommand(url, []);
+    }
 
     await zone.pause();
 
@@ -1929,7 +2023,10 @@ module.exports = class MusicServer {
 
   async _audioStop(url) {
     const [, zoneId, , volume] = url.split('/');
-    const zone = this._zones[+zoneId - 1];
+    const zone = this._zones[zoneId];
+    if (!zone) {
+      return this._emptyCommand(url, []);
+    }
 
     await zone.stop();
 
@@ -1938,7 +2035,10 @@ module.exports = class MusicServer {
 
   async _audioPlay(url) {
     const [, zoneId] = url.split('/');
-    const zone = this._zones[+zoneId - 1];
+    const zone = this._zones[zoneId];
+    if (!zone) {
+      return this._emptyCommand(url, []);
+    }
 
     if (zone.getMode() === 'stop') {
       //If the playqueue is empty start the first room favorite
@@ -1956,7 +2056,11 @@ module.exports = class MusicServer {
   async _audioPlayUrl(url) {
     const [, zoneId, , ...lastArg] = url.split('/');
     let id = lastArg.join('/');
-    const zone = this._zones[+zoneId - 1];
+    const zone = this._zones[zoneId];
+    if (!zone) {
+      return this._emptyCommand(url, []);
+    }
+
     var decodedId, favoriteId;
     if (id.includes("/parentpath/"))
         id = lastArg[0];
@@ -1974,8 +2078,11 @@ module.exports = class MusicServer {
 
   async _audioAddUrl(url) {
     const [,zoneId, ,id] = url.split('/');
-    const zone = this._zones[+zoneId - 1];
+    const zone = this._zones[zoneId];
     const [decodedId] = this._decodeId(id);
+    if (!zone) {
+      return this._emptyCommand(url, []);
+    }
 
     const {total} = await zone.getQueueList().get(undefined, 0, 0);
 
@@ -1990,8 +2097,11 @@ module.exports = class MusicServer {
 
   async _audioInsertUrl(url) {
     const [,zoneId, ,id] = url.split('/');
-    const zone = this._zones[+zoneId - 1];
+    const zone = this._zones[zoneId];
     const [decodedId] = this._decodeId(id);
+    if (!zone) {
+      return this._emptyCommand(url, []);
+    }
 
     const qindex = zone.getTrack().qindex;
     if (!qindex)
@@ -2008,8 +2118,11 @@ module.exports = class MusicServer {
 
   async _audioPlaylist(url) {
     const [, zoneId, , , id] = url.split('/');
-    const zone = this._zones[+zoneId - 1];
+    const zone = this._zones[zoneId];
     const [decodedId, favoriteId] = this._decodeId(id);
+    if (!zone) {
+      return this._emptyCommand(url, []);
+    }
 
     await zone.play(decodedId, favoriteId);
 
@@ -2018,7 +2131,10 @@ module.exports = class MusicServer {
 
   async _audioPosition(url) {
     const [, zoneId, , time] = url.split('/');
-    const zone = this._zones[+zoneId - 1];
+    const zone = this._zones[zoneId];
+    if (!zone) {
+      return this._emptyCommand(url, []);
+    }
 
     await zone.time(+time * 1000);
 
@@ -2027,7 +2143,10 @@ module.exports = class MusicServer {
 
   _audioQueueMinus(url) {
     const [, zoneId] = url.split('/');
-    const zone = this._zones[+zoneId - 1];
+    const zone = this._zones[zoneId];
+    if (!zone) {
+      return this._emptyCommand(url, []);
+    }
 
     if (zone.getTime() < 3000) {
       zone.previous();
@@ -2040,7 +2159,10 @@ module.exports = class MusicServer {
 
   _audioQueuePlus(url) {
     const [, zoneId] = url.split('/');
-    const zone = this._zones[+zoneId - 1];
+    const zone = this._zones[zoneId];
+    if (!zone) {
+      return this._emptyCommand(url, []);
+    }
 
     zone.next();
 
@@ -2049,7 +2171,10 @@ module.exports = class MusicServer {
 
   async _audioQueueIndex(url) {
     const [, zoneId, , index] = url.split('/');
-    const zone = this._zones[+zoneId - 1];
+    const zone = this._zones[zoneId];
+    if (!zone) {
+      return this._emptyCommand(url, []);
+    }
 
     await zone.setCurrentIndex(index);
 
@@ -2058,7 +2183,10 @@ module.exports = class MusicServer {
 
   async _audioQueuePlay(url) {
     const [, zoneId, , , index] = url.split('/');
-    const zone = this._zones[+zoneId - 1];
+    const zone = this._zones[zoneId];
+    if (!zone) {
+      return this._emptyCommand(url, []);
+    }
 
     await zone.setCurrentIndex(index);
 
@@ -2067,7 +2195,10 @@ module.exports = class MusicServer {
 
   async _audioQueueDelete(url) {
     const [, zoneId, , position] = url.split('/');
-    const zone = this._zones[+zoneId - 1];
+    const zone = this._zones[zoneId];
+    if (!zone) {
+      return this._emptyCommand(url, []);
+    }
 
     await zone.getQueueList().delete(+position, 1);
     if (!zone.getQueueList().canSendEvents)
@@ -2078,7 +2209,10 @@ module.exports = class MusicServer {
 
   async _audioQueueRemove(url) {
     const [, zoneId, , , position] = url.split('/');
-    const zone = this._zones[+zoneId - 1];
+    const zone = this._zones[zoneId];
+    if (!zone) {
+      return this._emptyCommand(url, []);
+    }
 
     await zone.getQueueList().delete(+position, 1);
     if (!zone.getQueueList().canSendEvents)
@@ -2089,7 +2223,10 @@ module.exports = class MusicServer {
 
   async _audioQueueClear(url) {
     const [, zoneId] = url.split('/');
-    const zone = this._zones[+zoneId - 1];
+    const zone = this._zones[zoneId];
+    if (!zone) {
+      return this._emptyCommand(url, []);
+    }
 
     await zone.getQueueList().clear();
     if (!zone.getQueueList().canSendEvents)
@@ -2100,7 +2237,10 @@ module.exports = class MusicServer {
 
   async _audioQueueMove(url) {
     const [, zoneId, , position, destination] = url.split('/');
-    const zone = this._zones[+zoneId - 1];
+    const zone = this._zones[zoneId];
+    if (!zone) {
+      return this._emptyCommand(url, []);
+    }
 
     await zone.getQueueList().move(+position, +destination);
     if (!zone.getQueueList().canSendEvents)
@@ -2111,7 +2251,10 @@ module.exports = class MusicServer {
 
   async _audioQueueMoveBefore(url) {
     let [, zoneId, , , position, , destination] = url.split('/');
-    const zone = this._zones[+zoneId - 1];
+    const zone = this._zones[zoneId];
+    if (!zone) {
+      return this._emptyCommand(url, []);
+    }
 
     if (destination == undefined) {
         const {total} = await zone.getQueueList().get(undefined, 0, 0);
@@ -2127,8 +2270,11 @@ module.exports = class MusicServer {
 
   async _audioQueueAdd(url) {
     const [, zoneId, , id] = url.split('/');
-    const zone = this._zones[+zoneId - 1];
+    const zone = this._zones[zoneId];
     const [decodedId] = this._decodeId(id);
+    if (!zone) {
+      return this._emptyCommand(url, []);
+    }
 
     const {total} = await zone.getQueueList().get(undefined, 0, 0);
 
@@ -2145,8 +2291,11 @@ module.exports = class MusicServer {
 
   async _audioQueueInsert(url) {
     const [, zoneId, , id] = url.split('/');
-    const zone = this._zones[+zoneId - 1];
+    const zone = this._zones[zoneId];
     const [decodedId] = this._decodeId(id);
+    if (!zone) {
+      return this._emptyCommand(url, []);
+    }
 
     const qindex = zone.getTrack().qindex;
     if (!qindex)
@@ -2165,8 +2314,11 @@ module.exports = class MusicServer {
 
   _audioRepeat(url) {
     const [, zoneId, , repeatMode] = url.split('/');
-    const zone = this._zones[+zoneId - 1];
+    const zone = this._zones[zoneId];
     const repeatModes = {0: 0, 1: 2, 3: 1};
+    if (!zone) {
+      return this._emptyCommand(url, []);
+    }
 
     zone.repeat(repeatModes[repeatMode]);
 
@@ -2175,7 +2327,10 @@ module.exports = class MusicServer {
 
   async _audioRoomFavDelete(url) {
     const [, zoneId, , , position, id, title] = url.split('/');
-    const zone = this._zones[+zoneId - 1];
+    const zone = this._zones[zoneId];
+    if (!zone) {
+      return this._emptyCommand(url, []);
+    }
 
     await zone.getFavoritesList().delete(+position - 1, 1);
     if (!zone.getFavoritesList().canSendEvents)
@@ -2186,7 +2341,10 @@ module.exports = class MusicServer {
 
   async _audioRoomFavPlay(url) {
     const [, zoneId, , , position] = url.split('/');
-    const zone = this._zones[+zoneId - 1];
+    const zone = this._zones[zoneId];
+    if (!zone) {
+      return this._emptyCommand(url, []);
+    }
 
     const favorites = await zone.getFavoritesList().get(undefined, 0, 50);
     const id = favorites.items[+position - 1].id;
@@ -2200,8 +2358,11 @@ module.exports = class MusicServer {
 
   async _audioRoomFavPlayId(url) {
     const [, zoneId, , , id] = url.split('/');
-    const zone = this._zones[+zoneId - 1];
+    const zone = this._zones[zoneId];
     const [decodedId, favoriteId] = this._decodeId(id);
+    if (!zone) {
+      return this._emptyCommand(url, []);
+    }
 
     await zone.play(decodedId, favoriteId);
 
@@ -2210,7 +2371,10 @@ module.exports = class MusicServer {
 
   async _audioRoomFavPlus(url) {
     const [, zoneId] = url.split('/');
-    const zone = this._zones[+zoneId - 1];
+    const zone = this._zones[zoneId];
+    if (!zone) {
+      return this._emptyCommand(url, []);
+    }
 
     if (zone.getMode() === 'stop') {
         //If the playqueue is empty start the first room favorite
@@ -2248,8 +2412,11 @@ module.exports = class MusicServer {
 
   async _audioRoomFavSavePath(url) {
     const [, zoneId, , , position, id, title] = url.split('/');
-    const zone = this._zones[+zoneId - 1];
+    const zone = this._zones[zoneId];
     const [decodedId] = this._decodeId(id);
+    if (!zone) {
+      return this._emptyCommand(url, []);
+    }
 
     const item = {
       id: decodedId,
@@ -2266,8 +2433,11 @@ module.exports = class MusicServer {
 
   async _audioRoomFavsAdd(url) {
     const [, , , zoneId, , title, id] = url.split('/');
-    const zone = this._zones[+zoneId - 1];
+    const zone = this._zones[zoneId];
     const [decodedId] = this._decodeId(id);
+    if (!zone) {
+      return this._emptyCommand(url, []);
+    }
 
     const item = {
       id: decodedId,
@@ -2286,8 +2456,11 @@ module.exports = class MusicServer {
 
   async _audioRoomFavsReorder(url) {
     const [, , , zoneId, , config] = url.split('/');
-    const zone = this._zones[+zoneId - 1];
+    const zone = this._zones[zoneId];
     const ids = config.split(',');
+    if (!zone) {
+      return this._emptyCommand(url, []);
+    }
 
     var favs = await zone.getFavoritesList().get(undefined, 0, 100);
     // create a deep copy
@@ -2317,8 +2490,11 @@ module.exports = class MusicServer {
 
   async _audioRoomFavsDelete(url) {
     const [, , , zoneId, , id] = url.split('/');
-    const zone = this._zones[+zoneId - 1];
+    const zone = this._zones[zoneId];
     const [decodedId, favoriteId] = this._decodeId(id);
+    if (!zone) {
+      return this._emptyCommand(url, []);
+    }
 
     const index = favoriteId % 1000000;
 
@@ -2332,8 +2508,11 @@ module.exports = class MusicServer {
 
   async _audioRoomFavsSetPlus(url) {
     const [, , , zoneId, , id, setplus] = url.split('/');
-    const zone = this._zones[+zoneId - 1];
+    const zone = this._zones[zoneId];
     const [decodedId, favoriteId] = this._decodeId(id);
+    if (!zone) {
+      return this._emptyCommand(url, []);
+    }
 
     const index = favoriteId % 1000000;
 
@@ -2353,8 +2532,11 @@ module.exports = class MusicServer {
 
   async _audioRoomFavSaveExternalId(url) {
     const [, zoneId, , , position, ,id, title] = url.split('/');
-    const zone = this._zones[+zoneId - 1];
+    const zone = this._zones[zoneId];
     const [decodedId] = this._decodeId(id);
+    if (!zone) {
+      return this._emptyCommand(url, []);
+    }
 
     const item = {
       id: decodedId,
@@ -2374,6 +2556,9 @@ module.exports = class MusicServer {
 
     const srcZone = this._zones[+source - 1];
     const destZone = this._zones[+destination - 1];
+    if (!srcZone || !destZone) {
+      this._emptyCommand(url, []);
+    }
 
     var data = await srcZone.getFavoritesList().get(undefined, 0, 100);
 
@@ -2386,8 +2571,11 @@ module.exports = class MusicServer {
 
   async _audioServicePlay(url) {
     const [, zoneId, , , account, id] = url.split('/');
-    const zone = this._zones[+zoneId - 1];
+    const zone = this._zones[zoneId];
     const [decodedId, favoriteId] = this._decodeId(id);
+    if (!zone) {
+      return this._emptyCommand(url, []);
+    }
 
     await zone.switchSpotifyAccount(account);
 
@@ -2398,8 +2586,11 @@ module.exports = class MusicServer {
 
   async _audioServicePlayInsert(url) {
     const [, zoneId, , , account, id] = url.split('/');
-    const zone = this._zones[+zoneId - 1];
+    const zone = this._zones[zoneId];
     const [decodedId] = this._decodeId(id);
+    if (!zone) {
+      return this._emptyCommand(url, []);
+    }
 
     await zone.switchSpotifyAccount(account);
 
@@ -2418,8 +2609,11 @@ module.exports = class MusicServer {
 
   async _audioServicePlayAdd(url) {
     const [, zoneId, , , account, id] = url.split('/');
-    const zone = this._zones[+zoneId - 1];
+    const zone = this._zones[zoneId];
     const [decodedId] = this._decodeId(id);
+    if (!zone) {
+      return this._emptyCommand(url, []);
+    }
 
     await zone.switchSpotifyAccount(account);
 
@@ -2436,7 +2630,10 @@ module.exports = class MusicServer {
 
   _audioShuffle(url) {
     let [, zoneId, , shuffle] = url.split('/');
-    const zone = this._zones[+zoneId - 1];
+    const zone = this._zones[zoneId];
+    if (!zone) {
+      return this._emptyCommand(url, []);
+    }
 
     if (!shuffle) {
         shuffle = +(zone.getShuffle()) + 1;
@@ -2451,7 +2648,10 @@ module.exports = class MusicServer {
 
   async _audioSync(url) {
     const [, zoneId, , ...zones] = url.split('/');
-    const zone = this._zones[+zoneId - 1];
+    const zone = this._zones[zoneId];
+    if (!zone) {
+      return this._emptyCommand(url, []);
+    }
 
     zone.sync(zones);
 
@@ -2460,7 +2660,10 @@ module.exports = class MusicServer {
 
   async _audioUnSync(url) {
     const [, zoneId,] = url.split('/');
-    const zone = this._zones[+zoneId - 1];
+    const zone = this._zones[zoneId];
+    if (!zone) {
+      return this._emptyCommand(url, []);
+    }
 
     zone.unSync();
 
@@ -2472,6 +2675,8 @@ module.exports = class MusicServer {
 
     for (var i in zones) {
         const zone = this._zones[+zones[i] - 1];
+        if (!zone)
+          continue;
         zone.unSync();
     }
 
@@ -2480,7 +2685,10 @@ module.exports = class MusicServer {
 
   async _audioVolume(url) {
     const [, zoneId, , volume] = url.split('/');
-    const zone = this._zones[+zoneId - 1];
+    const zone = this._zones[zoneId];
+    if (!zone) {
+      return this._emptyCommand(url, []);
+    }
 	//T5 Control
 	//If player state is stop/pause the player will be set to play/resumed without changing the volume.
 	//If player state is play the volume will be changed.
@@ -2506,7 +2714,10 @@ module.exports = class MusicServer {
   async _audioTTS(url) {
     const [, zoneId, , input, volume] = url.split('/');
     const [language, text] = input.split('|');
-    const zone = this._zones[+zoneId - 1];
+    const zone = this._zones[zoneId];
+    if (!zone) {
+      return this._emptyCommand(url, []);
+    }
 
     zone.tts(language, text, volume);
 
@@ -2575,7 +2786,7 @@ module.exports = class MusicServer {
 
   _getAudioState(zone) {
     const repeatModes = {0: 0, 2: 1, 1: 3};
-    const playerId = this._zones.indexOf(zone) + 1;
+    const playerId = getKeyByValue(this._zones, zone);
 
     const track = zone.getTrack();
     const mode = zone.getMode();
