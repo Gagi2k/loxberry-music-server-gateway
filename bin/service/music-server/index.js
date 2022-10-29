@@ -109,6 +109,9 @@ module.exports = class MusicServer {
             console.log(this._lc, "Adding Zone:", i+1, "as master zone");
             this._masterZone = zones[i]
           }
+        } else {
+          console.log(this._lc, "Adding UNCONFIGURED Zone:", i+1);
+          zones[i+1] = new MusicZone(this, i + 1 , this);
         }
       }
       this._master = new MusicMaster(this);
@@ -472,6 +475,9 @@ module.exports = class MusicServer {
                     console.log(this._lc, "Adding Zone:", playerName, "as master zone");
                     this._masterZone = this._zones[playerId];
                 }
+            } else {
+                console.log(this._lc, "Adding UNCONFIGURED Zone:", playerName);
+                this._zones[playerId] = new MusicZone(this, playerName , this);
             }
         }
         this._master = new MusicMaster(this);

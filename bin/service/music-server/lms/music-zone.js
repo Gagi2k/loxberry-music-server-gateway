@@ -40,6 +40,9 @@ module.exports = class MusicZone {
 
 
     this._track = this._getEmptyTrack();
+    if (!this._zone_mac) {
+        this._track = this._getUnconfiguredTrack();
+    }
 
     this._favorites = new MusicList(musicServer, this._url() + '/zone_favorites', this, this);
     this._queue = new MusicList(musicServer, this._url() + '/queue', this, this);
@@ -51,6 +54,7 @@ module.exports = class MusicZone {
 
     if (!this._zone_mac) {
         console.error(this._lc, "No MAC configured for zone " + id);
+        this._pushAudioEvent();
         return;
     }
 
@@ -603,6 +607,18 @@ module.exports = class MusicZone {
           throw new ReferenceError('Transaction must be ended to rollback');
         }
       },
+    };
+  }
+
+  _getUnconfiguredTrack() {
+    return {
+      id: '',
+      title: "ZONE NOT CONFIGURED IN MSG",
+      album: '',
+      artist: '',
+      duration: 0,
+      image: null,
+      qindex: 0
     };
   }
 
