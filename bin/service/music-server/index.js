@@ -438,60 +438,10 @@ module.exports = class MusicServer {
     });
     this.msMAC = macResponse.data.LL.value.replace(/:/g, "").toUpperCase();
 
-    const username = config.ms.users[0].user;
-    const password = config.ms.users[0].password;
-    const encodedBase64Token = Buffer.from(`${username}:${password}`).toString('base64');
-    const authorization = `Basic ${encodedBase64Token}`;
-    // Retrieve Music.json to calculate crc for getconfig cmd
-    const response = await axios({
-        url: config.ms.host + '/dev/fsget/prog/Music.json',
-        method: 'post',
-        headers: {
-            Authorization: authorization,
-        },
-        data: {} // Request Body if you have
-    });
-    this.musicJSON = response.data
-    this.musicCRC = crc32(JSON.stringify(this.musicJSON)).toString(16);
-    const thisMac = this._mac().replace(/:/g, "").toUpperCase()
-
-    for(let [key, value] of Object.entries(this.musicJSON)) {
-        if (!(thisMac in value))
-            continue;
-
-        // Search for all Players which are part of the music.json
-        // Identify them by name
-        const players = value[thisMac].players;
-        for(var i in players) {
-            const playerUuid = players[i].uuid;
-            const playerId = players[i].playerid;
-            const playerName = this._msClients[0].appConfig().controls[playerUuid].name
-            console.log(this._lc, "Found Player:", playerName, playerId);
-            console.log(this._lc, this._config)
-            if (config.zone_map[playerName]) {
-                console.log(this._lc, "Adding Zone:", playerName, "with mac:", config.zone_map[playerName]);
-                this._zones[playerId] = new MusicZone(this, playerName , this);
-                if (playerName == this.masterZoneName) {
-                    console.log(this._lc, "Adding Zone:", playerName, "as master zone");
-                    this._masterZone = this._zones[playerId];
-                }
-            } else {
-                console.log(this._lc, "Adding UNCONFIGURED Zone:", playerName);
-                this._zones[playerId] = new MusicZone(this, playerName , this);
-            }
-        }
-        this._master = new MusicMaster(this);
-
-        // Inform the Miniserver that the Audioserver is starting up and the Miniserver can now
-        // connect to it.
-        await axios({
-            url: config.ms.host + '/dev/sps/devicestartup/' + value[thisMac].uuid,
-            method: 'get',
-            headers: {
-                Authorization: authorization,
-            },
-            data: {} // Request Body if you have
-        });
+    if (fs.existsSync(".music.json")) {
+        let rawdata = fs.readFileSync(".music.json");
+        this.musicJSON = JSON.parse(rawdata);
+        this.musicCRC = crc32(rawdata).toString(16);
     }
   }
 
@@ -1842,8 +1792,14 @@ module.exports = class MusicServer {
   }
 
   async _audioCfgSetConfig(url) {
-    return this._emptyCommand(url, []);
-    //        return this._emptyCommand(url, {"crc32":"6c153667","extensions":[]});
+    const [, , ,encoded_data] = url.split('/');
+    const buff = Buffer.from(encoded_data, 'base64');
+    const str = buff.toString('utf-8');
+    this.musicJSON = JSON.parse(str);
+    this.musicCRC = crc32(str).toString(16);
+    fs.writeFileSync(".music.json", str);
+
+    return this._emptyCommand(url, {"crc32":this.musicCRC,"extensions":[]});
   }
 
   async _audioCfgMiniservertime(url) {
@@ -1851,14 +1807,55 @@ module.exports = class MusicServer {
   }
 
   async _audioCfgSpeakerType(url) {
+    // base64 encoded string which contains the following:
+    // {"speakers":[{"id":"504F94FF1BB4#1","speakerType":0},{"id":"504F94FF1BB4#3","speakerType":0},{"id":"504F94FF1BB6#1","speakerType":0},{"id":"504F94FF1BB7#1","speakerType":0},{"id":"504F94FF1BB7#2","speakerType":0}]}
     return this._emptyCommand(url, []);
   }
 
   async _audioCfgVolumes(url) {
+    const [, , ,encoded_data] = url.split('/');
+    const buff = Buffer.from(encoded_data, 'base64');
+    this.volumesJSON = JSON.parse(buff.toString('utf-8'));
+
+    console.log(this._lc, "VOLUMES:", this.volumesJSON);
+
     return this._emptyCommand(url, []);
   }
 
   async _audioCfgPlayername(url) {
+    const [, , ,encoded_data] = url.split('/');
+    const buff = Buffer.from(encoded_data, 'base64');
+    const playerJSON = JSON.parse(buff.toString('utf-8'));
+
+    console.log(this._lc, "PLAYER NAMES:", playerJSON);
+
+    // Search for all Players which are part of the music.json
+    // Identify them by name
+    const players = playerJSON.players;
+    for(var i in players) {
+        const playerId = players[i].playerid;
+        const playerName = players[i].name;
+        const volumes = this.volumesJSON.players[i];
+        console.log(this._lc, "Found Player:", playerName, playerId);
+        console.log(this._lc, this._config)
+        if (config.zone_map[playerName]) {
+            console.log(this._lc, "Adding Zone:", playerName, "with mac:", config.zone_map[playerName]);
+            this._zones[playerId] = new MusicZone(this, playerName , this);
+            if (playerName == this.masterZoneName) {
+                console.log(this._lc, "Adding Zone:", playerName, "as master zone");
+                this._masterZone = this._zones[playerId];
+            }
+
+            if (volumes.default != this._zones[playerId].getDefaultVolume()) {
+                await this._zones[playerId].defaultVolume(volumes.default)
+            }
+        } else {
+            console.log(this._lc, "Adding UNCONFIGURED Zone:", playerName);
+            this._zones[playerId] = new MusicZone(this, playerName , this);
+        }
+    }
+    this._master = new MusicMaster(this);
+
     return this._emptyCommand(url, []);
   }
 
