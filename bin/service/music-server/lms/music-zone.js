@@ -188,6 +188,14 @@ module.exports = class MusicZone {
             volume = maxVolume;
         }
 
+        let response = await this._client.command('status')
+        let synced = false;
+        if (response) {
+            let item = this._client.parseAdvancedQueryResponse(response).items[0];
+            if (item.sync_master)
+                synced = true;
+        }
+
         this._player = {
             "id": "zone" + this._id,
             "mode": mode,
@@ -198,6 +206,7 @@ module.exports = class MusicZone {
             "repeat": repeat,
             "shuffle": shuffle,
             "power": +power,
+            "synced": synced,
         }
         await this.getCurrentTime()
         console.log(this._lc, "UPDATED ZONE STATE", this._player)
@@ -513,6 +522,11 @@ module.exports = class MusicZone {
     }
 
     console.log(this._lc, "CURRENT MODE: " + this._player.mode + " NEW MODE: " + mode)
+
+    if (mode == "pause" && this._player.synced) {
+        await this._client.command('power 0')
+    }
+
     if (this._player.mode == "pause" && mode == "play")
         await this._client.command('pause 0');
     else if (this._player.mode != mode)
