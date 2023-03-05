@@ -104,6 +104,36 @@ module.exports = class MusicMaster {
     };
   }
 
+  async playGroupedAlarm(type, volumes) {
+    try {
+      await this._call(
+        'POST',
+        '/audio/grouped/' + encodeURIComponent(type) + '/' + volumes,
+      );
+    } catch (err) {
+      if (err.type === 'BACKEND_ERROR') {
+        console.error(this._lc, 'Invalid reply for "audio/grouped": ' + err.message);
+      } else {
+        console.error(this._lc, 'Default behavior for "audio/grouped": ' + err.message);
+      }
+    }
+  }
+
+  async stopGroupedAlarm(type, zones) {
+    try {
+      await this._call(
+        'POST',
+        '/audio/grouped/' + encodeURIComponent(type) + '/off/' + zones,
+      );
+    } catch (err) {
+      if (err.type === 'BACKEND_ERROR') {
+        console.error(this._lc, 'Invalid reply for "audio/grouped": ' + err.message);
+      } else {
+        console.error(this._lc, 'Default behavior for "audio/grouped": ' + err.message);
+      }
+    }
+  }
+
   async playUploadedFile(path, zones) {
     try {
       await this._call(

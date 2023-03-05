@@ -831,6 +831,9 @@ module.exports = class MusicServer {
       case /(?:^|\/)audio\/grouped\/playuploadedfile(?:\/|$)/.test(url):
         return this._playUploadedFile(url);
 
+      case /(?:^|\/)audio\/grouped\/(?:(fire)?alarm|bell|wecker)(?:\/|$)/.test(url):
+        return this._playGroupedAlarm(url);
+
       case /(?:^|\/)audio\/cfg\/defaultvolume(?:\/|$)/.test(url):
         return this._audioCfgDefaultVolume(url);
 
@@ -1573,6 +1576,31 @@ module.exports = class MusicServer {
         zone.audioDelay(delay);
 
     return this._emptyCommand(url, [{ "audio_delay": newDelay }]);
+  }
+
+  async _playGroupedAlarm(url) {
+    const [, , type, volumes, zones] = url.split('/');
+
+    const alarms = {
+      alarm: 'general',
+      bell: 'bell',
+      firealarm: 'fire',
+      wecker: 'clock',
+    };
+
+    if (zones == undefined) {
+        await this._master.playGroupedAlarm(
+          alarms[type],
+          volumes,
+        );
+    } else {
+        await this._master.stopGroupedAlarm(
+          alarms[type],
+          zones,
+        );
+    }
+
+    return this._emptyCommand(url, []);
   }
 
   async _audioAlarm(url) {

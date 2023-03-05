@@ -33,7 +33,9 @@
     "scripts": {
         "powerOff": "echo {{name}}",
         "playUploadedFile": "echo {{name}} {{zones}} {{path}}",
-        "playAlarmSound": "echo {{name}} {{type}} {{volume}}",
+        "playGroupedAlarmSound": "echo {{name}} {{type}} {{volumes}}",
+        "stopGroupedAlarmSound": "echo {{name}} {{type}} {{zones}}",
+        "playAlarmSound": "echo {{name}} {{zones}} {{type}} {{volume}}",
         "playTTS": "echo {{name}} {{language}} {{text}} {{volume}}",
         "changeEqualizer": "echo {{name}} {{zones}}",
         "changeDefaultVolume": "echo {{name}} {{zones}} {{defaultVolume}}",

@@ -273,6 +273,14 @@ module.exports = class MusicMaster {
     }
   }
 
+  async playGroupedAlarm(type, volumes) {
+    this._client.execute_script("playGroupedAlarmSound", { type, volumes })
+  }
+
+  async stopGroupedAlarm(type, zones) {
+    this._client.execute_script("stopGroupedAlarmSound", { type, zones })
+  }
+
   async playUploadedFile(path, zones) {
     this._client.execute_script("playUploadedFile", { zones, path })
   }
