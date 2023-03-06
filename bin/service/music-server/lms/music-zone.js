@@ -482,26 +482,30 @@ module.exports = class MusicZone {
   async sync(zones) {
     var zoneObjs = []
     for (var i in zones) {
-        if (!zones[i])
-            continue;
-        var zoneObj = this._musicServer._zones[zones[i] - 1];
+        var zoneObj = this._musicServer._zones[zones[i]];
         if (zoneObj)
             zoneObjs.push(zoneObj);
     }
 
     if (zoneObjs.length) {
         await this.unSync();
-        await this.power("on");
+        if (config.type == "musicserver") {
+            await this.power("on");
+        }
 
         for (var i in zoneObjs) {
-            await zoneObjs[i].power("on");
+            if (config.type == "musicserver") {
+                await zoneObjs[i].power("on");
+            }
             await this._client.command('sync ' + zoneObjs[i]._zone_mac);
         }
     }
   }
 
   async unSync() {
-    await this._setMode("pause");
+    if (config.type == "musicserver") {
+        await this._setMode("pause");
+    }
     await this._client.command('sync -')
   }
 

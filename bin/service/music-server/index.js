@@ -210,8 +210,13 @@ module.exports = class MusicServer {
       // All those Events are send when a new client connects
       // E.g. opening the App, but also when switching back to the
       // app which was just minimized
-      this._pushAudioEvents(this._zones);
-      this._pushAudioSyncEvents();
+      setTimeout(async () => {
+          // the delay in sending this info helps to fix a problem
+          // where the current sync state is not shown correctly
+          this._pushAudioEvents(this._zones);
+          this._pushAudioSyncEvents();
+          this.pushMasterVolumeChangedEvent();
+      }, 500);
 
       if (!this._msClients || !this._msClients[0].isSocketOpen()) {
         this.connectToMiniserver();
@@ -513,6 +518,10 @@ module.exports = class MusicServer {
                 this._pushAudioEvents([zoneObj]);
             }
         }
+
+
+        var groups = this._getSyncState();
+        this._pushMasterVolumeChangedEvent(groups[syncInfo.groupIndex].group, groups[syncInfo.groupIndex].mastervolume);
     }
   }
 
@@ -537,6 +546,17 @@ module.exports = class MusicServer {
     }
   }
 
+  pushMasterVolumeChangedEvent() {
+    var groups = this._getSyncState();
+
+    for (var i in groups) {
+        let group = groups[i].group
+        let mastervolume = groups[i].mastervolume
+
+        this._pushMasterVolumeChangedEvent(group, mastervolume);
+    }
+  }
+
   _pushAudioEvents(zones) {
 
     const audioEvents = Object.values(zones).map((zone) => {
@@ -555,25 +575,28 @@ module.exports = class MusicServer {
   }
 
   _pushAudioSyncEvents() {
-    const syncGroups = this._master ? this._master.getSyncGroups() : [];
-
-    var audioSyncEvent = []
-    for (var i in syncGroups) {
-        var players = []
-        for (var j in syncGroups[i]) {
-            players.push({ playerid: +syncGroups[i][j] })
-        }
-        audioSyncEvent.push({ group: +i, players, masterVolume: 50});
-    }
+    var groups = this._getSyncState();
 
     const audioSyncEventsMessage = JSON.stringify({
-      audio_sync_event: audioSyncEvent
+      audio_sync_event: groups
     });
 
     console.log(this._lcEVNT, audioSyncEventsMessage);
 
     this._wsConnections.forEach((connection) => {
       connection.send(audioSyncEventsMessage);
+    });
+  }
+
+  _pushMasterVolumeChangedEvent(group, mastervolume) {
+    const masterVolumeChangedEventMessage = JSON.stringify({
+      mastervolumechanged_event: { group, mastervolume }
+    });
+
+    console.log(this._lcEVNT, masterVolumeChangedEventMessage);
+
+    this._wsConnections.forEach((connection) => {
+      connection.send(masterVolumeChangedEventMessage);
     });
   }
 
@@ -1128,6 +1151,18 @@ module.exports = class MusicServer {
       case /(?:^|\/)audio\/cfg\/playername/.test(url):
         return this._audioCfgPlayername(url);
 
+      case /(?:^|\/)audio\/cfg\/dgroup/.test(url):
+        return this._audioCfgDynamicGroup(url);
+
+      case /(?:^|\/)audio\/grouped\/pause/.test(url):
+        return this._playGroupedPause(url);
+
+      case /(?:^|\/)audio\/grouped\/play/.test(url):
+        return this._playGroupedPlay(url);
+
+      case /(?:^|\/)audio\/\d+\/mastervolume/.test(url):
+        return this._audioMasterVolume(url);
+
       case /(?:^|\/)secure\/hello/.test(url):
         return this._secureHello(url);
 
@@ -1520,7 +1555,8 @@ module.exports = class MusicServer {
   }
 
   _audioCfgGetSyncedPlayers(url) {
-    return this._emptyCommand(url, []);
+    var groups = this._getSyncState();
+    return this._emptyCommand(url, groups);
   }
 
   async _audioCfgGlobalSearchDescribe(url) {
@@ -1885,6 +1921,134 @@ module.exports = class MusicServer {
     return this._emptyCommand(url, []);
   }
   
+  async _audioCfgDynamicGroup(url) {
+    const [, , , , id, zones_string] = url.split('/');
+    const zones = zones_string.split(',');
+
+    if (id == "new") {
+        const zoneId = zones[0];
+        zones.splice(0, 1);
+
+        const zone = this._zones[zoneId];
+        if (!zone) {
+          return this._emptyCommand(url, []);
+        }
+
+        await zone.sync(zones);
+    } else {
+        const syncGroups = this._master.getSyncGroups();
+        const zoneId = syncGroups[+id][0]
+        const zone = this._zones[zoneId];
+        if (!zone) {
+          return this._emptyCommand(url, []);
+        }
+
+        if (zones_string) {
+            zones.splice(0, 1);
+            await zone.unSync();
+            await zone.sync(zones);
+        } else {
+            await zone.unSync();
+        }
+    }
+
+    return this._response(url, 'dgroup_update', {});
+  }
+
+    async _playGroupedPause(url) {
+    const [, , ,zones_string] = url.split('/');
+    const zones = zones_string.split(',');
+
+    for (var zoneIndex in zones) {
+        const zone = this._zones[zones[zoneIndex]];
+        if (!zone) {
+          console.log(this._lc, "No Zone with id", zones[zoneIndex]);
+          return this._emptyCommand(url, []);
+        }
+
+        zone.pause();
+    }
+  }
+
+  async _playGroupedPlay(url) {
+    const [, , ,zones_string] = url.split('/');
+    const zones = zones_string.split(',');
+
+    for (var zoneIndex in zones) {
+        const zone = this._zones[zones[zoneIndex]];
+        if (!zone) {
+          console.log(this._lc, "No Zone with id", zones[zoneIndex]);
+          return this._emptyCommand(url, []);
+        }
+
+        zone.resume();
+    }
+  }
+
+  async _audioMasterVolume(url) {
+    const [, playerZoneId, , volume] = url.split('/');
+
+    const playerZone = this._zones[playerZoneId];
+    if (!playerZone) {
+      console.log(this._lc, "No Zone with id", playerZoneId);
+      return this._emptyCommand(url, []);
+    }
+
+    // We need to calculate the delta in order to know how
+    // the volume of each zone needs to be changed.
+
+    var has_playing_zones = false;
+    var force_play = false;
+    var volume_delta = 0;
+    while (!has_playing_zones) {
+        // If no zone in the group is currently playing we resume the
+        // zone which was used in the command
+        if (force_play) {
+            console.log(this._lc, "Resuming playback")
+            await playerZone.resume();
+        }
+
+        const syncGroups = this._master.getSyncGroups();
+        for (var groupId in syncGroups) {
+            if (syncGroups[groupId].includes(+playerZoneId)) {
+                for (var syncZoneIndex in syncGroups[groupId]) {
+                    let syncZoneId = syncGroups[groupId][syncZoneIndex]
+
+                    const zone = this._zones[syncZoneId];
+                    if (!zone) {
+                      console.log(this._lc, "No Zone with id", syncZoneId);
+                      return this._emptyCommand(url, []);
+                    }
+
+                    if (force_play || zone.getMode() == "play") {
+                        has_playing_zones = true;
+                        // The first zone is the master of the groupe and we use that
+                        // for delta calculation
+                        // If it is not playing, we use the next one
+                        if (volume_delta == 0) {
+                            volume_delta = volume - zone.getVolume();
+                            console.log(this._lc, "Calculated Volume Delta using first Zone:", volume_delta)
+                        }
+
+                        console.log(this._lc, "Changing volume for Zone:", zone._id)
+                        await zone.volume(zone.getVolume() + volume_delta);
+                    }
+                }
+
+                if (has_playing_zones)
+                    this._pushMasterVolumeChangedEvent(groupId, volume)
+            }
+        }
+
+        // If we no zone is playing, we start all zones
+        if (!has_playing_zones) {
+            force_play = true;
+        }
+    }
+
+    return this._response(url, 'mastervolume', {});
+  }
+
   async _audioAlarm(url) {
     const [, zoneId, type, volume] = url.split('/');
     const zone = this._zones[zoneId];
@@ -2788,6 +2952,33 @@ module.exports = class MusicServer {
     return this._emptyCommand(url, null);
   }
 
+  _getSyncState() {
+    const syncGroups = this._master ? this._master.getSyncGroups() : [];
+
+    var groups = []
+    var masterZoneVolume = -1
+    var mastervolume = -1
+    for (var i in syncGroups) {
+        var players = []
+        for (var j in syncGroups[i]) {
+            var zoneId = syncGroups[i][j];
+            var vol = this._zones[zoneId].getVolume();
+            if (j == 0)
+                masterZoneVolume = vol;
+            if (mastervolume == -1) {
+                if (this._zones[zoneId].getPower() == "on")
+                    mastervolume = vol;
+            }
+            players.push({ id: zoneId.toString(), playerid: +zoneId })
+        }
+        if (mastervolume == -1)
+            mastervolume = masterZoneVolume;
+        groups.push({ group: i.toString(), players, mastervolume, type: "dynamic" });
+    }
+
+    return groups;
+  }
+
   _getAudioState(zone) {
     const repeatModes = {0: 0, 2: 1, 1: 3};
     const playerId = getKeyByValue(this._zones, zone);
@@ -2833,8 +3024,9 @@ module.exports = class MusicServer {
 
      var audioSyncEvent = []
      for (var i in syncGroups) {
-         if (syncGroups[i].includes(zoneId)) {
+         if (syncGroups[i].includes(+zoneId)) {
              return {
+                groupIndex: i,
                 groupid: i + 1,
                 master: syncGroups[i][0],
                 members: syncGroups[i],

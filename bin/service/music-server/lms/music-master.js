@@ -109,16 +109,18 @@ module.exports = class MusicMaster {
            let response = await this._globalClient.command('syncgroups ?');
            let data = this._client.parseAdvancedQueryResponse(response, 'sync_members');
 
+           console.log(this._lc, data);
+
            let groups = []
            for (var key in data.items) {
                let macs = unescape(data.items[key].sync_members).split(',');
-               let zoneIds = []
+               let zones = []
                for (var i in macs) {
-                   var id = Object.keys(config.zone_map).find( key => config.zone_map[key] === macs[i]);
-                   if (id)
-                       zoneIds.push(+id)
+                   var zone = Object.keys(this._musicServer._zones).find( key => this._musicServer._zones[key]._zone_mac === macs[i]);
+                   if (zone)
+                       zones.push(+zone)
                }
-               groups.push(zoneIds);
+               groups.push(zones);
            }
 
            this._syncGroups = groups;
