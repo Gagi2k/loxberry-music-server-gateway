@@ -472,6 +472,7 @@ module.exports = class List {
 
             let response = await this._client.command(cmd + ' items ' + start + ' ' + length + ' want_url:1 ' + itemId);
             let data = this._client.parseAdvancedQueryResponse(response, 'id');
+            let title = data.items[0].title;
             let isAudio = false
 
             if (!data.count)
@@ -485,7 +486,7 @@ module.exports = class List {
                 "Transfer%20Playback",
                 "Wiedergabe%20%C3%BCbernehmen"
             ]
-            if (transfer_playback_titles.includes(data.items[0].title))
+            if (transfer_playback_titles.includes(title))
                 isAudio = true
 
             var switcher_titles = [
@@ -509,6 +510,18 @@ module.exports = class List {
                     continue;
                 }
 
+                // Special handling for Albums
+                // Hide all additional Folders as otherwise we don't get a play button in the
+                // Loxone UI
+                // Once the title is detected skip all additional entries
+                var album_titles = [
+                    "Add%20album%20to%20library",
+                    "Album%20zu%20Bibliothek%20hinzuf%C3%BCgen"
+                ]
+                if (album_titles.includes(items[key].name)) {
+                    data.count = +key;
+                    break;
+                }
 
                 let id = "service/" + cmd + ":" + items[key].id
                 if (items[key].type != "playlist" && items[key].isaudio == "1" &&
@@ -543,7 +556,8 @@ module.exports = class List {
                                    identifier: cmd,
                                    lastSelectedItem: { id },
                                    image,
-                                   type: items[key].type == "playlist" ? 11 //playlist
+                                   title: decodeURIComponent(title),
+                                   type: items[key].type == "playlist" ? 12 //playlist
                                                                        : isAudio || items[key].isaudio == "1" ? 2 : 1 //folder
                                })
             }
