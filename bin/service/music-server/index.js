@@ -1491,13 +1491,14 @@ module.exports = class MusicServer {
         } catch (err) {
             // UPDATE MAPPING WHEN SPOTTY CHANGES ITS FOLDER STRUCTURE
             const itemMap = {
-                '0' : 0, // Start
+                '0' : 5, // Start
                 '1' : 2, // News
                 '2' : 4, // Genres
                 '3' : 9, // Playlists
                 '4' : 6, // Songs
                 '5' : 7, // Albums
-                '6' : 8 // Artists
+                '6' : 8, // Artists
+                '7' : 10 // Podcasts
             };
             rootItem = rootItem + '%%%' + itemMap[requestId];
         }
