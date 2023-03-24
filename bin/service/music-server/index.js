@@ -297,6 +297,8 @@ module.exports = class MusicServer {
 
     if (config.type == "audioserver") {
         await this.prepareAudioserverConfig();
+        // Return here as we can't use the same settings handling right now.
+        return;
     }
 
     // Search for this mediaServer instance and save its ID
