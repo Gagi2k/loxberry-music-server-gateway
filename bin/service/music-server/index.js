@@ -67,6 +67,7 @@ module.exports = class MusicServer {
     this._lcMSWSCK = lcApp.extend("MSWSCK");
     this._lcHTTP = lcApp.extend("HTTP");
     this._lcEVNT = lcApp.extend("EVNT");
+
     // setup the default logging categories
     if (!process.env.DEBUG)
         debug.enable('MSG,MSG:WSCK,MSG:MSWSCK,MSG:HTTP,MSG:EVNT');
@@ -271,7 +272,10 @@ module.exports = class MusicServer {
         msHttpServer.listen(7095);
     }
 
-    this._initSse();
+    // The SSE is not needed when directly talking to the LMS
+    if (config.plugin != "lms") {
+        this._initSse();
+    }
 
     this._httpServer = httpServer;
     this._wsServer = wsServer;
