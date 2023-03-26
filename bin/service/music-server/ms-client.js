@@ -90,19 +90,19 @@ module.exports = class MSClient {
     }
 
     socketOnDataProgress(socket, progress) {
-        console.log(lc, progress);
+        //console.log(lc, progress);
     }
     socketOnTokenConfirmed(socket, response) {
-        console.log(lc, response);
+        //console.log(lc, response);
     }
     socketOnTokenReceived(socket, result) {
-        console.log(lc, result);
+        //console.log(lc, result);
     }
     socketOnTokenRefresh(socket, newTkObj) {
-        console.log(lc, newTkObj);
+        //console.log(lc, newTkObj);
     }
     socketOnConnectionClosed(socket, code) {
-        console.log(lc, code);
+        //console.log(lc, code);
     }
 
     socketOnEventReceived(socket, events, type) {
