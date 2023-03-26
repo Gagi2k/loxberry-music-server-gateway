@@ -1961,7 +1961,7 @@ module.exports = class MusicServer {
     return this._response(url, 'dgroup_update', {});
   }
 
-    async _playGroupedPause(url) {
+  async _playGroupedPause(url) {
     const [, , ,zones_string] = url.split('/');
     const zones = zones_string.split(',');
 
@@ -1974,6 +1974,8 @@ module.exports = class MusicServer {
 
         zone.pause();
     }
+
+    return this._emptyCommand(url, []);
   }
 
   async _playGroupedPlay(url) {
@@ -1989,6 +1991,8 @@ module.exports = class MusicServer {
 
         zone.resume();
     }
+
+    return this._emptyCommand(url, []);
   }
 
   async _audioMasterVolume(url) {
