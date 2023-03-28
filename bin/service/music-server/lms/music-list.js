@@ -472,12 +472,12 @@ module.exports = class List {
 
             let response = await this._client.command(cmd + ' items ' + start + ' ' + length + ' want_url:1 ' + itemId);
             let data = this._client.parseAdvancedQueryResponse(response, 'id');
-            let title = data.items[0].title;
             let isAudio = false
 
             if (!data.count)
                 return data;
 
+            let title = data.items[0].title;
             let jsonResponse = await this._client.jsonRPCCommand(cmd + ' items ' + start + ' ' + length + ' want_url:1 menu:1 ' + itemId);
 
             // Special handling for Transfer Playback

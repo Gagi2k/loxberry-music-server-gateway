@@ -1520,7 +1520,7 @@ module.exports = class MusicServer {
 
     let rootItem = service + '%%%' + user;
 
-    if (requestId != 'start') {
+    if (service == "spotify" && requestId != 'start') {
         // The old MusicServer calls getServices beforehand and only uses the IDs delivered from
         // that call.
         // The Audioserver has hardcoded IDs.
@@ -1738,6 +1738,9 @@ module.exports = class MusicServer {
   }
 
   async _audioCfgScanStatus(url) {
+    if (!this._master)
+        return this._emptyCommand(url, [{scanning: 0}]);
+
     let status = await this._master.scanStatus();
 
     return this._emptyCommand(url, [{scanning: +status}]);
