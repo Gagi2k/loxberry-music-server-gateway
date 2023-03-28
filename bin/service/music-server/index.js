@@ -714,7 +714,7 @@ module.exports = class MusicServer {
       const message = JSON.stringify({
         roomfavchanged_event: [
           {
-            playerid: getKeyByValue(this._zones, zone),
+            playerid: +getKeyByValue(this._zones, zone),
           },
         ],
       });
