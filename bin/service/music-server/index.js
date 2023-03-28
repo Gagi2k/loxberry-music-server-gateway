@@ -3111,6 +3111,7 @@ module.exports = class MusicServer {
         lastSelectedItem: lastSelectedItem,
         // Used as identifier for queue management (checked against qid in current track)
         unique_id: (item.qindex != undefined) ? item.qindex.toString() : undefined,
+        audiotype: 0, // FILE // needed for clickable queue items. Might need adaption for other items ?
         contentType,
         mediaType,
         plus
