@@ -13,6 +13,10 @@ module.exports = class Log {
         this.message("[ERROR]", category, ...msg);
     }
 
+    trace(...msg) {
+        console.trace(...msg);
+    }
+
     message(severity, category, ...msg) {
         if (severity == "")
             category(...msg);
