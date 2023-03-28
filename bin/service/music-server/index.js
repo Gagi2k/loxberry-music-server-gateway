@@ -2748,7 +2748,7 @@ module.exports = class MusicServer {
   }
 
   async _audioServicePlay(url) {
-    const [, zoneId, , , account, id] = url.split('/');
+    const [, zoneId, , , account, id, noShuffle] = url.split('/');
     const zone = this._zones[zoneId];
     const [decodedId, favoriteId] = this._decodeId(id);
     if (!zone) {
@@ -2756,6 +2756,12 @@ module.exports = class MusicServer {
     }
 
     await zone.switchSpotifyAccount(account);
+
+    if (noShuffle) {
+        await zone.shuffle(0);
+    } else {
+        await zone.shuffle(1);
+    }
 
     await zone.play(decodedId, favoriteId);
 
