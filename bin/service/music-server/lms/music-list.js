@@ -104,6 +104,8 @@ module.exports = class List {
                 }
                 if (fav_items[key].image)
                     fav_items[key].image = this._client.resolveUrl(fav_items[key].image)
+                if (fav_items[key].plus == undefined)
+                    fav_items[key].plus = false;
             }
             return { count: fav_items.length, items: fav_items };
         }

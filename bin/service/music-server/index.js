@@ -2588,16 +2588,17 @@ module.exports = class MusicServer {
       return this._emptyCommand(url, []);
     }
 
+    var favoriteId = zone.getFavoriteId();
     if (zone.getMode() === 'stop') {
         //If the playqueue is empty start the first room favorite
-        if (zone.getTrack().id == "")
-            await this._audioRoomFavPlay('audio/' + zoneId + "/roomfav/play/1");
-        else
+        if (zone.getTrack().id == "") {
+            favoriteId = 0;
+        } else {
             await zone.play(null, 0);
-        return this._emptyCommand(url, []);
+            return this._emptyCommand(url, []);
+        }
     }
 
-    const favoriteId = zone.getFavoriteId();
     const favorites = await zone.getFavoritesList().get(undefined, 0, 8);
 
     let position =
@@ -2608,8 +2609,16 @@ module.exports = class MusicServer {
     for (; position < 16; position++) {
       if (favorites.items[position % 8] &&
           favorites.items[position % 8].id) {
-        position = position % 8;
-        break;
+        // On the audioserver we want to iterate only over all items with plus
+        if (config.type == "audioserver") {
+            if (favorites.items[position % 8].plus) {
+                position = position % 8;
+                break;
+            }
+        } else {
+            position = position % 8;
+            break;
+        }
       }
     }
 
@@ -2733,7 +2742,7 @@ module.exports = class MusicServer {
     favs = JSON.parse(JSON.stringify(favs));
 
     let item = favs.items[index];
-    item.plus = setplus;
+    item.plus = (setplus == "1");
     await zone.getFavoritesList().replace(index, item);
 
     if (!zone.getFavoritesList().canSendEvents)
