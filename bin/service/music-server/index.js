@@ -745,6 +745,15 @@ module.exports = class MusicServer {
     });
   }
 
+  _pushRebootEvent() {
+      const message = JSON.stringify({
+        reboot_event: true
+      });
+      console.log(this._lcEVNT, message);
+      this._wsConnections.forEach((connection) => {
+        connection.send(message);
+      });
+  }
 
   _initSse() {
     http
@@ -1135,6 +1144,9 @@ module.exports = class MusicServer {
       // Audioserver support
       case /(?:^|\/)audio\/cfg\/ready/.test(url):
          return this._audioCfgReady(url);
+
+      case /(?:^|\/)audio\/cfg\/reboot/.test(url):
+         return this._audioCfgReboot(url);
 
       case /(?:^|\/)audio\/\d+\/status/.test(url):
         return this._audioGetStatus(url);
@@ -1829,12 +1841,16 @@ module.exports = class MusicServer {
 
   async _audioCfgReady(url) {
     return this._emptyCommand(url, {"session":547541322864});
-    return '{"ready_result": {"session":547541322864}, "command": "audio/cfg/ready"}'
+  }
+
+  async _audioCfgReboot(url) {
+    this._pushRebootEvent();
+    this._master.reboot();
+    return this._emptyCommand(url, "reboot");
   }
 
   async _audioCfgGetConfig(url) {
     return this._emptyCommand(url, {"crc32":this.musicCRC,"extensions":[]});
-    return `{"getconfig_result": {"crc32":"${this.musicCRC}","extensions":[]}, "command": "audio/cfg/getconfig"}`
   }
 
   async _audioCfgSetConfig(url) {

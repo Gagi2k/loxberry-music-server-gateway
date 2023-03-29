@@ -80,6 +80,11 @@ module.exports = class MusicMaster {
     return;
   }
 
+  async reboot() {
+    this._client.execute_script("reboot")
+    return;
+  }
+
   async scanStatus() {
     return await this._globalClient.command('rescan ?');
   }

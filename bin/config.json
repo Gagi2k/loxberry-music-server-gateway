@@ -33,6 +33,7 @@
     ],
     "scripts": {
         "powerOff": "echo {{name}}",
+        "reboot": "echo {{name}}",
         "playUploadedFile": "echo {{name}} {{zones}} {{path}}",
         "playGroupedAlarmSound": "echo {{name}} {{type}} {{volumes}}",
         "stopGroupedAlarmSound": "echo {{name}} {{type}} {{zones}}",
