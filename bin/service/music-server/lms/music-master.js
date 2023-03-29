@@ -85,6 +85,13 @@ module.exports = class MusicMaster {
     return;
   }
 
+  async diagnosis() {
+    var str = await this._client.execute_script("diagnosis");
+    if (str)
+        return JSON.parse(str);
+    return {};
+  }
+
   async scanStatus() {
     return await this._globalClient.command('rescan ?');
   }

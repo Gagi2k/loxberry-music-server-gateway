@@ -34,6 +34,7 @@
     "scripts": {
         "powerOff": "echo {{name}}",
         "reboot": "echo {{name}}",
+        "diagnosis": "echo '{ \"{{name}}\" : \"value\" }'",
         "playUploadedFile": "echo {{name}} {{zones}} {{path}}",
         "playGroupedAlarmSound": "echo {{name}} {{type}} {{volumes}}",
         "stopGroupedAlarmSound": "echo {{name}} {{type}} {{zones}}",

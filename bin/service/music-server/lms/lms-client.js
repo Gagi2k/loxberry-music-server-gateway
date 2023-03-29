@@ -362,7 +362,7 @@ module.exports = class LMSClient {
         var script = config.scripts ? config.scripts[name] : undefined
         if (!script) {
             console.error(this._lc, `no script configured for: ${name}`);
-            return
+            return new Promise((resolve, reject) => { resolve(); });
         }
 
         script = script.replace('{{name}}', name);

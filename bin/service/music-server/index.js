@@ -1148,6 +1148,9 @@ module.exports = class MusicServer {
       case /(?:^|\/)audio\/cfg\/reboot/.test(url):
          return this._audioCfgReboot(url);
 
+      case /(?:^|\/)audio\/cfg\/diagnosis/.test(url):
+         return this._audioCfgDiagnosis(url);
+
       case /(?:^|\/)audio\/\d+\/status/.test(url):
         return this._audioGetStatus(url);
 
@@ -1847,6 +1850,18 @@ module.exports = class MusicServer {
     this._pushRebootEvent();
     this._master.reboot();
     return this._emptyCommand(url, "reboot");
+  }
+
+  async _audioCfgDiagnosis(url) {
+    var diagObj = await this._master.diagnosis();
+
+    // Add some meaningful information here
+    /*diagObj["msg"] = {
+        musicJSON : this.musicJSON,
+        musicCRC: this.musicCRC
+    }*/
+
+    return this._emptyCommand(url, diagObj);
   }
 
   async _audioCfgGetConfig(url) {

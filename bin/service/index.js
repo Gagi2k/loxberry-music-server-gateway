@@ -26,6 +26,12 @@ process.on('unhandledRejection', (reason, p) => {
     try {
       return oldParse.apply(this, arguments);
     } catch (err) {
+      if (!str) {
+          throw new Error(
+            `Could not parse empty JSON string`,
+          );
+      }
+
       const position = +err.message.match(/\d+$/)[0];
 
       const fragment = (str + '').slice(

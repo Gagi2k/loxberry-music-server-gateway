@@ -63,6 +63,9 @@ module.exports = class MusicMaster {
   async reboot() {
   }
 
+  async diagnosis() {
+  }
+
   async scanStatus() {
     return false;
   }
