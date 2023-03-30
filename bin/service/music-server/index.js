@@ -976,7 +976,7 @@ module.exports = class MusicServer {
       case /(?:^|\/)audio\/grouped\/playuploadedfile(?:\/|$)/.test(url):
         return this._playUploadedFile(url);
 
-      case /(?:^|\/)audio\/grouped\/(?:(fire)?alarm|bell|wecker)(?:\/|$)/.test(url):
+      case /(?:^|\/)audio\/grouped\/(?:(fire)?alarm|bell|wecker|buzzer)(?:\/|$)/.test(url):
         return this._playGroupedAlarm(url);
 
       case /(?:^|\/)audio\/cfg\/defaultvolume(?:\/|$)/.test(url):
@@ -991,7 +991,7 @@ module.exports = class MusicServer {
       case /(?:^|\/)audio\/cfg\/audiodelay(?:\/|$)/.test(url):
         return this._audioCfgAudioDelay(url);
 
-      case /(?:^|\/)audio\/\d+\/(?:(fire)?alarm|bell|wecker)(?:\/|$)/.test(url):
+      case /(?:^|\/)audio\/\d+\/(?:(fire)?alarm|bell|wecker|buzzer)(?:\/|$)/.test(url):
         return this._audioAlarm(url);
 
       case /(?:^|\/)audio\/\d+\/favoriteplay(?:\/|$)/.test(url):
@@ -1896,6 +1896,22 @@ module.exports = class MusicServer {
 
     console.log(this._lc, "VOLUMES:", this.volumesJSON);
 
+    for (var i in this.volumesJSON.players) {
+        const alarms = this.volumesJSON.players[i];
+        const zone =  this._zones[alarms.playerid];
+        if (!zone)
+            continue;
+
+        await zone.allVolumes({
+            default: alarms.default,
+            general: alarms.alarm,
+            fire: alarms.fire,
+            bell: alarms.bell,
+            clock: alarms.buzzer,
+            tts: alarms.tts
+        })
+    }
+
     return this._emptyCommand(url, []);
   }
 
@@ -1923,9 +1939,14 @@ module.exports = class MusicServer {
                 this._masterZone = this._zones[playerId];
             }
 
-            if (volumes.default != this._zones[playerId].getDefaultVolume()) {
-                await this._zones[playerId].defaultVolume(volumes.default)
-            }
+            await this._zones[playerId].allVolumes({
+                default: volumes.default,
+                general: volumes.alarm,
+                fire: volumes.fire,
+                bell: volumes.bell,
+                clock: volumes.buzzer,
+                tts: volumes.tts
+            })
         } else {
             console.log(this._lc, "Adding UNCONFIGURED Zone:", playerName);
             this._zones[playerId] = new MusicZone(this, playerName , this);
@@ -1944,6 +1965,7 @@ module.exports = class MusicServer {
       bell: 'bell',
       firealarm: 'fire',
       wecker: 'clock',
+      buzzer: 'clock'
     };
 
     if (zones == undefined) {
@@ -2102,6 +2124,7 @@ module.exports = class MusicServer {
       bell: 'bell',
       firealarm: 'fire',
       wecker: 'clock',
+      buzzer: 'clock'
     };
 
     await zone.alarm(
@@ -2960,7 +2983,7 @@ module.exports = class MusicServer {
   }
 
   async _playUploadedFile(url) {
-    const [, , , filename, ...zones] = url.split('/');
+    const [, , , filename, zones] = url.split('/');
 
     this._master.playUploadedFile(config.uploadPlaybackPath + '/' + filename, zones);
 

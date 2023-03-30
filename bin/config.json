@@ -35,15 +35,16 @@
         "powerOff": "echo {{name}}",
         "reboot": "echo {{name}}",
         "diagnosis": "echo '{ \"{{name}}\" : \"value\" }'",
-        "playUploadedFile": "echo {{name}} {{zones}} {{path}}",
-        "playGroupedAlarmSound": "echo {{name}} {{type}} {{volumes}}",
-        "stopGroupedAlarmSound": "echo {{name}} {{type}} {{zones}}",
-        "playAlarmSound": "echo {{name}} {{zones}} {{type}} {{volume}}",
-        "playTTS": "echo {{name}} {{language}} {{text}} {{volume}}",
-        "changeEqualizer": "echo {{name}} {{zones}}",
-        "changeDefaultVolume": "echo {{name}} {{zones}} {{defaultVolume}}",
-        "changeMaxVolume": "echo {{name}} {{zones}} {{maxVolume}}",
+        "playUploadedFile": "echo {{name}} {{zones}} {{macs}} {{path}}",
+        "playGroupedAlarmSound": "echo {{name}} {{type}} {{zones}} {{macs}}",
+        "stopGroupedAlarmSound": "echo {{name}} {{type}} {{zones}} {{macs}}",
+        "playAlarmSound": "echo {{name}} {{zones}} {{macs}} {{type}} {{volume}}",
+        "playTTS": "echo {{name}} {{zones}} {{macs}} {{language}} {{text}} {{volume}}",
+        "changeEqualizer": "echo {{name}} {{zones}} {{macs}}",
+        "changeDefaultVolume": "echo {{name}} {{zones}} {{macs}} {{defaultVolume}}",
+        "changeMaxVolume": "echo {{name}} {{zones}} {{macs}} {{maxVolume}}",
+        "changeAllVolumes": "echo {{name}} {{zones}} {{macs}} {{volumes}}",
         "addNetworkShare": "echo {{name}} {{server}} {{guest}} {{username}} {{password}} {{configBase64}}",
-        "sayFav": "echo {{name}} {{fav_id}} {{fav_name}} {{volume}}"
+        "sayFav": "echo {{name}} {{zones}} {{macs}} {{fav_id}} {{fav_name}} {{volume}}"
     }
 }

@@ -287,16 +287,23 @@ module.exports = class MusicMaster {
     }
   }
 
-  async playGroupedAlarm(type, volumes) {
-    this._client.execute_script("playGroupedAlarmSound", { type, volumes })
+  async playGroupedAlarm(type, zones) {
+    var macs = zones.split(',').map(x => this._musicServer._zones[x]._zone_mac).join(",");
+
+    this._client.execute_script("playGroupedAlarmSound", { type, zones, macs })
   }
 
   async stopGroupedAlarm(type, zones) {
-    this._client.execute_script("stopGroupedAlarmSound", { type, zones })
+    var macs = zones.split(',').map(x => this._musicServer._zones[x]._zone_mac).join(",");
+
+    this._client.execute_script("stopGroupedAlarmSound", { type, zones, macs })
   }
 
   async playUploadedFile(path, zones) {
-    this._client.execute_script("playUploadedFile", { zones, path })
+    console.log(this._lc, zones)
+    var macs = zones.split(',').map(x => this._musicServer._zones[x]._zone_mac).join(",");
+
+    this._client.execute_script("playUploadedFile", { zones, path, macs })
   }
 
   _call() {

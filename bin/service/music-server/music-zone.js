@@ -386,6 +386,9 @@ module.exports = class MusicZone {
     this._pushAudioEvent();
   }
 
+  async allVolumes(volumes) {
+  }
+
   async audioDelay(delay) {
     const transaction = this._transaction();
 

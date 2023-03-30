@@ -76,10 +76,12 @@ module.exports = class MusicZone {
     } else {
         // Create the config and trigger the change script to notify about the new values
         this.saveConfig()
-        this._client.execute_script("changeEqualizer", { zones: this._id });
+        this._client.execute_script("changeEqualizer", { zones: this._id, macs: this._zone_mac, });
         this._client.execute_script("changeDefaultVolume", { zones: this._id,
+                                                             macs: this._zone_mac,
                                                              defaultVolume: this._zone_cfg.defaultVolume});
         this._client.execute_script("changeMaxVolume", { zones: this._id,
+                                                         macs: this._zone_mac,
                                                          maxVolume: this._zone_cfg.maxVolume});
     }
   }
@@ -320,25 +322,25 @@ module.exports = class MusicZone {
   }
 
   async alarm(type, volume) {
-    this._client.execute_script("playAlarmSound", { zones: this._id, type, volume })
+    this._client.execute_script("playAlarmSound", { zones: this._id, macs: this._zone_mac, type, volume })
   }
 
   async tts(language, text, volume) {
-    this._client.execute_script("playTTS", { zones: this._id, language, text, volume })
+    this._client.execute_script("playTTS", { zones: this._id, macs: this._zone_mac, language, text, volume })
   }
 
   async equalizer(bands) {
     this._zone_cfg.equalizer = bands;
     this.saveConfig();
 
-    this._client.execute_script("changeEqualizer", { zones: this._id })
+    this._client.execute_script("changeEqualizer", { zones: this._id, macs: this._zone_mac })
   }
 
   async playRoomFav(id, favoriteId, fav_name) {
     if (config.sayFav) {
         let fav_id = favoriteId % 1000000;
         this._zone_cfg.lastRoomFav = favoriteId;
-        await this._client.execute_script("sayFav", { zones: this._id, fav_id, fav_name: encodeURIComponent(fav_name), volume: this._player.volume})
+        await this._client.execute_script("sayFav", { zones: this._id, macs: this._zone_mac, fav_id, fav_name: encodeURIComponent(fav_name), volume: this._player.volume})
     }
 
     await this.play(id, favoriteId);
@@ -421,6 +423,7 @@ module.exports = class MusicZone {
     this.saveConfig();
 
     this._client.execute_script("changeDefaultVolume", { zones: this._id,
+                                                         macs: this._zone_mac,
                                                          defaultVolume: this._zone_cfg.defaultVolume})
 
     this._pushAudioEvent();
@@ -432,9 +435,20 @@ module.exports = class MusicZone {
     this.saveConfig();
 
     this._client.execute_script("changeMaxVolume", { zones: this._id,
+                                                     macs: this._zone_mac,
                                                      maxVolume: this._zone_cfg.maxVolume})
 
     this._pushAudioEvent();
+  }
+
+  async allVolumes(volumes) {
+    this._zone_cfg.defaultVolume = Math.min(Math.max(+volumes.default, 0), 100);
+
+    this.saveConfig();
+    this._client.execute_script("changeAllVolumes", { zones: this._id,
+                                                      macs: this._zone_mac,
+                                                      volumes: JSON.stringify(volumes)
+                                                    })
   }
 
   async audioDelay(delay) {
