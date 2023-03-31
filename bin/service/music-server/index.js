@@ -2037,18 +2037,21 @@ module.exports = class MusicServer {
         await zone.sync(zones);
     } else {
         const syncGroups = this._master.getSyncGroups();
-        const zoneId = syncGroups[+id][0]
-        const zone = this._zones[zoneId];
-        if (!zone) {
-          return this._emptyCommand(url, []);
-        }
 
         if (zones_string) {
+            // First unsync all zones of the group
+            for (const zoneId in syncGroups[+id][0]) {
+                const zone = this._zones[zoneId];
+                await zone.unSync();
+            }
+            // Then sync the new group
+            const zone = this._zones[zones[0]];
             zones.splice(0, 1);
-            await zone.unSync();
             await zone.sync(zones);
         } else {
-            await zone.unSync();
+            for (var i in syncGroups[+id]) {
+                await this._zones[syncGroups[+id][i]].unSync();
+            }
         }
     }
 
