@@ -1955,7 +1955,7 @@ module.exports = class MusicServer {
   }
 
   async _playGroupedAlarm(url) {
-    const [, , type, volumes, zones] = url.split('/');
+    const [, , type, input, zones] = url.split('/');
 
     const alarms = {
       alarm: 'general',
@@ -1965,10 +1965,26 @@ module.exports = class MusicServer {
       buzzer: 'clock'
     };
 
+    //musicserver: audio/grouped/alarm/1~45,2~40,3~55,4~50,5~60,6~30,7~50,12~90
+    //audioserver: audio/grouped/alarm/3,4,5,6
+    //both: audio/grouped/alarm/stop/3,4,5,6
     if (zones == undefined) {
+        var newZoneVols = [];
+        if (config.type == "audioserver") {
+            var zones_ids = input.split(',');
+            for (var i in zones_ids) {
+                var volObj = this.volumesJSON.players.find(element => element.playerid == zones_ids[i]);
+
+                var volume = volObj[type];
+                newZoneVols.push(zones_ids[i] + "~" + volume)
+            }
+        } else {
+            newZoneVols = input.split(",");
+        }
+
         await this._master.playGroupedAlarm(
           alarms[type],
-          volumes,
+          newZoneVols,
         );
     } else {
         await this._master.stopGroupedAlarm(
