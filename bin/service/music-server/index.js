@@ -1535,28 +1535,25 @@ module.exports = class MusicServer {
 
     let rootItem = service + '%%%' + user;
 
-    if (service == "spotify" && requestId != 'start') {
-        // The old MusicServer calls getServices beforehand and only uses the IDs delivered from
-        // that call.
-        // The Audioserver has hardcoded IDs.
-        // If we can't decode the ID it is very likely a hardcoded Audioserver call
-        // Use our hardcoded map to return the correct content.
+    if (requestId != 'start') {
         try {
             const [decodedId] = this._decodeId(requestId);
             rootItem = rootItem + '%%%' + decodedId;
         } catch (err) {
-            // UPDATE MAPPING WHEN SPOTTY CHANGES ITS FOLDER STRUCTURE
-            const itemMap = {
-                '0' : 5, // Start
-                '1' : 2, // News
-                '2' : 4, // Genres
-                '3' : 9, // Playlists
-                '4' : 6, // Songs
-                '5' : 7, // Albums
-                '6' : 8, // Artists
-                '7' : 10 // Podcasts
-            };
-            rootItem = rootItem + '%%%' + itemMap[requestId];
+            if (service == "spotify" && config.type == "audioserver") {
+                // UPDATE MAPPING WHEN SPOTTY CHANGES ITS FOLDER STRUCTURE
+                const itemMap = {
+                    '0' : 5, // Start
+                    '1' : 2, // News
+                    '2' : 4, // Genres
+                    '3' : 9, // Playlists
+                    '4' : 6, // Songs
+                    '5' : 7, // Albums
+                    '6' : 8, // Artists
+                    '7' : 10 // Podcasts
+                };
+                rootItem = rootItem + '%%%' + itemMap[requestId];
+            }
         }
     }
 
