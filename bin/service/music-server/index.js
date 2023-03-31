@@ -979,6 +979,9 @@ module.exports = class MusicServer {
       case /(?:^|\/)audio\/grouped\/(?:(fire)?alarm|bell|wecker|buzzer)(?:\/|$)/.test(url):
         return this._playGroupedAlarm(url);
 
+      case /(?:^|\/)audio\/grouped\/tts(?:\/|$)/.test(url):
+        return this._playGroupedTTS(url);
+
       case /(?:^|\/)audio\/cfg\/defaultvolume(?:\/|$)/.test(url):
         return this._audioCfgDefaultVolume(url);
 
@@ -1950,6 +1953,28 @@ module.exports = class MusicServer {
         }
     }
     this._master = new MusicMaster(this);
+
+    return this._emptyCommand(url, []);
+  }
+
+  async _playGroupedTTS(url) {
+    const [, , , zones, input] = url.split('/');
+    const [language, text] = input.split('|');
+
+    var newZoneVols = [];
+    var zones_ids = zones.split(',');
+    for (var i in zones_ids) {
+        var volObj = this.volumesJSON.players.find(element => element.playerid == zones_ids[i]);
+
+        var volume = volObj.tts;
+        newZoneVols.push(zones_ids[i] + "~" + volume)
+    }
+
+    await this._master.playGroupedTTS(
+      newZoneVols,
+      language,
+      text,
+    );
 
     return this._emptyCommand(url, []);
   }

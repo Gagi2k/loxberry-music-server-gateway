@@ -287,6 +287,12 @@ module.exports = class MusicMaster {
     }
   }
 
+  async playGroupedTTS(zones, language, text) {
+    var macs = zones.map(x => { var [zone, vol] = x.split("~"); return this._musicServer._zones[zone]._zone_mac + "~" + vol}).join(",");
+
+    this._client.execute_script("playGroupedTTS", { language, text, zones, macs })
+  }
+
   async playGroupedAlarm(type, zones) {
     var macs = zones.map(x => { var [zone, vol] = x.split("~"); return this._musicServer._zones[zone]._zone_mac + "~" + vol}).join(",");
 

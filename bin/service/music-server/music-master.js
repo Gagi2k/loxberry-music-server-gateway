@@ -110,6 +110,9 @@ module.exports = class MusicMaster {
     };
   }
 
+  async playGroupedTTS(language, text) {
+  }
+
   async playGroupedAlarm(type, volumes) {
     try {
       await this._call(

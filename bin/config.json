@@ -38,6 +38,7 @@
         "playUploadedFile": "echo {{name}} {{zones}} {{macs}} {{path}}",
         "playGroupedAlarmSound": "echo {{name}} {{type}} {{zones}} {{macs}}",
         "stopGroupedAlarmSound": "echo {{name}} {{type}} {{zones}} {{macs}}",
+        "playGroupedTTS": "echo {{name}} {{zones}} {{macs}} {{language}} {{text}}",
         "playAlarmSound": "echo {{name}} {{zones}} {{macs}} {{type}} {{volume}}",
         "playTTS": "echo {{name}} {{zones}} {{macs}} {{language}} {{text}} {{volume}}",
         "changeEqualizer": "echo {{name}} {{zones}} {{macs}}",
