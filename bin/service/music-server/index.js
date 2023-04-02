@@ -3026,7 +3026,16 @@ module.exports = class MusicServer {
   async _playUploadedFile(url) {
     const [, , , filename, zones] = url.split('/');
 
-    this._master.playUploadedFile(config.uploadPlaybackPath + '/' + filename, zones);
+    var newZoneVols = [];
+    var zones_ids = zones.split(',');
+    for (var i in zones_ids) {
+        var volObj = this.volumesJSON.players.find(element => element.playerid == zones_ids[i]);
+
+        var volume = volObj.tts;
+        newZoneVols.push(zones_ids[i] + "~" + volume)
+    }
+
+    this._master.playUploadedFile(config.uploadPlaybackPath + '/' + filename, newZoneVols);
 
     return this._emptyCommand(url, []);
   }

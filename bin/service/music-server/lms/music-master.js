@@ -306,8 +306,7 @@ module.exports = class MusicMaster {
   }
 
   async playUploadedFile(path, zones) {
-    console.log(this._lc, zones)
-    var macs = zones.split(',').map(x => this._musicServer._zones[x]._zone_mac).join(",");
+    var macs = zones.map(x => { var [zone, vol] = x.split("~"); return this._musicServer._zones[zone]._zone_mac + "~" + vol}).join(",");
 
     this._client.execute_script("playUploadedFile", { zones, path, macs })
   }
