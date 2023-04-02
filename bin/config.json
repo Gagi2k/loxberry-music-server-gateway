@@ -40,6 +40,7 @@
         "stopGroupedAlarmSound": "echo {{name}} {{type}} {{zones}} {{macs}}",
         "playGroupedTTS": "echo {{name}} {{zones}} {{macs}} {{language}} {{text}}",
         "playAlarmSound": "echo {{name}} {{zones}} {{macs}} {{type}} {{volume}}",
+        "playAcousticFeedback": "echo {{name}} {{zones}} {{macs}}",
         "playTTS": "echo {{name}} {{zones}} {{macs}} {{language}} {{text}} {{volume}}",
         "changeEqualizer": "echo {{name}} {{zones}} {{macs}}",
         "changeDefaultVolume": "echo {{name}} {{zones}} {{macs}} {{defaultVolume}}",
