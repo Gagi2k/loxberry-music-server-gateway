@@ -453,6 +453,27 @@ module.exports = class MusicServer {
         let rawdata = fs.readFileSync(".music.json");
         this.musicJSON = JSON.parse(rawdata);
         this.musicCRC = crc32(rawdata).toString(16);
+        const thisMac = this._mac().replace(/:/g, "").toUpperCase()
+
+        // Inform the Miniserver that the Audioserver is starting up and the Miniserver can now
+        // connect to it.
+        for(let [key, value] of Object.entries(this.musicJSON)) {
+            if (!(thisMac in value))
+                continue;
+
+            const username = config.ms.users[0].user;
+            const password = config.ms.users[0].password;
+            const encodedBase64Token = Buffer.from(`${username}:${password}`).toString('base64');
+            const authorization = `Basic ${encodedBase64Token}`;
+            await axios({
+                url: config.ms.host + '/dev/sps/devicestartup/' + value[thisMac].uuid,
+                method: 'get',
+                headers: {
+                    Authorization: authorization,
+                },
+                data: {} // Request Body if you have
+            });
+        }
     }
   }
 
