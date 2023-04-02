@@ -311,6 +311,16 @@ module.exports = class MusicMaster {
     this._client.execute_script("playUploadedFile", { zones, path, macs })
   }
 
+  async playAcousticFeedback(zones) {
+    var macs = zones.map(x => this._musicServer._zones[x]._zone_mac).join(",");
+    if (!macs.length) {
+        console.log(this._lc, "Acoustic Feedback for unconfigured Zone!")
+        return;
+    }
+
+    this._client.execute_script("playAcousticFeedback", { zones, macs })
+  }
+
   _call() {
     const callback = () => this._musicServer.call(...arguments);
 

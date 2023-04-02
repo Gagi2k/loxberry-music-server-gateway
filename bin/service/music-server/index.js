@@ -1154,6 +1154,9 @@ module.exports = class MusicServer {
       case /(?:^|\/)audio\/cfg\/diagnosis/.test(url):
          return this._audioCfgDiagnosis(url);
 
+      case /(?:^|\/)audio\/cfg\/identify\/[^\/]+\/acoustic/.test(url):
+         return this._audioCfgIdentifyAcoustic(url);
+
       case /(?:^|\/)audio\/\d+\/status/.test(url):
         return this._audioGetStatus(url);
 
@@ -1862,6 +1865,37 @@ module.exports = class MusicServer {
     }*/
 
     return this._emptyCommand(url, diagObj);
+  }
+
+  async _audioCfgIdentifyAcoustic(url) {
+    const [, , , mac, , outputs] = url.split('/');
+
+    var zones = []
+    var outs = outputs.split(',');
+    for (var i in outs) {
+        var id = mac + "#" + outs[i];
+        console.log(this._lc, "Searching for", id);
+
+        for (var ms in this.musicJSON) {
+            var msObj = this.musicJSON[ms];
+            msObj = msObj[Object.keys(msObj)[0]];
+            for (var playeridx in msObj.players) {
+                var player = msObj.players[playeridx];
+                for (var outidx in player.outputs) {
+                    for (var ch in player.outputs[outidx].channels) {
+                        if (player.outputs[outidx].channels[ch].id == id) {
+                            zones.push(player.playerid);
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    this._master.playAcousticFeedback(zones);
+
+    return this._emptyCommand(url, []);
   }
 
   async _audioCfgGetConfig(url) {

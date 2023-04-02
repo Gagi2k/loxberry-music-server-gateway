@@ -158,6 +158,9 @@ module.exports = class MusicMaster {
     }
   }
 
+  async playAcousticFeedback(zones) {
+  }
+
   _call() {
     const callback = () => this._musicServer.call(...arguments);
 
