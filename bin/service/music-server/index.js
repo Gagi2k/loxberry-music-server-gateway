@@ -449,6 +449,24 @@ module.exports = class MusicServer {
     });
     this.msMAC = macResponse.data.LL.value.replace(/:/g, "").toUpperCase();
 
+    // Prepare a list of extensions for autodiscovery
+    this.extensions = []
+    for (var i=0; i<10 ;i++) {
+        var mac = "504F94FF1B0" + i;
+        this.extensions.push({"version": "1.2.3","mac": mac,"serial": mac,"blinkpos":0,"type":3,"subtype":1,"btenable":false})
+    }
+
+    // Send a HW event every minute
+    var startDate = Date.now();
+    setInterval(() => {
+        var now = Date.now();
+        var delta = now - startDate;
+        if (delta > (60 * 60 * 24)) {
+            startDate = now;
+        }
+        this._pushHwEvent(Math.floor(delta / 1000));
+    }, 1000 * 60);
+
     if (fs.existsSync(".music.json")) {
         let rawdata = fs.readFileSync(".music.json");
         this.musicJSON = JSON.parse(rawdata);
@@ -770,6 +788,39 @@ module.exports = class MusicServer {
       const message = JSON.stringify({
         reboot_event: true
       });
+      console.log(this._lcEVNT, message);
+      this._wsConnections.forEach((connection) => {
+        connection.send(message);
+      });
+  }
+
+  _pushHwEvent(uptimeSeconds) {
+      // Sent every minute
+      // 2104: online state of extension (two per extension, one per channel)
+      // 2105: online since seconds
+
+      var events = [
+          {"client_id":this.msMAC + "#1","event_id":2005,"value":0},
+          {"client_id":this.msMAC + "#1","event_id":2101,"value":67},
+          {"client_id":this.msMAC + "#1","event_id":2100,"value":0},
+          {"client_id":this.msMAC + "#1","event_id":2102,"value":0},
+          {"client_id":this.msMAC + "#1","event_id":2103,"value":0},
+          {"client_id":this.msMAC + "#1","event_id":2105,"value":uptimeSeconds},
+          {"client_id":this.msMAC + "#1","event_id":2106,"value":62},
+      ]
+
+      for (var i in this.extensions) {
+        for (var j = 1; j<3 ;j++) {
+            events.push({"client_id":this.extensions[i].mac + "#" + j,"event_id":2100,"value":0})
+            events.push({"client_id":this.extensions[i].mac + "#" + j,"event_id":2101,"value":0})
+            events.push({"client_id":this.extensions[i].mac + "#" + j,"event_id":2102,"value":0})
+            events.push({"client_id":this.extensions[i].mac + "#" + j,"event_id":2103,"value":0})
+            events.push({"client_id":this.extensions[i].mac + "#" + j,"event_id":2104,"value":1})
+            events.push({"client_id":this.extensions[i].mac + "#" + j,"event_id":2105,"value":uptimeSeconds})
+        }
+      }
+
+      const message = JSON.stringify({ hw_event: events });
       console.log(this._lcEVNT, message);
       this._wsConnections.forEach((connection) => {
         connection.send(message);
@@ -1867,6 +1918,7 @@ module.exports = class MusicServer {
   }
 
   async _audioCfgReady(url) {
+    this._pushHwEvent(0);
     return this._emptyCommand(url, {"session":547541322864});
   }
 
@@ -1920,7 +1972,7 @@ module.exports = class MusicServer {
   }
 
   async _audioCfgGetConfig(url) {
-    return this._emptyCommand(url, {"crc32":this.musicCRC,"extensions":[]});
+    return this._emptyCommand(url, {"crc32":this.musicCRC,"extensions":this.extensions});
   }
 
   async _audioCfgSetConfig(url) {
@@ -1931,7 +1983,7 @@ module.exports = class MusicServer {
     this.musicCRC = crc32(str).toString(16);
     fs.writeFileSync(".music.json", str);
 
-    return this._emptyCommand(url, {"crc32":this.musicCRC,"extensions":[]});
+    return this._emptyCommand(url, {"crc32":this.musicCRC,"extensions":this.extensions});
   }
 
   async _audioCfgMiniservertime(url) {
