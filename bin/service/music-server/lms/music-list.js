@@ -139,6 +139,33 @@ module.exports = class List {
             this.reset()
             this._zone._pushRoomFavChangedEvent();
         }
+    } else if (url.endsWith("inputs")) {
+        let fileName = 'inputs.json'
+        let inputs = []
+        if (fs.existsSync(fileName)) {
+            let rawdata = fs.readFileSync(fileName);
+            inputs = JSON.parse(rawdata);
+        }
+
+        this.get_call = async (rootItem, start, length) => {
+            return { count: inputs.length, items: inputs };
+        }
+        this.insert_call = async (position, ...items) => {
+            inputs.splice(position, 1, ...items);
+
+            let data = JSON.stringify(inputs);
+            fs.writeFileSync(fileName, data);
+            this.reset()
+            this._musicServer._pushInputsChangedEvent();
+        }
+        this.delete_call = async (position, length) => {
+            for (var i = 0; i<length; i++)
+                inputs.splice(position + i, 1, {});
+            let data = JSON.stringify(inputs);
+            fs.writeFileSync(fileName, data);
+            this.reset()
+            this._musicServer._pushInputsChangedEvent();
+        }
     } else if (url.endsWith("playlists")) {
         this._helper = new LMSClient(this._musicServer._masterZone._zone_mac, this);
         this._client = new LMSClient(this._zone_mac, this);

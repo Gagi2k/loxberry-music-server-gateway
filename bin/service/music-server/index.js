@@ -1510,9 +1510,12 @@ module.exports = class MusicServer {
       items.map((item, i) => ({
         id: this._encodeId(item.id, BASE_INPUT + i),
         name: item.title,
-        coverurl: this._imageUrl(item.image in icons ? undefined : item.image),
         icontype: icons[item.image] || 0,
         enabled: true,
+        type:6,
+        inputvolume: item.inputvolume || 100,
+        cmd: item.cmd,
+        as: item.id
       })),
     );
   }
@@ -1781,10 +1784,14 @@ module.exports = class MusicServer {
     const [, , , id, , title] = url.split('/');
     const [decodedId, favoriteId] = this._decodeId(id);
     const position = favoriteId % BASE_DELTA;
-    const item = (await this._master.getInputList().get(undefined, position, 1)).items[0];
+    let inputs = await this._master.getInputList().get(undefined, 0, +Infinity);
 
+    // create a deep copy
+    inputs = JSON.parse(JSON.stringify(inputs));
+
+    let item = inputs.items[position];
     item.title = decodeURIComponent(title);
-    await this._master.getInputList().replace(position, [item]);
+    await this._master.getInputList().replace(position, item);
 
     return this._emptyCommand(url, []);
   }
@@ -1793,7 +1800,7 @@ module.exports = class MusicServer {
     const [, , , id, , icon] = url.split('/');
     const [decodedId, favoriteId] = this._decodeId(id);
     const position = favoriteId % BASE_DELTA;
-    const item = (await this._master.getInputList().get(undefined, position, 1)).items[0];
+    let inputs = await this._master.getInputList().get(undefined, 0, +Infinity);
 
     const icons = [
       `line-in`,
@@ -1807,8 +1814,12 @@ module.exports = class MusicServer {
       `turntable`,
     ];
 
-    item.image = icons[icon];
-    await this._master.getInputList().replace(position, [item]);
+
+    // create a deep copy
+    inputs = JSON.parse(JSON.stringify(inputs));
+
+    let item = inputs.items[position];
+    await this._master.getInputList().replace(position, item);
 
     return this._emptyCommand(url, []);
   }

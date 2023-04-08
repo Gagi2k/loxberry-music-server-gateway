@@ -1,0 +1,1 @@
+[{"id":"0","title":"LineIn 1","image":"cd-player","inputvolume":100,"cmd":"playurl/wavein:plughw:3"},{"id":"1","title":"LineIn 2","image":"cd-player","inputvolume":100,"cmd":"play/alsaloop"}]
