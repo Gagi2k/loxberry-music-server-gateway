@@ -66,11 +66,12 @@ module.exports = class MusicServer {
     this._lcWSCK = lcApp.extend("WSCK");
     this._lcMSWSCK = lcApp.extend("MSWSCK");
     this._lcHTTP = lcApp.extend("HTTP");
+    this._lcMSHTTP = lcApp.extend("MSHTTP");
     this._lcEVNT = lcApp.extend("EVNT");
 
     // setup the default logging categories
     if (!process.env.DEBUG)
-        debug.enable('MSG,MSG:WSCK,MSG:MSWSCK,MSG:HTTP,MSG:EVNT');
+        debug.enable('MSG,MSG:WSCK,MSG:MSWSCK,MSG:HTTP,MSG:MSHTTP,MSG:EVNT');
 
     this._imageStore = Object.create(null);
 
@@ -166,7 +167,9 @@ module.exports = class MusicServer {
         });
         req.on('end', async () => {
             const data = Buffer.concat(chunks);
-            res.writeHead(200, headers);
+            var jsonheaders = headers;
+            jsonheaders['Content-Type'] = 'application/json';
+            res.writeHead(200, jsonheaders);
             const response = await this._handler(req.url, data);
             console.log(this._lcHTTP, 'RESP:', JSON.stringify(JSON.parse(response)));
             res.end(response);
@@ -230,7 +233,7 @@ module.exports = class MusicServer {
 
 
     const msHttpServer = http.createServer(async (req, res) => {
-      console.log(this._lcHTTP, 'RECV:' + req.url);
+      console.log(this._lcMSHTTP, 'RECV:' + req.url);
     });
 
     const msWsServer = new websocket.server({
@@ -799,14 +802,16 @@ module.exports = class MusicServer {
       // 2104: online state of extension (two per extension, one per channel)
       // 2105: online since seconds
 
+      const thisMac = this._mac().replace(/:/g, "").toUpperCase()
+
       var events = [
-          {"client_id":this.msMAC + "#1","event_id":2005,"value":0},
-          {"client_id":this.msMAC + "#1","event_id":2101,"value":67},
-          {"client_id":this.msMAC + "#1","event_id":2100,"value":0},
-          {"client_id":this.msMAC + "#1","event_id":2102,"value":0},
-          {"client_id":this.msMAC + "#1","event_id":2103,"value":0},
-          {"client_id":this.msMAC + "#1","event_id":2105,"value":uptimeSeconds},
-          {"client_id":this.msMAC + "#1","event_id":2106,"value":62},
+          {"client_id":thisMac + "#1","event_id":2005,"value":0},
+          {"client_id":thisMac + "#1","event_id":2101,"value":67},
+          {"client_id":thisMac + "#1","event_id":2100,"value":0},
+          {"client_id":thisMac + "#1","event_id":2102,"value":0},
+          {"client_id":thisMac + "#1","event_id":2103,"value":0},
+          {"client_id":thisMac + "#1","event_id":2105,"value":uptimeSeconds},
+          {"client_id":thisMac + "#1","event_id":2106,"value":56},
       ]
 
       for (var i in this.extensions) {
@@ -976,6 +981,9 @@ module.exports = class MusicServer {
       case /(?:^|\/)audio\/cfg\/getmediafolder(?:\/|$)/.test(url):
         return this._audioCfgGetMediaFolder(url, []);
 
+      case /(?:^|\/)audio\/cfg\/getmonitorstatus(?:\/|$)/.test(url):
+        return this._audioCfgGetMonitorStatus(url);
+
       case /(?:^|\/)audio\/cfg\/get(?:paired)?master(?:\/|$)/.test(url):
         return this._audioCfgGetMaster(url);
 
@@ -1009,8 +1017,11 @@ module.exports = class MusicServer {
       case /(?:^|\/)audio\/cfg\/search\//.test(url):
         return this._audioCfgSearch(url);
 
-      case /(?:^|\/)audio\/cfg\/iamaminiserver(?:done)?\//.test(url):
+      case /(?:^|\/)audio\/cfg\/iamaminiserver(?:done)?/.test(url):
         return this._audioCfgIAmAMiniserver(url);
+
+      case /(?:^|\/)audio\/cfg\/miniserverversion\//.test(url):
+        return this._audioCfgMiniserverVersion(url);
 
       case /(?:^|\/)audio\/cfg\/miniserverport\//.test(url):
         return this._audioCfgMiniserverPort(url);
@@ -1032,6 +1043,9 @@ module.exports = class MusicServer {
 
       case /(?:^|\/)audio\/cfg\/playlist\/deletelist\//.test(url):
         return this._audioCfgPlaylistDeleteList(url);
+
+      case /(?:^|\/)audio\/cfg\/props\/updatelevel/.test(url):
+        return this._audioCfgPropsUpdateLevel(url);
 
       case /(?:^|\/)audio\/cfg\/scanstatus(?:\/|$)/.test(url):
         return this._audioCfgScanStatus(url);
@@ -1229,6 +1243,9 @@ module.exports = class MusicServer {
       case /(?:^|\/)audio\/cfg\/identify\/[^\/]+\/acoustic/.test(url):
          return this._audioCfgIdentifyAcoustic(url);
 
+      case /(?:^|\/)audio\/cfg\/identify\/[^\/]+/.test(url):
+         return this._audioCfgIdentify(url);
+
       case /(?:^|\/)audio\/\d+\/status/.test(url):
         return this._audioGetStatus(url);
 
@@ -1250,6 +1267,9 @@ module.exports = class MusicServer {
       case /(?:^|\/)audio\/cfg\/playername/.test(url):
         return this._audioCfgPlayername(url);
 
+      case /(?:^|\/)audio\/cfg\/playeropts/.test(url):
+        return this._audioCfgPlayeropts(url);
+
       case /(?:^|\/)audio\/cfg\/dgroup/.test(url):
         return this._audioCfgDynamicGroup(url);
 
@@ -1270,6 +1290,9 @@ module.exports = class MusicServer {
 
       case /(?:^|\/)secure\/pair/.test(url):
         return this._securePair(url);
+
+      case /(?:^|\/)secure\/forget/.test(url):
+        return this._secureForget(url);
 
       case /(?:^|\/)secure\/info\/pairing/.test(url):
         return this._secureInfoPairing(url);
@@ -1297,7 +1320,7 @@ module.exports = class MusicServer {
         errortts: false,
         gateway: '0.0.0.0',
         hostname: 'loxberry-music-server-' + this._config.port,
-        ip: '0.255.255.255',
+        ip: this._hostIp,
         language: 'en',
         lastconfig: '',
         macaddress: this._mac(),
@@ -1520,8 +1543,12 @@ module.exports = class MusicServer {
     ]);
   }
 
+  _audioCfgGetMonitorStatus(url) {
+    return this._emptyCommand(url, []);
+  }
+
   _audioCfgGetMaster(url) {
-    return JSON.stringify(url, url.split('/').pop(), null);
+    return this._emptyCommand(url, {"ip":config.ms.host,"master":this.msMAC,"paired":true,"window":-81})
   }
 
   _audioCfgGetPlayersDetails(url) {
@@ -1732,6 +1759,10 @@ module.exports = class MusicServer {
     });
   }
 
+  _audioCfgMiniserverVersion(url) {
+    return this._emptyCommand(url, true);
+  }
+
   _audioCfgMiniserverPort(url) {
     this._miniserverPort = url.split('/').pop();
 
@@ -1834,6 +1865,10 @@ module.exports = class MusicServer {
     let status = await this._master.scanStatus();
 
     return this._emptyCommand(url, [{scanning: +status}]);
+  }
+
+  async _audioCfgPropsUpdateLevel(url) {
+    return this._emptyCommand(url, []);
   }
 
   async _audioCfgRescan(url) {
@@ -1971,6 +2006,10 @@ module.exports = class MusicServer {
     return this._emptyCommand(url, []);
   }
 
+  async _audioCfgIdentify(url) {
+    return this._emptyCommand(url, []);
+  }
+
   async _audioCfgGetConfig(url) {
     return this._emptyCommand(url, {"crc32":this.musicCRC,"extensions":this.extensions});
   }
@@ -1992,7 +2031,7 @@ module.exports = class MusicServer {
 
   async _audioCfgSpeakerType(url) {
     // base64 encoded string which contains the following:
-    // {"speakers":[{"id":"504F94FF1BB4#1","speakerType":0},{"id":"504F94FF1BB4#3","speakerType":0},{"id":"504F94FF1BB6#1","speakerType":0},{"id":"504F94FF1BB7#1","speakerType":0},{"id":"504F94FF1BB7#2","speakerType":0}]}
+    // {"speakers":[{"id":"504F94FF1BB4#1","speakerType":0},{"id":"504F94FF1BB4#3","speakerType":0},..]}
     return this._emptyCommand(url, []);
   }
 
@@ -2062,6 +2101,10 @@ module.exports = class MusicServer {
     this._master = new MusicMaster(this);
 
     return this._emptyCommand(url, []);
+  }
+
+  async _audioCfgPlayeropts(url) {
+    return this._emptyCommand(url, "ok");
   }
 
   async _playGroupedTTS(url) {
@@ -3164,11 +3207,16 @@ module.exports = class MusicServer {
   }
 
   async _securePair(url) {
-    return this._emptyCommand(url, []);
+    return '{"command":"secure/pair","error":0,"response":{"command":"pair-request-response","session_token":"8WahwAfULwEQce9Yu0qIE9L7QMkXFHbi0M9ch9vKcgYArPPojXHpSiNcq0fT3lqL"}}';
+  }
+
+  async _secureForget(url) {
+    fs.unlinkSync(".music.json");
+    process.exit(0);
   }
 
   async _secureInfoPairing(url) {
-    return '{"command":"secure/info/pairing","error":-84,"master":"' + this.msMAC + '","peers":[]}'
+    return '{"command":"secure/info/pairing","error":-81,"master":"' + this.msMAC + '","peers":[]}'
   }
 
   async _secureAuthenticate(url) {
