@@ -3234,7 +3234,13 @@ module.exports = class MusicServer {
   }
 
   _unknownCommand(url) {
-    console.warn(this._lc, '[HTWS] Unknown command: ' + url);
+    console.warn(this._lc, '####################################################################');
+    console.warn(this._lc, '######################## UNKNOWN COMMAND ###########################');
+    console.warn(this._lc, '####################################################################');
+    console.warn(this._lc, url);
+    console.warn(this._lc, '####################################################################');
+    console.warn(this._lc, '####################################################################');
+    console.warn(this._lc, '####################################################################');
 
     return this._emptyCommand(url, null);
   }

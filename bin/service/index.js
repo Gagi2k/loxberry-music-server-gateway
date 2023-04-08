@@ -16,8 +16,16 @@ const headers = {
 Error.stackTraceLimit = Infinity;
 
 process.on('unhandledRejection', (reason, p) => {
-               console.trace('Unhandled Rejection at: Promise', p, 'reason:', reason, 'stack', reason);
-           });
+    console.error('####################################################################');
+    console.error('###################### UNHANDLED EXCEPTION #########################');
+    console.error('####################################################################');
+    console.error('##                 Please report this error!                      ##')
+    console.error('####################################################################');
+    console.error("error:", reason);
+    console.error('####################################################################');
+    console.error('####################################################################');
+    console.error('####################################################################');
+});
 
 (function() {
   const oldParse = JSON.parse;
