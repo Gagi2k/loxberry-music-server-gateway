@@ -444,13 +444,7 @@ module.exports = class MusicServer {
   }
 
   async prepareAudioserverConfig() {
-    // Retrieve the MAC Adresse of the Miniserver
-    const macResponse = await axios({
-        url: config.ms.host + '/jdev/cfg/mac',
-        method: 'get',
-        data: {} // Request Body if you have
-    });
-    this.msMAC = macResponse.data.LL.value.replace(/:/g, "").toUpperCase();
+    this.msMAC = (await this._msClients[0].command("jdev/cfg/mac")).LL.value.replace(/:/g, "").toUpperCase();
 
     // Prepare a list of extensions for autodiscovery
     this.extensions = []
@@ -481,17 +475,11 @@ module.exports = class MusicServer {
         for(let [key, value] of Object.entries(this.musicJSON)) {
             if (!(thisMac in value))
                 continue;
+            this.msMAC = value[thisMac].master;
 
-            const username = config.ms.users[0].user;
-            const password = config.ms.users[0].password;
-            const encodedBase64Token = Buffer.from(`${username}:${password}`).toString('base64');
-            const authorization = `Basic ${encodedBase64Token}`;
             await axios({
                 url: config.ms.host + '/dev/sps/devicestartup/' + value[thisMac].uuid,
                 method: 'get',
-                headers: {
-                    Authorization: authorization,
-                },
                 data: {} // Request Body if you have
             });
         }
