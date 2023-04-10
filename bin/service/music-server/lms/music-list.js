@@ -116,7 +116,7 @@ module.exports = class List {
 
                 let url = await this._client.resolveAudioUrl(items[key].id)
                 if (!url)
-                    return;
+                    url = items[key].id;
                 items[key].id = "url:" + url;
             }
 

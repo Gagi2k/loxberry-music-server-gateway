@@ -20,6 +20,7 @@ module.exports = class MusicZone {
     this._cfgFileName = "zone_config_" + this._id + ".json";
     this._audioDelay = 0;
     this._spotifyAccount = ""
+    this._alsaLoopPlaying = false
 
     this._player = {
       id: '',
@@ -225,6 +226,10 @@ module.exports = class MusicZone {
         this._getState = true;
 
         setTimeout(async () => {
+           if (this._alsaLoopPlaying) {
+              this._alsaLoopPlaying = false
+              this._client.execute_script("stopAlsaLoop", { zones: this._id, macs: this._zone_mac })
+           }
            var oldIndex = this._track.qindex;
            await this.getState();
            this._pushAudioEvent();
@@ -368,6 +373,14 @@ module.exports = class MusicZone {
         await this._client.command('favorites playlist play item_id:' + parsed_id.id);
         return;
     } else if (parsed_id.type == "url"){
+        // If a Line in is safed the url contains some special paths, which we want to handle correctly
+        if (parsed_id.id.startsWith("playurl")) {
+            parsed_id.id = parsed_id.id.split('/')[1]
+        } else if (parsed_id.id.startsWith("play/alsaloop")) {
+            var splitted = parsed_id.id.split('/');
+            return await this.playAlsaLoop(splitted[2], splitted[3])
+        }
+
         await this._client.command('playlist play ' + parsed_id.id);
         return;
     } else if (parsed_id.type.startsWith("service")){
@@ -386,6 +399,15 @@ module.exports = class MusicZone {
     }
 
     console.error(this._lc, "PLAYING THIS TYPE IS NOT IMPLEMENTED")
+  }
+
+  async playAlsaLoop(hw, delay) {
+    this._alsaLoopPlaying = true;
+    this._setMode('stop')
+    this._client.execute_script("playAlsaLoop", { zones: this._id,
+                                                  macs: this._zone_mac,
+                                                  hw: hw,
+                                                  delay: delay})
   }
 
   async pause() {

@@ -42,6 +42,8 @@
         "playAlarmSound": "echo {{name}} {{zones}} {{macs}} {{type}} {{volume}}",
         "playAcousticFeedback": "echo {{name}} {{zones}} {{macs}}",
         "playTTS": "echo {{name}} {{zones}} {{macs}} {{language}} {{text}} {{volume}}",
+        "playAlsaLoop": "echo {{name}} {{zones}} {{macs}} {{hw}} {{delay}}",
+        "stopAlsaLoop": "echo {{name}} {{zones}} {{macs}}",
         "changeEqualizer": "echo {{name}} {{zones}} {{macs}}",
         "changeDefaultVolume": "echo {{name}} {{zones}} {{macs}} {{defaultVolume}}",
         "changeMaxVolume": "echo {{name}} {{zones}} {{macs}} {{maxVolume}}",

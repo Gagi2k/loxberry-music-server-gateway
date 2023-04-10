@@ -1113,6 +1113,9 @@ module.exports = class MusicServer {
       case /(?:^|\/)audio\/\d+\/stop(?:\/|$)/.test(url):
         return this._audioStop(url);
 
+      case /(?:^|\/)audio\/\d+\/play\/alsaloop/.test(url):
+        return this._audioPlayAlsaLoop(url);
+
       case /(?:^|\/)audio\/\d+\/(?:play|resume)(?:\/|$)/.test(url):
         return this._audioPlay(url);
 
@@ -2490,6 +2493,18 @@ module.exports = class MusicServer {
     return this._emptyCommand(url, []);
   }
 
+  async _audioPlayAlsaLoop(url) {
+    const [, zoneId, , hw, delay] = url.split('/');
+    const zone = this._zones[zoneId];
+    if (!zone) {
+      return this._emptyCommand(url, []);
+    }
+
+    zone.playAlsaLoop(hw, delay);
+
+    return this._emptyCommand(url, []);
+  }
+
   async _audioPlayUrl(url) {
     const [, zoneId, , ...lastArg] = url.split('/');
     let id = lastArg.join('/');
@@ -2878,9 +2893,18 @@ module.exports = class MusicServer {
   }
 
   async _audioRoomFavsAdd(url) {
-    const [, , , zoneId, , title, id] = url.split('/');
+    const [, , , zoneId, , title, ...lastArg] = url.split('/');
     const zone = this._zones[zoneId];
-    const [decodedId] = this._decodeId(id);
+    const id = lastArg.join('/')
+    let decodedId;
+    console.log(this._lc, id);
+
+    try {
+        [decodedId] = this._decodeId(id);
+    } catch(e) {
+        decodedId = id;
+    }
+
     if (!zone) {
       return this._emptyCommand(url, []);
     }
