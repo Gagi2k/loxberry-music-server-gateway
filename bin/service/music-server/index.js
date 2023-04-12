@@ -1168,6 +1168,9 @@ module.exports = class MusicServer {
      case /(?:^|\/)audio\/\d+\/roomfav\/play/.test(url):
         return this._audioRoomFavPlayId(url);
 
+      case /(?:^|\/)audio\/[^\/]+\/roomfav\/play\/\d+(?:\/|$)/.test(url):
+        return this._audioRoomFavPlayByName(url);
+
       case /(?:^|\/)audio\/\d+\/roomfav\/plus(?:\/|$)/.test(url):
         return this._audioRoomFavPlus(url);
 
@@ -2807,6 +2810,33 @@ module.exports = class MusicServer {
     await zone.play(decodedId, favoriteId);
 
     return this._emptyCommand(url, []);
+  }
+
+  async _audioRoomFavPlayByName(url) {
+    const [, id, , ,position] = url.split('/');
+
+    // id could be the zone name or the mac addresss
+    let zone_mac = id;
+    if (config.zone_map[id])
+        zone_mac = config.zone_map[id];
+
+    // find the zone with the mac and play
+    for (var i in this._zones) {
+        if (this._zones[i]._zone_mac != zone_mac)
+            continue;
+
+        const zone = this._zones[i];
+        const favorites = await zone.getFavoritesList().get(undefined, 0, 50);
+        console.log(this._lc, favorites, +position - 1, favorites.items[+position - 1]);
+        const favid = favorites.items[+position - 1].id;
+
+        await zone.play(favid, BASE_FAVORITE_ZONE + (+position - 1));
+
+        this._pushRoomFavEvents([zone]);
+        return this._emptyCommand(url, []);
+    }
+
+    return this._emptyCommand(url, "No such zone");
   }
 
   async _audioRoomFavPlus(url) {
