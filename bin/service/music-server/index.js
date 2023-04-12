@@ -131,7 +131,7 @@ module.exports = class MusicServer {
 
     // Connect to the Miniserver as early as possible
     // Afterwards we have all the information to also do secure communication
-    this.connectToMiniserver();
+    await this.connectToMiniserver();
 
     const httpServer = http.createServer(async (req, res) => {
       console.log(this._lcHTTP, 'RECV:' + req.url);
