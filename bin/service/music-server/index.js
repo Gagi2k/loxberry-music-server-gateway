@@ -2482,7 +2482,7 @@ module.exports = class MusicServer {
   }
 
   async _audioPlayAlsaLoop(url) {
-    const [, zoneId, , hw, delay] = url.split('/');
+    const [, zoneId, , , hw, delay] = url.split('/');
     const zone = this._zones[zoneId];
     if (!zone) {
       return this._emptyCommand(url, []);

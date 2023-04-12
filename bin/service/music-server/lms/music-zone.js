@@ -21,6 +21,7 @@ module.exports = class MusicZone {
     this._audioDelay = 0;
     this._spotifyAccount = ""
     this._alsaLoopPlaying = false
+    this._oldMode = undefined
 
     this._player = {
       id: '',
@@ -187,6 +188,11 @@ module.exports = class MusicZone {
         let repeat = await this._client.command('playlist repeat ?')
         let shuffle = await this._client.command('playlist shuffle ?')
         let mode = await this._client.command('mode ?')
+        if (mode != this._oldMode && this._alsaLoopPlaying) {
+          this._alsaLoopPlaying = false
+          this._client.execute_script("stopAlsaLoop", { zones: this._id, macs: this._zone_mac })
+        }
+        this._oldMode = mode;
 
         volume = parseInt(volume);
         let maxVolume = parseInt(this._zone_cfg.maxVolume);
@@ -226,10 +232,6 @@ module.exports = class MusicZone {
         this._getState = true;
 
         setTimeout(async () => {
-           if (this._alsaLoopPlaying) {
-              this._alsaLoopPlaying = false
-              this._client.execute_script("stopAlsaLoop", { zones: this._id, macs: this._zone_mac })
-           }
            var oldIndex = this._track.qindex;
            await this.getState();
            this._pushAudioEvent();
@@ -403,7 +405,8 @@ module.exports = class MusicZone {
 
   async playAlsaLoop(hw, delay) {
     this._alsaLoopPlaying = true;
-    this._setMode('stop')
+    this._setMode('stop');
+    this._oldMode = "stop";
     this._client.execute_script("playAlsaLoop", { zones: this._id,
                                                   macs: this._zone_mac,
                                                   hw: hw,
