@@ -71,11 +71,13 @@ module.exports = class List {
         this._client = new LMSClient(this._zone_mac, this);
         let fileName = 'zone_favorite_' + this._zone._id + '.json'
         let fav_items = [{id:-1, title: "Dummy"}]
+
         if (fs.existsSync(fileName)) {
             let rawdata = fs.readFileSync(fileName);
             fav_items = JSON.parse(rawdata);
         }
-        fav_items.fill({}, fav_items.length, 8);
+        if (config.type == "musicserver")
+            fav_items.fill({}, fav_items.length, 8);
 
         this.get_call = async (rootItem, start, length) => {
             for (var key in fav_items) {
@@ -100,6 +102,8 @@ module.exports = class List {
                             fav_items[key].type = "playlist"
                             fav_items[key].owner = "playlist"
                         }
+                    } else if (id.includes("wavein") || id.includes("alsaloop")) {
+                        fav_items[key].type = "linein"
                     }
                 }
                 if (fav_items[key].image)
@@ -111,7 +115,7 @@ module.exports = class List {
         }
         this.insert_call = async (position, ...items) => {
             for (var key in items) {
-                if (!items[key].id)
+                if (!items[key].id || items[key].id == -1)
                     continue;
 
                 let url = await this._client.resolveAudioUrl(items[key].id)
@@ -132,8 +136,13 @@ module.exports = class List {
             this._zone._pushRoomFavChangedEvent();
         }
         this.delete_call = async (position, length) => {
-            for (var i = 0; i<length; i++)
-                fav_items.splice(position + i, 1, {});
+            if (config.type == "musicserver") {
+                for (var i = 0; i<length; i++)
+                    fav_items.splice(position + i, 1, {});
+            } else {
+                fav_items.splice(position, length);
+            }
+
             let data = JSON.stringify(fav_items);
             fs.writeFileSync(fileName, data);
             this.reset()

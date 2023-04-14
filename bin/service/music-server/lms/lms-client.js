@@ -386,7 +386,12 @@ module.exports = class LMSClient {
     }
 
     async resolveAudioUrl(id) {
-        let parsed_id = this.parseId(id);
+        let parsed_id;
+        try {
+            parsed_id = this.parseId(id);
+        } catch (e) {
+            return undefined;
+        }
 
         if (parsed_id.type == "fav") {
             let response = await this.command('favorites items 0 1 want_url:1 item_id:' + parsed_id.id);

@@ -3042,17 +3042,20 @@ module.exports = class MusicServer {
   async _audioRoomFavsCopy(url) {
     const [, , , source, , destination] = url.split('/');
 
-    const srcZone = this._zones[+source - 1];
-    const destZone = this._zones[+destination - 1];
+    const srcZone = this._zones[source];
+    const destZone = this._zones[destination];
     if (!srcZone || !destZone) {
       this._emptyCommand(url, []);
     }
 
     var data = await srcZone.getFavoritesList().get(undefined, 0, 100);
+    var destData = await destZone.getFavoritesList().get(undefined, 0, 100);
 
     for (var i=0; i < data.total; i++) {
         await destZone.getFavoritesList().replace(i, data.items[i]);
     }
+    // Delete the remaining favorites in the destination;
+    await destZone.getFavoritesList().delete(data.total, destData.total - data.total);
 
     return this._emptyCommand(url, []);
   }
