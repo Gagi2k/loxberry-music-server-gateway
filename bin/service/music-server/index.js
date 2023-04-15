@@ -1101,7 +1101,7 @@ module.exports = class MusicServer {
       case /(?:^|\/)audio\/\d+\/stop(?:\/|$)/.test(url):
         return this._audioStop(url);
 
-      case /(?:^|\/)audio\/\d+\/play\/alsaloop/.test(url):
+      case /(?:^|\/)audio\/[^\/]+\/play\/alsaloop/.test(url):
         return this._audioPlayAlsaLoop(url);
 
       case /(?:^|\/)audio\/\d+\/(?:play|resume)(?:\/|$)/.test(url):
@@ -2486,13 +2486,29 @@ module.exports = class MusicServer {
   }
 
   async _audioPlayAlsaLoop(url) {
-    const [, zoneId, , , hw, delay] = url.split('/');
-    const zone = this._zones[zoneId];
-    if (!zone) {
-      return this._emptyCommand(url, []);
+    const [, id, , , hw, delay] = url.split('/');
+
+    if (this._zones[id]) {
+        console.log(this._lc, "PLAY BY ID");
+        this._zones[id].playAlsaLoop(hw, delay);
+        return this._emptyCommand(url, []);
     }
 
-    zone.playAlsaLoop(hw, delay);
+    // id could be the zone name or the mac addresss
+    let zone_mac = id;
+    if (config.zone_map[id])
+        zone_mac = config.zone_map[id];
+
+    // find the zone with the mac and play
+    for (var i in this._zones) {
+        if (this._zones[i]._zone_mac != zone_mac)
+            continue;
+
+        this._zones[i].playAlsaLoop(hw, delay);
+        return this._emptyCommand(url, []);
+    }
+
+    console.log(this._lc, "NO SUCH ZONE");
 
     return this._emptyCommand(url, []);
   }
