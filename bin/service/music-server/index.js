@@ -1813,6 +1813,7 @@ module.exports = class MusicServer {
     inputs = JSON.parse(JSON.stringify(inputs));
 
     let item = inputs.items[position];
+    item.image = icons[icon];
     await this._master.getInputList().replace(position, item);
 
     return this._emptyCommand(url, []);
