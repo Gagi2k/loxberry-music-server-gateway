@@ -30,7 +30,8 @@ module.exports = class MusicZone {
       volume: 0,
       repeat: 0,
       shuffle: 0,
-      power: 0
+      power: 0,
+      icontype: -1
     };
 
     this._zone_cfg = {
@@ -160,6 +161,12 @@ module.exports = class MusicZone {
 
         duration = duration * 1000
 
+        if (title.startsWith("wavein")) {
+            var input = await this._getInputFromName(decodeURIComponent(title));
+            title = input.name;
+            this._player.icontype = input.icontype;
+        }
+
         this._track = {
             "id": path ? "url:" + path : "",
             "title": title,
@@ -188,9 +195,13 @@ module.exports = class MusicZone {
         let repeat = await this._client.command('playlist repeat ?')
         let shuffle = await this._client.command('playlist shuffle ?')
         let mode = await this._client.command('mode ?')
-        if (mode != this._oldMode && this._alsaLoopPlaying) {
-          this._alsaLoopPlaying = false
-          this._client.execute_script("stopAlsaLoop", { zones: this._id, macs: this._zone_mac })
+        if (this._alsaLoopCurrent) {
+            if (mode != this._oldMode) {
+                this._alsaLoopCurrent = false;
+                await this.stopAlsaLoop();
+            } else {
+                return;
+            }
         }
         this._oldMode = mode;
 
@@ -220,6 +231,7 @@ module.exports = class MusicZone {
             "shuffle": shuffle,
             "power": +power,
             "synced": synced,
+            "icontype": -1,
         }
         await this.getCurrentTime()
         console.log(this._lc, "UPDATED ZONE STATE", this._player)
@@ -268,6 +280,10 @@ module.exports = class MusicZone {
 
   getMode() {
     return this._player.mode;
+  }
+
+  getIconType() {
+    return this._player.icontype;
   }
 
   getTime() {
@@ -404,25 +420,55 @@ module.exports = class MusicZone {
   }
 
   async playAlsaLoop(hw, delay) {
-    this._alsaLoopPlaying = true;
-    this._setMode('stop');
+    this._alsaLoopCurrent = true;
+    this._alsaLoopHw = hw;
+    this._alsaLoopDelay = delay;
+    await this._setMode('stop');
     this._oldMode = "stop";
-    this._client.execute_script("playAlsaLoop", { zones: this._id,
+    await this._client.execute_script("playAlsaLoop", { zones: this._id,
                                                   macs: this._zone_mac,
                                                   hw: hw,
                                                   delay: delay})
+
+
+    var input = await this._getInputFromName("alsaloop/" + hw + '/' + delay);
+    this._track.title = input.name;
+    this._track.album = "";
+    this._track.artist = "";
+    this._track.duration = "";
+    this._track.image = "";
+    this._track.qindex = 0;
+    this._track.station = "";
+    this._player.mode = "play";
+    this._player.icontype = input.icontype;
+    this._musicServer.pushAudioEvent(this);
+  }
+
+  async stopAlsaLoop() {
+    this._client.execute_script("stopAlsaLoop", { zones: this._id, macs: this._zone_mac })
+    this._player.mode = "pause";
+    this._musicServer.pushAudioEvent(this);
   }
 
   async pause() {
-    this._setMode('pause');
+    if (this._alsaLoopCurrent)
+        await this.stopAlsaLoop();
+    else
+        this._setMode('pause');
   }
 
   async resume() {
-    this._setMode('play');
+    if (this._alsaLoopCurrent)
+        await this.playAlsaLoop(this._alsaLoopHw, this._alsaLoopDelay)
+    else
+        this._setMode('play');
   }
 
   async stop() {
-    this._setMode('stop');
+    if (this._alsaLoopCurrent)
+        await this.stopAlsaLoop();
+    else
+        this._setMode('stop');
   }
 
   async sleep(time) {
@@ -651,6 +697,35 @@ module.exports = class MusicZone {
         }
       },
     };
+  }
+
+  async _getInputFromName(inputName) {
+     const icons = Object.assign(Object.create(null), {
+      'line-in': 0,
+      'cd-player': 1,
+      'computer': 2,
+      'i-mac': 3,
+      'i-pod': 4,
+      'mobile': 5,
+      'radio': 6,
+      'tv': 7,
+      'turntable': 8,
+    });
+
+    var name = "Input";
+    var icontype = 0;
+    // Ask the inputList to get the name/icon based on the id
+    const {total, items} = await this._musicServer._master.getInputList().get(undefined, 0, +Infinity);
+    var item = items.find(item => item.cmd.includes(inputName))
+    if (item) {
+        name = item.title;
+        icontype = icons[item.image] || 0;
+    }
+
+    return {
+        name,
+        icontype
+    }
   }
 
   _getUnconfiguredTrack() {

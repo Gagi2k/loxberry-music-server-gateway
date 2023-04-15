@@ -3362,9 +3362,11 @@ module.exports = class MusicServer {
       volume: zone.getVolume(),
       default_volume: zone.getDefaultVolume(),
       max_volume: zone.getMaxVolume(),
+      icontype: zone.getIconType(),
       // Needs to be one of the unique_ids in the queue
       qid: track.qindex ? track.qindex.toString() : "0",
       parent: null,
+      type: zone.getIconType() != -1 ? 6 : 1,
     };
   }
 
