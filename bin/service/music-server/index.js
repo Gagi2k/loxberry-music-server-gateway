@@ -1829,7 +1829,7 @@ module.exports = class MusicServer {
       image: null,
     });
 
-    return this._emptyCommand(url, []);
+    return this._emptyCommand(url, [{"name": title, "playlistid": this._encodeId(this._lastPlayListEvent.playlistId, BASE_PLAYLIST) }]);
   }
 
   async _audioCfgPlaylistUpdate(url) {
@@ -1838,18 +1838,25 @@ module.exports = class MusicServer {
     const encoded_playlist_id = parts.pop();
     const [playlist_id] = this._decodeId(encoded_playlist_id);
 
-    var response = [];
+    var response = [{"action":"ok"}];
     if (cmd == 'start' || cmd == 'finish' || cmd == 'finishnochanges') {
-        this._pushPlaylistsChangedEvent(encoded_playlist_id, cmd);
-    } else {
+        this._pushPlaylistsChangedEvent(encoded_playlist_id, cmd, undefined, url);
+    } else if (cmd == 'additem' || cmd == 'addbrowsable') {
         const [decodedId] = this._decodeId(id);
         const playlists = this._master.getPlaylistList();
         const current_list = await playlists.get(playlist_id, 0, 500);
 
-        await playlists.insert(playlist_id, { id: decodedId });
+        await playlists.insert({cmd: "add", playlist_id }, { id: decodedId });
 
         let resp = await playlists.get(playlist_id, +current_list.total, 500);
         response = [{"action":"ok", "items": resp.items.map(this._convert(11, BASE_PLAYLIST, +current_list.count))}];
+    } else if (cmd == 'remove') {
+        await this._master.getPlaylistList().insert({cmd: "delete", playlist_id, position: id});
+        response = [{"action":"ok"}];
+    } else if (cmd == 'move') {
+        const [position, destination] = id.split(',');
+        await this._master.getPlaylistList().insert({cmd: "move", playlist_id, position, destination });
+        response = [{"action":"ok"}];
     }
 
     return this._emptyCommand(url, response);
@@ -1860,6 +1867,8 @@ module.exports = class MusicServer {
     const [decodedId] = this._decodeId(id);
 
     await this._master.getPlaylistList().delete(decodedId, 1);
+
+    this._pushPlaylistsChangedEvent(decodedId, "delete", undefined, url);
 
     return this._emptyCommand(url, [{items: []}]);
   }

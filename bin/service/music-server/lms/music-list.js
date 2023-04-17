@@ -180,7 +180,7 @@ module.exports = class List {
         this._client = new LMSClient(this._zone_mac, this);
         this.get_call = async (rootItem, start, length) => {
             if (!rootItem) {
-                let response = await this._client.command('playlists ' + start + ' ' + length + " tags:u:playlist");
+                let response = await this._client.command('playlists ' + start + ' ' + 50 + " tags:u:playlist");
                 let data = this._client.parseAdvancedQueryResponse(response, 'id');
                 let items = data.items;
                 data.items = []
@@ -221,54 +221,63 @@ module.exports = class List {
                 return data;
             }
         }
-        this.insert_call = async (position, ...items) => {
+        this.insert_call = async (input, ...items) => {
             // position is used for the playlist id
-            if (position) {
-                let playlist_id = this._client.parseId(position).id
-                for (var i in items) {
-                    let id = items[i].id;
-                    let parsed_id = this._client.parseId(id);
-                    let list;
-                    var urlList = []
-                    if (parsed_id.type == "url") {
-                        urlList.push(parsed_id.id);
-                    } else if (parsed_id.type.startsWith('service/')) {
-                        list = parent.getServiceFolderList()
-                        // All arguments we don't need are skipped
-                        id = parsed_id.type.split('/').pop() + '%%%' + '%%%' + id
-                    } else {
-                        list = parent.getLibraryList()
-                    }
-
-                    // Recursive function to iterate over all entries and it to the list of urls
-                    // Iterate deeper if the item doesn't have a url
-                    var extractUrl = async (id) => {
+            if (input) {
+                let playlist_id = this._client.parseId(input.playlist_id).id
+                if (input.cmd == "add") {
+                    for (var i in items) {
+                        let id = items[i].id;
+                        let parsed_id = this._client.parseId(id);
+                        console.log(this._lc, "FOOOOOOOOO", parsed_id)
+                        let list;
                         var urlList = []
-                        // Limit it to 200 items to keep the implementation simple
-                        var response = await list.get(id, 0, 200);
-                        for (var j=0; j<response.total; j++) {
-                            if (!response.items[j])
-                                continue;
-                            if (response.items[j].type == 2) {
-                                var id = response.items[j].id;
-                                var item = response.items[j];
-                                if (id.startsWith("url:"))
-                                    urlList.push(this._helper.parseId(id).id);
-                                else
-                                    urlList.push(await this._helper.resolveAudioUrl(id));
-                            } else {
-                                urlList = urlList.concat(await extractUrl(response.items[j].id));
-                            }
+                        if (parsed_id.type == "url") {
+                            urlList.push(parsed_id.id);
+                        } else if (parsed_id.type.startsWith('service/')) {
+                            list = parent.getServiceFolderList()
+                            // All arguments we don't need are skipped
+                            id = parsed_id.type.split('/').pop() + '%%%' + '%%%' + id
+                        } else if (parsed_id.type == "playlist") {
+                            list = parent.getPlaylistList()
+                        } else {
+                            list = parent.getLibraryList()
                         }
 
-                        return urlList
+                        // Recursive function to iterate over all entries and it to the list of urls
+                        // Iterate deeper if the item doesn't have a url
+                        var extractUrl = async (id) => {
+                            var urlList = []
+                            // Limit it to 200 items to keep the implementation simple
+                            var response = await list.get(id, 0, 200);
+                            for (var j=0; j<response.total; j++) {
+                                if (!response.items[j])
+                                    continue;
+                                if (response.items[j].type == 2) {
+                                    var id = response.items[j].id;
+                                    var item = response.items[j];
+                                    if (id.startsWith("url:"))
+                                        urlList.push(this._helper.parseId(id).id);
+                                    else
+                                        urlList.push(await this._helper.resolveAudioUrl(id));
+                                } else {
+                                    urlList = urlList.concat(await extractUrl(response.items[j].id));
+                                }
+                            }
+
+                            return urlList
+                        }
+
+                        if (urlList.length == 0)
+                            urlList = await extractUrl(id)
+
+                        for (var k in urlList)
+                            await this._client.command('playlists edit cmd:add playlist_id:' + playlist_id + ' url:' + urlList[k]);
                     }
-
-                    if (urlList.length == 0)
-                        urlList = await extractUrl(id)
-
-                    for (var k in urlList)
-                        await this._client.command('playlists edit cmd:add playlist_id:' + playlist_id + ' url:' + urlList[k]);
+                } else if (input.cmd == "delete") {
+                    await this._client.command('playlists edit cmd:delete playlist_id:' + playlist_id + ' index:' + input.position);
+                } else if (input.cmd == "move") {
+                    await this._client.command('playlists edit cmd:move playlist_id:' + playlist_id + ' index:' + input.position + " toindex:" + input.destination);
                 }
             } else {
                 for (var i in items) {
@@ -285,7 +294,6 @@ module.exports = class List {
             let parsed_id = this._client.parseId(position);
             await this._client.command('playlists delete playlist_id:' + parsed_id.id);
             this.reset();
-            musicServer._pushPlaylistsChangedEvent(position, "delete");
         }
     } else if (url.endsWith("queue")) {
         this._client = new LMSClient(this._zone_mac, this, (data) => {
