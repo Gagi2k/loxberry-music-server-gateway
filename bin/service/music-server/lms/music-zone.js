@@ -155,8 +155,12 @@ module.exports = class MusicZone {
         if (response) {
             let item = this._client.parseAdvancedQueryResponse(response).items[0];
             artwork_url = this._client.extractArtwork(path, item);
-            if (item.remote_title)
-                station = item.remote_title
+            if (item.remote_title) {
+                station = decodeURIComponent(item.remote_title)
+                if (station.startsWith("http://opml.radiotime")) {
+                    station = await this._client.getRadioStationName(station);
+                }
+            }
         }
 
         duration = duration * 1000

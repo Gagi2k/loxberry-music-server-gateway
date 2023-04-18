@@ -6,12 +6,14 @@ const config = JSON.parse(fs.readFileSync("config.json"));
 const os = require('os');
 const process = require('child_process');
 const http = require('http')
+const axios = require('axios');
 
 const Log = require("../log");
 const console = new Log;
 
 var notificationSocket
 var cmdSocket
+const stationCache = new Map();
 
 module.exports = class LMSClient {
     constructor(mac, parent, data_callback) {
@@ -520,5 +522,33 @@ module.exports = class LMSClient {
                 return data;
             }
         }
+    }
+
+    async getRadioStationName(url) {
+        var url = new URL(url);
+        var id = url.searchParams.get('id');
+
+//        console.log(this._lc, "STATION CACHE:", stationCache)
+
+        if (stationCache.has(id))
+            return stationCache.get(id);
+
+        console.log(this._lc, "Fetching Station Name from Tunein: ", id)
+        const response = await axios({
+            url: "http://opml.radiotime.com/Describe.ashx?id=" + id + "&render=json",
+            method: 'get',
+            data: {} // Request Body if you have
+        });
+        const name = response.data.body[0].name;
+
+        // Delete first and then set to keep this entry at the end
+        stationCache.delete(id);
+        stationCache.set(id, name);
+
+        if (stationCache.size > 40) {
+            // Delete the oldest key;
+            stationCache.delete(stationCache.keys().next().value);
+        }
+        return name;
     }
 }
