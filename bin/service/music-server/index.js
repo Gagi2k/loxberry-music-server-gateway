@@ -145,7 +145,8 @@ module.exports = class MusicServer {
       const chunks = [];
 
       // Handler for local icons
-      if (req.url.startsWith("/icon")) {
+      if (req.url.startsWith("/icon") ||
+          req.url.startsWith("/audio_icon")) {
          var reqpath = file = req.url.toString().split('?')[0];
          var file = '.' + reqpath;
          var s = fs.createReadStream(file);

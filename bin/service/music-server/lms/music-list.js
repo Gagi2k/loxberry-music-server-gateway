@@ -229,7 +229,6 @@ module.exports = class List {
                     for (var i in items) {
                         let id = items[i].id;
                         let parsed_id = this._client.parseId(id);
-                        console.log(this._lc, "FOOOOOOOOO", parsed_id)
                         let list;
                         var urlList = []
                         if (parsed_id.type == "url") {
@@ -445,7 +444,8 @@ module.exports = class List {
                 // Replace some images by our own
                 if (image && icon_name) {
                     var host = config.ip ? config.ip : os.hostname();
-                    image = "http://" + host + ":7091/icons/" + icon_name + ".svg"
+                    var folderName = config.type == "audioserver" ? "audio_icons" : "icons"
+                    image = "http://" + host + ":7091/" + folderName + "/" + icon_name + ".svg"
                 }
 
                 data.items.push({
