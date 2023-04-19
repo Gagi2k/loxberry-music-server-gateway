@@ -701,18 +701,22 @@ module.exports = class MusicServer {
       });
   }
 
-  _pushPlaylistsChangedEvent(playlistId, actionName, playlistName) {
+  _pushPlaylistsChangedEvent(playlistId, actionName, playlistName, command) {
      const playlistsChangedEventMessage = JSON.stringify({
        playlistchanged_event: [
          {
            cmd: 'lms',
            user: 'noUser',
            playlistid: this._encodeId(playlistId, BASE_PLAYLIST),
+           audiopath: this._encodeId(playlistId, BASE_PLAYLIST),
            action: actionName,
            name: playlistName
          },
        ],
+       command
      });
+
+     this._lastPlayListEvent = { playlistId, actionName, playlistName }
 
      console.log(this._lcEVNT, playlistsChangedEventMessage);
 
