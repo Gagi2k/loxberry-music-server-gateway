@@ -26,7 +26,8 @@ process.on('unhandledRejection', (reason, p) => {
     console.error('####################################################################');
     console.error('####################################################################');
 
-    server._errors.add(reason.stack);
+    if (reason && reason.stack)
+        server._errors.add(reason.stack);
 });
 
 (function() {
