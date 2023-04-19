@@ -62,6 +62,8 @@ module.exports = class MusicServer {
 
     this._config = cfg;
     this._zones = zones;
+    this._unknownCommands = new Set();
+    this._errors = new Set();
     this._lc = lcApp;
     this._lcWSCK = lcApp.extend("WSCK");
     this._lcMSWSCK = lcApp.extend("MSWSCK");
@@ -1987,10 +1989,10 @@ module.exports = class MusicServer {
     var diagObj = await this._master.diagnosis();
 
     // Add some meaningful information here
-    /*diagObj["msg"] = {
-        musicJSON : this.musicJSON,
-        musicCRC: this.musicCRC
-    }*/
+    diagObj["msg"] = {
+        unknownCommands: Array.from(this._unknownCommands),
+        errors: Array.from(this._errors)
+    }
 
     return this._emptyCommand(url, diagObj);
   }
@@ -3328,6 +3330,8 @@ module.exports = class MusicServer {
     console.warn(this._lc, '####################################################################');
     console.warn(this._lc, '####################################################################');
     console.warn(this._lc, '####################################################################');
+
+    this._unknownCommands.add(url);
 
     return this._emptyCommand(url, null);
   }
