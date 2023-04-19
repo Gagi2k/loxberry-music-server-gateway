@@ -1,1 +1,1 @@
-[{"id":"0","title":"LineIn 1","image":"cd-player","inputvolume":100,"cmd":"playurl/wavein:plughw:3"},{"id":"1","title":"Alsaloop","image":"cd-player","inputvolume":100,"cmd":"play/alsaloop/4/30"}]
+[{"id":"0","title":"LineIn 1","image":"cd-player","inputvolume":100,"cmd":"playurl/wavin:plughw:3"},{"id":"1","title":"Alsaloop 1","image":"turntable","inputvolume":100,"cmd":"play/alsaloop/4/30"}]

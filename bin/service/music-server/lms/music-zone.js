@@ -168,7 +168,7 @@ module.exports = class MusicZone {
 
         duration = duration * 1000
 
-        if (title.startsWith("wavein")) {
+        if (title.startsWith("wavin")) {
             var input = await this._getInputFromName(decodeURIComponent(title));
             title = input.name;
             this._player.icontype = input.icontype;
