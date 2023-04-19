@@ -163,6 +163,9 @@ module.exports = class MusicZone {
             }
         }
 
+        if (station.startsWith("temp_playlist") && decodeURIComponent(path).startsWith("http://opml.radiotime"))
+            station = await this._client.getRadioStationName(decodeURIComponent(path));
+
         duration = duration * 1000
 
         if (title.startsWith("wavein")) {
