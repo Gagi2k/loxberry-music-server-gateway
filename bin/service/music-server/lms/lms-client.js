@@ -98,7 +98,7 @@ module.exports = class LMSClient {
 
     }
 
-    async command(cmd) {
+    async commandNoRetry(cmd) {
         var returnValue = cmd;
         if (this._mac)
             returnValue = this._mac + " " + returnValue
@@ -110,7 +110,7 @@ module.exports = class LMSClient {
 
         let timer
         return Promise.race([
-            new Promise((_r, rej) => timer = setTimeout(_r, 5000)),
+            new Promise((_r, rej) => timer = setTimeout(rej, 1000)),
             new Promise((resolve, reject) => {
                                let response = "";
                                var responseListener = (data) => {
@@ -151,6 +151,20 @@ module.exports = class LMSClient {
                                cmdSocket.write(this._mac + " " + cmd + ' \r\n');
                            })
         ]).finally(() => clearTimeout(timer));
+    }
+
+    async command(cmd) {
+        for(var i=1; i<6; i++) {
+            try {
+                return await this.commandNoRetry(cmd);
+            } catch (e) {
+                // In case we run into an error, rethrow
+                if (e)
+                    throw e;
+                console.log(this._lc, "NO RESPONSE FOR " + cmd + " WITHIN 1 second, attempt: " + i +", retrying...");
+            }
+        }
+        throw Error("NO RESPONSE AFTER SEVERAL RETRIES, GIVING UP");
     }
 
 
