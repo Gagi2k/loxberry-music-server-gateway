@@ -1277,6 +1277,9 @@ module.exports = class MusicServer {
       case /(?:^|\/)audio\/grouped\/pause/.test(url):
         return this._playGroupedPause(url);
 
+      case /(?:^|\/)audio\/grouped\/playeventfile/.test(url):
+        return this._playGroupedPlayEventFile(url);
+
       case /(?:^|\/)audio\/grouped\/play/.test(url):
         return this._playGroupedPlay(url);
 
@@ -2243,6 +2246,14 @@ module.exports = class MusicServer {
 
         zone.pause();
     }
+
+    return this._emptyCommand(url, []);
+  }
+
+  async _playGroupedPlayEventFile(url) {
+    const [, , ,zone_vol, ,filename] = url.split('/');
+
+    this._master.playEventFile(filename, [zone_vol]);
 
     return this._emptyCommand(url, []);
   }

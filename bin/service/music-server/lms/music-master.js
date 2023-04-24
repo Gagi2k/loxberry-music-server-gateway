@@ -311,6 +311,12 @@ module.exports = class MusicMaster {
     this._client.execute_script("playUploadedFile", { zones, path, macs })
   }
 
+  async playEventFile(path, zones) {
+    var macs = zones.map(x => { var [zone, vol] = x.split("~"); return this._musicServer._zones[zone]._zone_mac + "~" + vol}).join(",");
+
+    this._client.execute_script("playEventFile", { zones, path, macs })
+  }
+
   async playAcousticFeedback(zones) {
     var macs = zones.map(x => this._musicServer._zones[x]._zone_mac).join(",");
     if (!macs.length) {

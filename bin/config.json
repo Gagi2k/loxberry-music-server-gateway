@@ -36,6 +36,7 @@
         "reboot": "echo {{name}}",
         "diagnosis": "echo '{ \"{{name}}\" : \"value\" }'",
         "playUploadedFile": "echo {{name}} {{zones}} {{macs}} {{path}}",
+        "playEventFile": "echo {{name}} {{zones}} {{macs}} {{path}}",
         "playGroupedAlarmSound": "echo {{name}} {{type}} {{zones}} {{macs}}",
         "stopGroupedAlarmSound": "echo {{name}} {{type}} {{zones}} {{macs}}",
         "playGroupedTTS": "echo {{name}} {{zones}} {{macs}} {{language}} {{text}}",
