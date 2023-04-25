@@ -463,7 +463,7 @@ module.exports = class List {
         this.get_call = async (rootItem, start, length) => {
             let response = await this._client.command('spotty items 0 1');
             let data = this._client.parseAdvancedQueryResponse(response, 'id');
-            if (data.count == 0)
+            if (data.count <= 1) // If spotty is installed, but no account is configured a single item is returned
                 return { count: 0, items: [] };
 
             // In case the switcher menu is enabled, provide all users in the app as well

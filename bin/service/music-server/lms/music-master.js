@@ -148,26 +148,33 @@ module.exports = class MusicMaster {
     let response = await this._client.command('spotty items 0 100');
     let data = this._client.parseAdvancedQueryResponse(response, 'id');
     this.search_menu_id;
-    for (var key in data.items) {
-        // We search for the search icon to identify the menu
-        if (!data.items[key].image.includes("search"))
-            continue;
-        this.search_menu_id = data.items[key].id + ".0";
-    }
 
-    // Spotify is a bit tricky as the search results are mixed
-    // folders and tracks
-    // Here we just retrieve the folders to build a list of categories supported
-    response = await this._client.command('spotty items 0 100 item_id:' + this.search_menu_id);
-    data = this._client.parseAdvancedQueryResponse(response, 'id');
+    let spotify_search_categories;
+    // If spotty is installed, but no account is configured a single item is returned
+    if (data.count > 1) {
+        for (var key in data.items) {
+            // We search for the search icon to identify the menu
+            if (!data.items[key].image.includes("search"))
+                continue;
+            this.search_menu_id = data.items[key].id + ".0";
+        }
 
-    // Use the base search folder to get results for tracks as well
-    this.spotify_categories = {}
-    this.spotify_categories[this.search_menu_id] = "Tracks";
-    for (var key in data.items) {
-        if (!data.items[key].id)
-            continue;
-        this.spotify_categories[data.items[key].id] = data.items[key].name
+        // Spotify is a bit tricky as the search results are mixed
+        // folders and tracks
+        // Here we just retrieve the folders to build a list of categories supported
+        response = await this._client.command('spotty items 0 100 item_id:' + this.search_menu_id);
+        data = this._client.parseAdvancedQueryResponse(response, 'id');
+
+        // Use the base search folder to get results for tracks as well
+        this.spotify_categories = {}
+        this.spotify_categories[this.search_menu_id] = "Tracks";
+        for (var key in data.items) {
+            if (!data.items[key].id)
+                continue;
+            this.spotify_categories[data.items[key].id] = data.items[key].name
+        }
+
+        spotify_search_categories = Object.keys(this.spotify_categories)
     }
 
     // Every key corresponds to one search == one list of result
@@ -175,7 +182,7 @@ module.exports = class MusicMaster {
     // Every key contains a list of categories which should be searched in
     // All of this is passed to the search function
     return {
-        spotify: Object.keys(this.spotify_categories),
+        spotify: spotify_search_categories,
         local: ['artists', 'albums', 'playlists', 'genres', 'tracks'],
         tunein: ['all']
     }
