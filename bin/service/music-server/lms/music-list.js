@@ -514,9 +514,15 @@ module.exports = class List {
                 }
             }
 
-            var itemId = id ? "item_id:" + this._client.parseId(id).id : ""
+            var parsedId = id ? this._client.parseId(id).id : undefined
+            var itemId = id ? "item_id:" + parsedId : ""
 
-            let response = await this._client.command(cmd + ' items ' + start + ' ' + length + ' want_url:1 ' + itemId);
+            var fullCmd
+            if (parsedId.startsWith("spotify:")) // We get a spotify ID, for this we use the search
+                fullCmd = cmd + ' items ' + start + ' ' + length + ' want_url:1 item_id:1.0 search:' + parsedId
+            else
+                fullCmd = cmd + ' items ' + start + ' ' + length + ' want_url:1 ' + itemId
+            let response = await this._client.command(fullCmd);
             let data = this._client.parseAdvancedQueryResponse(response, 'id');
             let isAudio = false
 
@@ -524,7 +530,7 @@ module.exports = class List {
                 return data;
 
             let title = data.items[0].title;
-            let jsonResponse = await this._client.jsonRPCCommand(cmd + ' items ' + start + ' ' + length + ' want_url:1 menu:1 ' + itemId);
+            let jsonResponse = await this._client.jsonRPCCommand(fullCmd + " menu:1");
 
             // Special handling for Transfer Playback
             // We need to play those items to transfer it to the correct zone
