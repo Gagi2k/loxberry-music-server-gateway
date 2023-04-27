@@ -106,6 +106,7 @@ module.exports = class LMSClient {
             returnValue = returnValue.slice(0, -2);
 
         returnValue = returnValue.replace(/:/g, "%3A")
+        returnValue = returnValue.replace(/\+/g, "%2B")
         returnValue = returnValue.replace(/\//g, "%2F")
 
         let timer
