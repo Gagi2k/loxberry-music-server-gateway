@@ -2836,6 +2836,11 @@ module.exports = class MusicServer {
     const favorites = await zone.getFavoritesList().get(undefined, 0, 50);
     const id = favorites.items[+position - 1].id;
 
+    let parsed_id = zone._client.parseId(id);
+    if (config.type == "audioserver" && parsed_id.id.startsWith("spotify")) {
+        await zone.shuffle(1);
+    }
+
     await zone.play(id, BASE_FAVORITE_ZONE + (+position - 1));
 
     this._pushRoomFavEvents([zone]);
@@ -2849,6 +2854,11 @@ module.exports = class MusicServer {
     const [decodedId, favoriteId] = this._decodeId(id);
     if (!zone) {
       return this._emptyCommand(url, []);
+    }
+
+    let parsed_id = zone._client.parseId(decodedId);
+    if (config.type == "audioserver" && parsed_id.id.startsWith("spotify")) {
+        await zone.shuffle(1);
     }
 
     await zone.play(decodedId, favoriteId);
@@ -2873,6 +2883,11 @@ module.exports = class MusicServer {
         const favorites = await zone.getFavoritesList().get(undefined, 0, 50);
         console.log(this._lc, favorites, +position - 1, favorites.items[+position - 1]);
         const favid = favorites.items[+position - 1].id;
+
+        let parsed_id = zone._client.parseId(favid);
+        if (config.type == "audioserver" && parsed_id.id.startsWith("spotify")) {
+            await zone.shuffle(1);
+        }
 
         await zone.play(favid, BASE_FAVORITE_ZONE + (+position - 1));
 
