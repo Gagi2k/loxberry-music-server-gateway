@@ -123,8 +123,11 @@ module.exports = class List {
                     url = items[key].id;
                 items[key].id = "url:" + url;
             }
-
-            fav_items.splice(position, 1, ...items);
+            if (config.type == "musicserver") {
+                fav_items.splice(position, 1, ...items);
+            } else {
+                fav_items.splice(position, 0, ...items);
+            }
 
             for (var key in fav_items) {
                 if (fav_items[key].image)

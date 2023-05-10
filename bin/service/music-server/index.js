@@ -3061,11 +3061,17 @@ module.exports = class MusicServer {
       return this._emptyCommand(url, []);
     }
 
-    const index = favoriteId % 1000000;
-
     var favs = await zone.getFavoritesList().get(undefined, 0, 100);
     // create a deep copy
     favs = JSON.parse(JSON.stringify(favs));
+
+    var index;
+    for (var i=0; i < favs.items.length; i++) {
+        if (favs.items[i].id == decodedId) {
+            index = i;
+            break;
+        }
+    }
 
     let item = favs.items[index];
     item.plus = (setplus == "1");
