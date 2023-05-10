@@ -518,7 +518,7 @@ module.exports = class List {
             var itemId = id ? "item_id:" + parsedId : ""
 
             var fullCmd
-            if (parsedId.startsWith("spotify:")) // We get a spotify ID, for this we use the search
+            if (parsedId && parsedId.startsWith("spotify:")) // We get a spotify ID, for this we use the search
                 fullCmd = cmd + ' items ' + start + ' ' + length + ' want_url:1 item_id:1.0 search:' + parsedId
             else
                 fullCmd = cmd + ' items ' + start + ' ' + length + ' want_url:1 ' + itemId
