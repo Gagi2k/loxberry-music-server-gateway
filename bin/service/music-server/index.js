@@ -300,6 +300,11 @@ module.exports = class MusicServer {
         // get the new settings
         var response = await client.command("jdev/sps/getusersettings");
         var accounts = response.currentSpotifyAccount;
+        if (!accounts) {
+            console.log(this._lc, "NO Account Settings!!!!!!!!");
+            return;
+        }
+
         console.log(this._lc, "new Account Settings", accounts);
 
         // Calculate timestamp
