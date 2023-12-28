@@ -100,14 +100,21 @@ module.exports = class LMSClient {
 
     async commandNoRetry(cmd) {
         var returnValue = cmd;
+
+        // This can be removed once we are sure we always use correct cmds
+        if (cmd.includes('%3') || cmd.includes('%2')) {
+            console.trace(this._lc, "FIXME Fix the URL encoding")
+            returnValue = decodeURIComponent(cmd);
+        }
+
         if (this._mac)
             returnValue = this._mac + " " + returnValue
         if (returnValue.endsWith("?"))
             returnValue = returnValue.slice(0, -2);
 
-        returnValue = returnValue.replace(/:/g, "%3A")
-        returnValue = returnValue.replace(/\+/g, "%2B")
-        returnValue = returnValue.replace(/\//g, "%2F")
+        // We get URI encoded data + spaces back from the LMS interface
+        returnValue = encodeURIComponent(returnValue)
+        returnValue = returnValue.replace(/%20/g, " ")
 
         let timer
         return Promise.race([

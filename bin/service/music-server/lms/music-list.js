@@ -83,6 +83,7 @@ module.exports = class List {
             for (var key in fav_items) {
                 fav_items[key].name = fav_items[key].title;
                 const id = decodeURIComponent(fav_items[key].id)
+                fav_items[key].id = id;
 
                 if (!fav_items[key].type)
                     fav_items[key].type = "local"

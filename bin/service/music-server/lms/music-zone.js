@@ -141,7 +141,7 @@ module.exports = class MusicZone {
   // A Track is always updated as a whole, all others are updated when changed
   async getCurrentTrack() {
         console.log(this._lc, "REQUESTING TRACK INFO FROM LMS")
-        let path = await this._client.command('path ?')
+        let path = decodeURIComponent(await this._client.command('path ?'))
         let title = await this._client.command('title ?')
         let artist = await this._client.command('artist ?')
         let album = await this._client.command('album ?')
