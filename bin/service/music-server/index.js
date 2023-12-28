@@ -181,7 +181,8 @@ module.exports = class MusicServer {
       this._pushAudioEvents(this._zones);
       this._pushAudioSyncEvents();
 
-      if (!this._msClients || !this._msClients[0].isSocketOpen()) {
+      console.log(this._lc, this._msClients)
+      if (!this._msClients || this._msClients.length == 0 || !this._msClients[0].isSocketOpen()) {
         this.connectToMiniserver();
       }
     });
@@ -197,8 +198,10 @@ module.exports = class MusicServer {
   }
 
   async connectToMiniserver() {
+    console.log(this._lc, "CONNECTING TO MINISERVER");
     this._msClients = [];
     for (var key in config.ms.users) {
+        console.log(this._lc, "CONNECTING USER ", config.ms.users[key].user);
         this._msClients.push(new MSClient(this));
         try {
             await this._msClients[key].connect(config.ms.host, config.ms.users[key].user, config.ms.users[key].password);
