@@ -413,7 +413,7 @@ module.exports = class List {
                 data.items = []
                 for (var key in items) {
                     let isTrack = cmd == "tracks" || items[key].type == "track";
-                    let id = isTrack ? "url:" + items[key].url : config.id_key + ":" + items[key][config.split_key];
+                    let id = isTrack ? "url:" + decodeURIComponent(items[key].url) : config.id_key + ":" + items[key][config.split_key];
                     data.items.push({
                                        id,
                                        lastSelectedItem: { id },

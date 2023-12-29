@@ -102,7 +102,7 @@ module.exports = class LMSClient {
         var returnValue = cmd;
 
         // This can be removed once we are sure we always use correct cmds
-        if (cmd.includes('%3') || cmd.includes('%2')) {
+        if (cmd.includes('%3')) {
             console.trace(this._lc, "FIXME Fix the URL encoding")
             returnValue = decodeURIComponent(cmd);
         }
@@ -112,13 +112,21 @@ module.exports = class LMSClient {
         if (returnValue.endsWith("?"))
             returnValue = returnValue.slice(0, -2);
 
-        // We get URI encoded data + spaces back from the LMS interface
+        // The LMS interface is very special
+        // All spaces in the commands are preserved and are still spaces afterwards
+        // In general all other things are URL escaped
+        // The passed URL is already especaped and is not escaped again
+        // An escaped ' in an URL is unescaped in the return value
+        returnValue = returnValue.replace(/%27/g, "_APPOSTROVE_")
+        returnValue = returnValue.replace(/%/g, "_UNDERSCORE_")
         returnValue = encodeURIComponent(returnValue)
         returnValue = returnValue.replace(/%20/g, " ")
+        returnValue = returnValue.replace(/_UNDERSCORE_/g, "%")
+        returnValue = returnValue.replace(/_APPOSTROVE_/g, "'")
 
         let timer
         return Promise.race([
-            new Promise((_r, rej) => timer = setTimeout(rej, 1000)),
+            new Promise((_r, rej) => timer = setTimeout(rej, 3000)),
             new Promise((resolve, reject) => {
                                let response = "";
                                var responseListener = (data) => {
@@ -131,11 +139,11 @@ module.exports = class LMSClient {
 //                                   console.log(this._lc, "RESPONSE ", response.toString())
 
                                    var splitted = response.toString().split('\n')
-//                                   console.log(this._lc, "RESPONSE", splitted, returnValue)
                                    for (var i in splitted) {
                                        var processed = splitted[i];
+//                                       console.log(this._lc, "RESPONSE:", processed, "\nEXPECTED:", returnValue)
                                        if (processed.startsWith(returnValue)) {
-                                           console.log(this._lc, "RESPONSE FOR: ", returnValue)
+                                           console.log(this._lc, "RESPONSE FOR: ", cmd)
                                            console.log(this._lc, "RESPONSE: ", data.toString())
 
                                            // If the response contains also the ? at the end
@@ -169,7 +177,7 @@ module.exports = class LMSClient {
                 // In case we run into an error, rethrow
                 if (e)
                     throw e;
-                console.log(this._lc, "NO RESPONSE FOR " + cmd + " WITHIN 1 second, attempt: " + i +", retrying...");
+                console.log(this._lc, "NO RESPONSE FOR " + cmd + " WITHIN 3 second, attempt: " + i +", retrying...");
             }
         }
         throw Error("NO RESPONSE AFTER SEVERAL RETRIES, GIVING UP");
