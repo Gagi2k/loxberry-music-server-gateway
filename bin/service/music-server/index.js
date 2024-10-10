@@ -2171,12 +2171,17 @@ module.exports = class MusicServer {
     if (zones == undefined) {
         var newZoneVols = [];
         if (config.type == "audioserver") {
-            var zones_ids = input.split(',');
-            for (var i in zones_ids) {
-                var volObj = this.volumesJSON.players.find(element => element.playerid == zones_ids[i]);
+            if (input.includes("~")) {
+                newZoneVols = input.split(",");
+            } else {
+              var zones_ids = input.split(',');
+              for (var i in zones_ids) {
+                  var volObj = this.volumesJSON.players.find(element => element.playerid == zones_ids[i]);
+                  console.log(this._lc, zones_ids[i], this.volumesJSON.players)
 
-                var volume = volObj[type];
-                newZoneVols.push(zones_ids[i] + "~" + volume)
+                  var volume = volObj[type];
+                  newZoneVols.push(zones_ids[i] + "~" + volume)
+              }
             }
         } else {
             newZoneVols = input.split(",");
